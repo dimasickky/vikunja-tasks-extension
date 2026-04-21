@@ -141,7 +141,7 @@ async def _render_smart_view(imperal_id: str, view: str) -> Any:
         _header(titles[view], imperal_id, count=len(tasks)),
         ui.Card(
             title=f"{titles[view]} ({len(tasks)})",
-            content=ui.List(children=cards),
+            content=ui.List(items=cards),
         ),
     ], gap=2)
 
@@ -182,7 +182,7 @@ async def _render_project_board(imperal_id: str, project_id: int) -> Any:
         columns.append(
             ui.Card(
                 title=f"{btitle} ({len(tasks)})",
-                content=ui.List(children=task_cards) if task_cards else
+                content=ui.List(items=task_cards) if task_cards else
                         ui.Text("—", variant="caption"),
             )
         )

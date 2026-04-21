@@ -97,7 +97,7 @@ async def tasks_sidebar(ctx, view: str = "main", active_project_id: str = "", **
             on_click=ui.Call("__panel__board", view="overdue"),
         ),
     ]
-    children.append(ui.Card(title="Smart views", content=ui.List(children=smart_items)))
+    children.append(ui.Card(title="Smart views", content=ui.List(items=smart_items)))
 
     # ── Projects list ─────────────────────────────────────────────────
     if not imperal_id:
@@ -143,7 +143,7 @@ async def tasks_sidebar(ctx, view: str = "main", active_project_id: str = "", **
 
     children.append(ui.Card(
         title="Projects",
-        content=ui.List(children=project_items),
+        content=ui.List(items=project_items),
     ))
 
     return ui.Stack(children=children, gap=2)

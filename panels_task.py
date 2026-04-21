@@ -225,7 +225,7 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
     comments_card = ui.Card(
         title=f"Comments ({len(comments)})",
         content=ui.Stack([
-            ui.List(children=comment_items) if comment_items else ui.Text("No comments yet.", variant="caption"),
+            ui.List(items=comment_items) if comment_items else ui.Text("No comments yet.", variant="caption"),
             ui.Input(placeholder="Write a comment…", param_name="comment"),
             ui.Button(
                 "Add comment",

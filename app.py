@@ -13,10 +13,17 @@ from imperal_sdk.chat import ChatExtension, ActionResult
 log = logging.getLogger("tasks")
 
 
-# ─── Config ────────────────────────────────────────────────────────────── #
+# ─── Config (lazy — validator loads main.py before secrets are set) ────── #
 
-BRIDGE_URL = os.environ["VIKUNJA_BRIDGE_URL"]
-BRIDGE_KEY = os.environ["VIKUNJA_BRIDGE_KEY"]
+def _bridge_url() -> str:
+    url = os.getenv("VIKUNJA_BRIDGE_URL", "")
+    if not url:
+        raise RuntimeError("VIKUNJA_BRIDGE_URL env var not set")
+    return url
+
+
+def _bridge_key() -> str:
+    return os.getenv("VIKUNJA_BRIDGE_KEY", "")
 
 
 # ─── HTTP client (singleton) ───────────────────────────────────────────── #
@@ -28,8 +35,8 @@ def _get_http() -> httpx.AsyncClient:
     global _http
     if _http is None:
         _http = httpx.AsyncClient(
-            base_url=BRIDGE_URL,
-            headers={"x-api-key": BRIDGE_KEY},
+            base_url=_bridge_url(),
+            headers={"x-api-key": _bridge_key()},
             timeout=30.0,
         )
     return _http

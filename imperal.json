@@ -1,0 +1,65 @@
+{
+  "app_id": "tasks",
+  "version": "1.0.0",
+  "capabilities": [],
+  "required_scopes": ["*", "tasks.read", "tasks.write"],
+  "tools": [
+    {
+      "name": "tool_tasks_chat",
+      "description": "Tasks manager — kanban boards, projects, due dates, labels, AI-powered breakdown and planning.",
+      "scopes": ["*"],
+      "parameters": {
+        "message": {"type": "string", "required": false},
+        "kwargs": {"type": "string", "required": true}
+      }
+    },
+    {
+      "name": "skeleton_refresh_tasks",
+      "description": "Background: today count, overdue count, upcoming 7 days, active projects, recent tasks.",
+      "scopes": ["tasks.read"],
+      "parameters": {
+        "kwargs": {"type": "string", "required": true}
+      }
+    },
+    {
+      "name": "skeleton_alert_tasks",
+      "description": "Alerts: overdue, due-today, inbox without due date.",
+      "scopes": ["tasks.read"],
+      "parameters": {
+        "old": {"type": "string", "required": false},
+        "new": {"type": "string", "required": false},
+        "kwargs": {"type": "string", "required": true}
+      }
+    },
+    {
+      "name": "__panel__sidebar",
+      "description": "Panel: Tasks sidebar (smart views + projects tree).",
+      "scopes": [],
+      "parameters": {"params": {"type": "string", "required": true}}
+    },
+    {
+      "name": "__panel__board",
+      "description": "Panel: Kanban board (default center view).",
+      "scopes": [],
+      "parameters": {"params": {"type": "string", "required": true}}
+    },
+    {
+      "name": "__panel__task",
+      "description": "Panel: Task detail form with comments.",
+      "scopes": [],
+      "parameters": {"params": {"type": "string", "required": true}}
+    }
+  ],
+  "signals": [
+    "task.created", "task.updated", "task.completed", "task.deleted",
+    "task.assigned", "task.unassigned",
+    "task.labeled", "task.unlabeled",
+    "task.due_changed", "task.priority_changed",
+    "task.moved", "task.bucket_changed",
+    "task.commented", "task.mentioned",
+    "task.due_soon", "task.overdue",
+    "project.created", "project.updated", "project.archived", "project.deleted",
+    "label.created", "label.deleted"
+  ],
+  "schedules": []
+}

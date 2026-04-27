@@ -10,8 +10,8 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_get, chat
-from handlers_crud import _require_user
+from app import api_get, chat, is_no_connection_error
+from handlers_crud import _require_user, _bridge_error_msg
 
 
 # ─── Params ────────────────────────────────────────────────────────────── #
@@ -41,12 +41,12 @@ class FilterTasksParams(BaseModel):
 def _summarise_tasks(tasks: list[dict], limit: int = 10) -> str:
     """Human-readable one-line summary for ActionResult.message."""
     if not tasks:
-        return "Тасков нет."
+        return "No tasks."
     if len(tasks) == 1:
-        return f"1 таск: «{tasks[0].get('title', '?')}»."
+        return f"1 task: {tasks[0].get('title', '?')}."
     titles = [t.get("title", "?") for t in tasks[:limit]]
-    more = f" + ещё {len(tasks) - limit}" if len(tasks) > limit else ""
-    return f"{len(tasks)} тасков: {', '.join(f'«{x}»' for x in titles)}{more}."
+    more = f" + {len(tasks) - limit} more" if len(tasks) > limit else ""
+    return f"{len(tasks)} tasks: {', '.join(titles)}{more}."
 
 
 async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
@@ -64,7 +64,7 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
 
     resp = await api_get("/v1/tasks/all", q)
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось получить таски: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"))
 
     tasks = resp if isinstance(resp, list) else []
     return ActionResult.success(

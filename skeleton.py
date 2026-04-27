@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 
-from app import ext, api_get, _imperal_id
+from app import ext, api_get, _imperal_id, is_no_connection_error
 
 log = logging.getLogger("tasks.skeleton")
 
@@ -22,7 +22,23 @@ log = logging.getLogger("tasks.skeleton")
 async def skeleton_refresh_tasks(ctx, **kwargs) -> dict:
     imperal_id = _imperal_id(ctx)
     if not imperal_id:
-        return {"response": {"note": "not provisioned"}}
+        return {"response": {"note": "no user on context"}}
+
+    # BYO: probe connection before issuing CRUD queries. Without a connection
+    # the bridge returns 412 on every endpoint — surface a clear "not connected"
+    # signal so the alert layer / Webbee context don't keep hammering errors.
+    conn = await api_get("/v1/connection", {"imperal_id": imperal_id}) or {}
+    if not conn.get("connected") or conn.get("status") == "error":
+        return {"response": {
+            "connected": False,
+            "today_count": 0,
+            "overdue_count": 0,
+            "upcoming_7d_count": 0,
+            "active_projects_count": 0,
+            "active_projects": [],
+            "favorite_projects": [],
+            "recent_tasks": [],
+        }}
 
     async def _count_filter(flt: str) -> int:
         resp = await api_get("/v1/tasks/all", {
@@ -30,6 +46,8 @@ async def skeleton_refresh_tasks(ctx, **kwargs) -> dict:
             "filter": flt,
             "per_page": 200,
         })
+        if isinstance(resp, dict) and is_no_connection_error(resp):
+            return 0
         return len(resp) if isinstance(resp, list) else 0
 
     try:
@@ -68,6 +86,7 @@ async def skeleton_refresh_tasks(ctx, **kwargs) -> dict:
         favorites = [p for p in active_projects if p.get("is_favorite", False)]
 
         return {"response": {
+            "connected": True,
             "today_count": today_count,
             "overdue_count": overdue_count,
             "upcoming_7d_count": upcoming_7d_count,

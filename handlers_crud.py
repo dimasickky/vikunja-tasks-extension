@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_delete, chat, _imperal_id
+from app import api_post, api_delete, chat, _imperal_id, is_no_connection_error
 
 
 # ─── Params ────────────────────────────────────────────────────────────── #
@@ -52,8 +52,22 @@ class DeleteTaskParams(BaseModel):
 def _require_user(ctx) -> str | ActionResult:
     imperal_id = _imperal_id(ctx)
     if not imperal_id:
-        return ActionResult.error("Нет контекста пользователя — provisioning не выполнен.")
+        return ActionResult.error("No authenticated user on context.")
     return imperal_id
+
+
+def _bridge_error_msg(resp: dict, default_prefix: str) -> str:
+    """Translate a bridge error response into a user-facing English message.
+
+    HTTP 412 from the bridge means "no Vikunja connection" — surface a
+    specific instruction to connect first instead of a generic CRUD error.
+    """
+    if is_no_connection_error(resp):
+        return "No Vikunja connected. Connect your Vikunja in the tasks panel first."
+    detail = resp.get("detail")
+    if isinstance(detail, dict):
+        detail = detail.get("detail") or detail.get("error") or str(detail)
+    return f"{default_prefix}: {detail}"
 
 
 async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
@@ -76,10 +90,10 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
 
     resp = await api_post("/v1/tasks", payload)
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось создать таск: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create task"))
 
     return ActionResult.success(
-        message=f"Создал таск «{resp['title']}» в проекте #{resp['project_id']}.",
+        message=f"Task created: {resp['title']} (project #{resp['project_id']}).",
         data={
             "task_id": resp["id"],
             "title": resp["title"],
@@ -106,14 +120,14 @@ async def _update_task_impl(ctx, params: UpdateTaskParams) -> ActionResult:
             payload[field] = v
 
     if len(payload) == 1:
-        return ActionResult.error("Нет полей для обновления — передай хотя бы одно поле.")
+        return ActionResult.error("No fields to update — pass at least one field.")
 
     resp = await api_post(f"/v1/tasks/{params.task_id}", payload)
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось обновить таск: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update task"))
 
     return ActionResult.success(
-        message=f"Обновил таск «{resp.get('title', params.task_id)}».",
+        message=f"Task updated: {resp.get('title', params.task_id)}.",
         data={
             "task_id": resp.get("id", params.task_id),
             "title": resp.get("title"),
@@ -135,10 +149,10 @@ async def _complete_task_impl(ctx, params: CompleteTaskParams) -> ActionResult:
         {"imperal_id": imperal_id, "done": True, "percent_done": 1.0},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось закрыть таск: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't complete task"))
 
     return ActionResult.success(
-        message=f"Закрыл таск «{resp.get('title', params.task_id)}».",
+        message=f"Task completed: {resp.get('title', params.task_id)}.",
         data={"task_id": resp.get("id", params.task_id), "done": True},
     )
 
@@ -153,10 +167,10 @@ async def _delete_task_impl(ctx, params: DeleteTaskParams) -> ActionResult:
         params={"imperal_id": imperal_id},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось удалить таск: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete task"))
 
     return ActionResult.success(
-        message=f"Удалил таск #{params.task_id}.",
+        message=f"Task #{params.task_id} deleted.",
         data={"task_id": params.task_id, "deleted": True},
     )
 

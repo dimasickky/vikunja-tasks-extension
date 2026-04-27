@@ -1,4 +1,15 @@
-"""tasks · ChatExtension + bridge HTTP client + on_install provisioning."""
+"""tasks · ChatExtension + thin HTTP client to the backend service.
+
+v2.0.0 — BYO Vikunja. The shared-instance provisioning flow is gone:
+no `on_install` auto-create, no `on_uninstall` cascade delete. Each user
+connects their own Vikunja in the panel; the bridge stores an encrypted
+PAT and resolves it per call.
+
+The extension stays thin: it owns business logic + chat surface + UI,
+and delegates ALL HTTP / encryption / external-system logic to
+the backend service (the backend host:8102) — same workspace pattern as
+notes → the backend and sql-db → the backend.
+"""
 from __future__ import annotations
 
 import logging
@@ -42,54 +53,71 @@ def _get_http() -> httpx.AsyncClient:
     return _http
 
 
-# ─── Context helpers ───────────────────────────────────────────────────── #
+# ─── Identity helpers ──────────────────────────────────────────────────── #
 
 def _imperal_id(ctx) -> str:
-    """Extract imperal_id from ctx — same pattern as other extensions."""
+    """Extract imperal_id from ctx — same pattern as other Dimasickky extensions."""
     if hasattr(ctx, "user") and ctx.user:
         return ctx.user.imperal_id
     return ""
 
 
+def require_imperal_id(ctx) -> str:
+    """Returns ctx.user.imperal_id or raises. Use from every @chat.function."""
+    iid = _imperal_id(ctx)
+    if not iid:
+        raise RuntimeError(
+            "No authenticated user on context. Refusing to call the backend service "
+            "with an empty imperal_id."
+        )
+    return iid
+
+
 # ─── Bridge API helpers ────────────────────────────────────────────────── #
 
+# Bridge contract: success → JSON object, error → HTTP 4xx/5xx with JSON
+# body `{"detail": "..."}`. We translate any 4xx/5xx into a uniform shape
+# `{"status": "error", "detail": "...", "http_status": N}` so handlers can
+# surface clean ActionResult.error without duplicating boilerplate.
+
 def _extract_error(r: httpx.Response) -> dict:
-    """Normalise error response from bridge to ActionResult-compatible shape."""
+    """Normalise non-2xx response from bridge to ActionResult-compatible shape."""
     try:
         body = r.json()
         detail = body.get("detail", r.text)
     except Exception:
         detail = r.text or f"HTTP {r.status_code}"
-    return {"status": "error", "detail": detail}
+    return {"status": "error", "detail": detail, "http_status": r.status_code}
 
 
 async def api_post(path: str, data: dict) -> dict:
     r = await _get_http().post(path, json=data)
     if r.status_code >= 400:
         return _extract_error(r)
-    return r.json()
+    return r.json() if r.content else {}
 
 
 async def api_get(path: str, params: dict | None = None) -> dict:
     r = await _get_http().get(path, params=params or {})
     if r.status_code >= 400:
         return _extract_error(r)
-    return r.json()
+    return r.json() if r.content else {}
 
 
 async def api_delete(path: str, params: dict | None = None) -> dict:
     r = await _get_http().delete(path, params=params or {})
     if r.status_code >= 400:
         return _extract_error(r)
-    return r.json()
+    return r.json() if r.content else {}
 
 
-async def api_delete_body(path: str, data: dict) -> dict:
-    """DELETE with JSON body (for /v1/account)."""
-    r = await _get_http().request("DELETE", path, json=data)
-    if r.status_code >= 400:
-        return _extract_error(r)
-    return r.json()
+def is_no_connection_error(resp: dict) -> bool:
+    """Bridge returns HTTP 412 when the user has no Vikunja connection.
+
+    Handlers use this to surface a panel-style "Connect Vikunja first"
+    message rather than a generic "couldn't fetch" error.
+    """
+    return isinstance(resp, dict) and resp.get("http_status") == 412
 
 
 # ─── System Prompt ─────────────────────────────────────────────────────── #
@@ -99,14 +127,15 @@ SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.txt").read_text()
 
 # ─── Extension ─────────────────────────────────────────────────────────── #
 
-ext = Extension("tasks", version="1.1.0")
+ext = Extension("tasks", version="2.0.0")
 
 chat = ChatExtension(
     ext=ext,
     tool_name="tool_tasks_chat",
     description=(
         "Tasks manager — kanban boards, projects, due dates, labels, "
-        "assignees, comments. AI-powered breakdown, planning, summarization."
+        "assignees, comments. Each user connects their own Vikunja "
+        "instance; data lives in the user's Vikunja, never on our side."
     ),
     system_prompt=SYSTEM_PROMPT,
     model="claude-haiku-4-5-20251001",
@@ -123,57 +152,3 @@ async def health(ctx) -> dict:
         return {"status": "ok", "version": ext.version, "bridge": data.get("status")}
     except Exception:
         return {"status": "degraded", "version": ext.version, "bridge": "unreachable"}
-
-
-# ─── Lifecycle — provision on install ──────────────────────────────────── #
-
-@ext.on_install
-async def on_install(ctx):
-    """Auto-provision Vikunja user on first install.
-
-    Bridge /v1/provision is idempotent — safe to call on every install (e.g.
-    re-install after uninstall will just return existing vikunja_user_id).
-    """
-    imperal_id = _imperal_id(ctx)
-    if not imperal_id:
-        log.warning("tasks on_install called without ctx.user — skipping provision")
-        return
-
-    agency_id = None
-    if hasattr(ctx, "user") and hasattr(ctx.user, "agency_id"):
-        agency_id = ctx.user.agency_id
-
-    resp = await api_post(
-        "/v1/provision",
-        {"imperal_id": imperal_id, "agency_id": agency_id},
-    )
-    if resp.get("status") == "error":
-        log.error("tasks provisioning failed for %s: %s", imperal_id, resp.get("detail"))
-        return
-
-    log.info(
-        "tasks provisioned for %s → vikunja_user_id=%s (created=%s)",
-        imperal_id, resp.get("vikunja_user_id"), resp.get("created"),
-    )
-
-
-@ext.on_uninstall
-async def on_uninstall(ctx):
-    """GDPR-compliant cascade delete on uninstall.
-
-    Removes Vikunja user (+ all their tasks/projects/comments) and the
-    imperal_id→vuid mapping. Data-rights operation — free, no billing.
-    """
-    imperal_id = _imperal_id(ctx)
-    if not imperal_id:
-        return
-
-    resp = await api_delete_body("/v1/account", {"imperal_id": imperal_id})
-    if resp.get("status") == "error":
-        log.error("tasks uninstall cleanup failed for %s: %s", imperal_id, resp.get("detail"))
-        return
-
-    log.info(
-        "tasks uninstalled for %s → vuid=%s deleted=%s",
-        imperal_id, resp.get("vikunja_user_id"), resp.get("deleted"),
-    )

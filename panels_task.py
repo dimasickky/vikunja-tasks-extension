@@ -12,7 +12,7 @@ from typing import Any
 
 from imperal_sdk import ui
 
-from app import ext, api_get, _imperal_id
+from app import ext, api_get, _imperal_id, is_no_connection_error
 
 log = logging.getLogger("tasks.task")
 
@@ -58,7 +58,7 @@ async def task_detail(
     """Task detail editor + comments. `mode=new` renders blank create form."""
     imperal_id = _imperal_id(ctx)
     if not imperal_id:
-        return ui.Empty(message="Not provisioned yet", icon="UserX")
+        return ui.Empty(message="Sign in to use tasks.", icon="UserX")
 
     # ── Create mode ───────────────────────────────────────────────────
     if mode == "new":
@@ -78,6 +78,11 @@ async def task_detail(
 
     task = await api_get(f"/v1/tasks/{tid}", {"imperal_id": imperal_id})
     if isinstance(task, dict) and task.get("status") == "error":
+        if is_no_connection_error(task):
+            return ui.Empty(
+                message="Connect your Vikunja in the sidebar to see this task.",
+                icon="Plug",
+            )
         return ui.Empty(
             message=f"Task not found: {task.get('detail')}", icon="AlertCircle",
         )

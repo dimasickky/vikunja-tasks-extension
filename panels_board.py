@@ -18,7 +18,7 @@ from typing import Any
 
 from imperal_sdk import ui
 
-from app import ext, api_get, _imperal_id
+from app import ext, api_get, _imperal_id, is_no_connection_error
 
 log = logging.getLogger("tasks.board")
 
@@ -92,7 +92,7 @@ async def tasks_board(
     imperal_id = _imperal_id(ctx)
 
     if not imperal_id:
-        return ui.Empty(message="Not provisioned yet", icon="UserX")
+        return ui.Empty(message="Sign in to use tasks.", icon="UserX")
 
     # ── Smart views (no project_id) ───────────────────────────────────
     if view in ("today", "upcoming", "overdue"):
@@ -128,6 +128,11 @@ async def _render_smart_view(imperal_id: str, view: str) -> Any:
         "sort_by": "due_date" if view != "overdue" else "-priority",
         "per_page": 100,
     })
+    if isinstance(resp, dict) and is_no_connection_error(resp):
+        return ui.Empty(
+            message="Connect your Vikunja in the sidebar to see tasks.",
+            icon="Plug",
+        )
     tasks = resp if isinstance(resp, list) else []
 
     if not tasks:
@@ -151,6 +156,11 @@ async def _render_project_board(imperal_id: str, project_id: int) -> Any:
     # Fetch project meta
     project = await api_get(f"/v1/projects/{project_id}", {"imperal_id": imperal_id})
     if isinstance(project, dict) and project.get("status") == "error":
+        if is_no_connection_error(project):
+            return ui.Empty(
+                message="Connect your Vikunja in the sidebar to see this project.",
+                icon="Plug",
+            )
         return ui.Empty(message=f"Project not found: {project.get('detail')}", icon="AlertCircle")
 
     proj_title = project.get("title", f"Project #{project_id}")

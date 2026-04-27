@@ -1,5 +1,47 @@
 # Changelog
 
+## [2.0.0] — 2026-04-27
+
+**Breaking — Bring-Your-Own Vikunja.** Each user now connects their own Vikunja instance via the tasks panel; their data lives in their Vikunja, not in our shared instance. The shared `md-node1` Vikunja becomes an internal/dogfood-only tool. The `the backend service` backend was refactored from a shared-instance broker into a per-user connection manager (encrypted PAT storage + per-call resolve).
+
+### Why
+
+The shared-instance model meant we held tasks data for every user, which is at odds with our positioning ("Webbee speaks to your tools — your data stays with you"). BYO is the federal-grade posture for an integrations-layer product: encrypted PAT at rest in `the backend service`, plaintext in worker RAM only for the single HTTP request that needs it, revokable from the user's own Vikunja UI at any time. It also unblocks the multi-provider future (Linear, Trello, Asana drop into bridge alongside the Vikunja adapter without touching the extension).
+
+### Backend (the backend service v1.0.0, the backend host)
+
+- **New endpoints** — `POST /v1/connect` (login → mint PAT → encrypt → store), `POST /v1/connect/with-pat` (advanced: paste an existing token), `DELETE /v1/connect` (revoke remote + delete local row), `GET /v1/connection` (status, never echoes the PAT).
+- **New table** — `vikunja_connections`: `imperal_id` PK + `base_url` + `username` + `vikunja_user_id` (in their instance) + `pat_encrypted` (Fernet ciphertext) + `pat_token_id` (for revoke) + `agency_id` + timestamps. Migration `001_byo_connections.sql`.
+- **New module** — `pat.py` (Fernet encrypt/decrypt). Key in `/home/the backend service/.env` as `the encryption key`. Plaintext PAT only ever lives in stack-local handler frames.
+- **`vikunja_client.call_as_user`** — per-call: load connection → decrypt PAT → call user's `base_url` with `Authorization: Bearer {pat}`. No more shared-instance JWT minting.
+- **Deprecated** — `routes_provision.py` (shared-instance auto-provisioning) is no longer mounted in `app.py`. File kept for 30-day decom window.
+- **Bridge bumped 0.4.0 → 1.0.0** to mark the BYO contract.
+
+### Extension (this commit)
+
+- **New** — `handlers_connection.py` with chat functions `connect_vikunja`, `connect_vikunja_with_pat`, `disconnect_vikunja`, `get_connection_status`.
+- **`panels.py`** rewritten — connect-first UX: empty/connect/error/connected/broken states. Empty state shows the connect form + "What is Vikunja?" help (vikunja.io self-host link, try.vikunja.io hosted link). Connected state shows smart views + projects + footer with disconnect button.
+- **`panels_board.py`, `panels_task.py`, `skeleton.py`** — gracefully handle the bridge's HTTP 412 "no connection" response: render a "Connect your Vikunja in the sidebar" empty state instead of crashing or returning zero counts.
+- **`app.py`** — dropped `on_install` (auto-provisioning) and `on_uninstall` (cascade delete). Added `is_no_connection_error(resp)` helper for 412 detection. Added `require_imperal_id(ctx)` fail-loud helper.
+- **All handler files (`handlers_crud/_organize/_search/_structure/_collab.py`)** — Russian `ActionResult.error` strings flipped to English (workspace UI policy 2026-04-27). New `_bridge_error_msg(resp, default_prefix)` helper surfaces the bridge's 412 "Connect your Vikunja first" specifically rather than a generic CRUD error.
+- **`system_prompt.txt`** rewritten with BYO context — "if no connection, ask user to connect via the panel; never request password in chat".
+- **`imperal.json`** — version 2.0.0, top-level tool description mentions BYO, `signals` add `connection.created`/`connection.deleted`.
+- **`main.py`** — purge list updated for `handlers_connection`.
+
+### Removed
+
+- Shared-instance auto-provisioning. `imperal_id → vikunja_user_id` mapping (`vikunja_accounts` table) is no longer the routing source. The legacy table stays in the DB schema for the 30-day decom window; new code path doesn't read or write it.
+- `on_install` / `on_uninstall` lifecycle hooks. There's nothing to provision (each user connects on demand) and nothing to cascade-delete (their data lives in their Vikunja).
+
+### Operational notes
+
+- **Required env on the backend host** — `the encryption key` in `/home/the backend service/.env`. Generate once via `python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`. Bridge will refuse to start (or the first /v1/connect will fail loudly) without it.
+- **Migration** — apply `001_byo_connections.sql` before restarting bridge. Existing `vikunja_accounts` data is left untouched.
+- **Bridge restart** is required to pick up the new code. Old code keeps running on shared instance until restart.
+- **Existing prod users on shared instance** — there is no automatic data migration. Provide an export tool / amnesty period before decommissioning the shared instance.
+
+---
+
 ## [1.1.0] — 2026-04-27
 
 SDK migration: `imperal-sdk==2.0.1` → `imperal-sdk==3.0.0` (Identity Contract Unification, W1).

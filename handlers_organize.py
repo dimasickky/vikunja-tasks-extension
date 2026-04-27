@@ -10,10 +10,11 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_delete, chat
+from app import api_post, api_delete, chat, is_no_connection_error
 from handlers_crud import (
     _require_user,
     _update_task_impl,
+    _bridge_error_msg,
     UpdateTaskParams,
 )
 
@@ -72,9 +73,9 @@ async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
         {"imperal_id": imperal_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось назначить: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't assign user"))
     return ActionResult.success(
-        message=f"Назначил юзера {params.assignee_vikunja_user_id} на таск #{params.task_id}.",
+        message=f"Assigned user {params.assignee_vikunja_user_id} to task #{params.task_id}.",
         data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id},
     )
 
@@ -89,9 +90,9 @@ async def _unassign_task_impl(ctx, params: UnassignTaskParams) -> ActionResult:
         params={"imperal_id": imperal_id},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось снять назначение: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't unassign user"))
     return ActionResult.success(
-        message=f"Снял назначение юзера {params.assignee_vikunja_user_id} с таска #{params.task_id}.",
+        message=f"Unassigned user {params.assignee_vikunja_user_id} from task #{params.task_id}.",
         data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id},
     )
 
@@ -106,9 +107,9 @@ async def _add_label_impl(ctx, params: AddLabelParams) -> ActionResult:
         {"imperal_id": imperal_id, "label_id": params.label_id},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось прикрепить метку: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't attach label"))
     return ActionResult.success(
-        message=f"Прикрепил метку #{params.label_id} к таску #{params.task_id}.",
+        message=f"Attached label #{params.label_id} to task #{params.task_id}.",
         data={"task_id": params.task_id, "label_id": params.label_id},
     )
 
@@ -123,9 +124,9 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
         params={"imperal_id": imperal_id},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось открепить метку: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't detach label"))
     return ActionResult.success(
-        message=f"Открепил метку #{params.label_id} от таска #{params.task_id}.",
+        message=f"Detached label #{params.label_id} from task #{params.task_id}.",
         data={"task_id": params.task_id, "label_id": params.label_id},
     )
 

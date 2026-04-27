@@ -5,8 +5,8 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_get, chat
-from handlers_crud import _require_user
+from app import api_post, api_get, chat, is_no_connection_error
+from handlers_crud import _require_user, _bridge_error_msg
 
 
 # ─── Params ────────────────────────────────────────────────────────────── #
@@ -44,10 +44,10 @@ async def _add_comment_impl(ctx, params: AddCommentParams) -> ActionResult:
         {"imperal_id": imperal_id, "comment": params.comment},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось добавить комментарий: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't add comment"))
 
     return ActionResult.success(
-        message=f"Добавил комментарий в таск #{params.task_id}.",
+        message=f"Comment added to task #{params.task_id}.",
         data={
             "comment_id": resp.get("id"),
             "task_id": params.task_id,
@@ -79,11 +79,11 @@ async def _list_comments_impl(ctx, params: ListCommentsParams) -> ActionResult:
         f"/v1/tasks/{params.task_id}/comments", {"imperal_id": imperal_id},
     )
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось получить комменты: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch comments"))
 
     comments = resp if isinstance(resp, list) else []
     return ActionResult.success(
-        message=f"{len(comments)} комментариев в таске #{params.task_id}.",
+        message=f"{len(comments)} comment(s) on task #{params.task_id}.",
         data={
             "count": len(comments),
             "comments": [

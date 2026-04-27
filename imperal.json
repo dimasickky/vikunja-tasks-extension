@@ -1,12 +1,12 @@
 {
   "app_id": "tasks",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "capabilities": [],
   "required_scopes": ["*", "tasks.read", "tasks.write"],
   "tools": [
     {
       "name": "tool_tasks_chat",
-      "description": "Tasks manager — kanban boards, projects, due dates, labels, AI-powered breakdown and planning.",
+      "description": "Tasks manager — bring-your-own Vikunja. Connect your own instance, then manage kanban boards, projects, due dates, labels, assignees, comments, plus AI-powered breakdown and planning.",
       "scopes": ["*"],
       "parameters": {
         "message": {"type": "string", "required": false},
@@ -15,7 +15,7 @@
     },
     {
       "name": "skeleton_refresh_tasks",
-      "description": "Background: today count, overdue count, upcoming 7 days, active projects, recent tasks.",
+      "description": "Background: today / overdue / upcoming counts + recent tasks + active projects (when connected).",
       "scopes": ["tasks.read"],
       "parameters": {
         "kwargs": {"type": "string", "required": true}
@@ -23,7 +23,7 @@
     },
     {
       "name": "skeleton_alert_tasks",
-      "description": "Alerts: overdue, due-today, inbox without due date.",
+      "description": "Alerts: overdue tasks, due-today, sudden backlog spike.",
       "scopes": ["tasks.read"],
       "parameters": {
         "old": {"type": "string", "required": false},
@@ -33,7 +33,7 @@
     },
     {
       "name": "__panel__sidebar",
-      "description": "Panel: Tasks sidebar (smart views + projects tree).",
+      "description": "Panel: Tasks sidebar (connect form when disconnected; smart views + projects when connected).",
       "scopes": [],
       "parameters": {"params": {"type": "string", "required": true}}
     },
@@ -51,6 +51,7 @@
     }
   ],
   "signals": [
+    "connection.created", "connection.deleted",
     "task.created", "task.updated", "task.completed", "task.deleted",
     "task.assigned", "task.unassigned",
     "task.labeled", "task.unlabeled",

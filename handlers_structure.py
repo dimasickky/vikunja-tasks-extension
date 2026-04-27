@@ -6,8 +6,8 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_delete, chat
-from handlers_crud import _require_user
+from app import api_post, api_delete, chat, is_no_connection_error
+from handlers_crud import _require_user, _bridge_error_msg
 
 
 # ─── Params ────────────────────────────────────────────────────────────── #
@@ -63,10 +63,10 @@ async def _create_project_impl(ctx, params: CreateProjectParams) -> ActionResult
 
     resp = await api_post("/v1/projects", payload)
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось создать проект: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create project"))
 
     return ActionResult.success(
-        message=f"Создал проект «{resp['title']}».",
+        message=f"Project created: {resp['title']}.",
         data={
             "project_id": resp["id"],
             "title": resp["title"],
@@ -88,14 +88,14 @@ async def _update_project_impl(ctx, params: UpdateProjectParams) -> ActionResult
             payload[field] = v
 
     if len(payload) == 1:
-        return ActionResult.error("Нет полей для обновления.")
+        return ActionResult.error("No fields to update.")
 
     resp = await api_post(f"/v1/projects/{params.project_id}", payload)
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось обновить проект: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update project"))
 
     return ActionResult.success(
-        message=f"Обновил проект «{resp.get('title', params.project_id)}».",
+        message=f"Project updated: {resp.get('title', params.project_id)}.",
         data={"project_id": resp.get("id", params.project_id), "title": resp.get("title")},
     )
 
@@ -110,10 +110,10 @@ async def _archive_project_impl(ctx, params: ArchiveProjectParams) -> ActionResu
         {"imperal_id": imperal_id, "is_archived": True},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось архивировать проект: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't archive project"))
 
     return ActionResult.success(
-        message=f"Архивировал проект #{params.project_id}.",
+        message=f"Project #{params.project_id} archived.",
         data={"project_id": params.project_id, "is_archived": True},
     )
 
@@ -128,10 +128,10 @@ async def _delete_project_impl(ctx, params: DeleteProjectParams) -> ActionResult
         params={"imperal_id": imperal_id},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось удалить проект: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete project"))
 
     return ActionResult.success(
-        message=f"Удалил проект #{params.project_id} (с каскадом).",
+        message=f"Project #{params.project_id} deleted (cascade).",
         data={"project_id": params.project_id, "deleted": True},
     )
 
@@ -147,10 +147,10 @@ async def _create_label_impl(ctx, params: CreateLabelParams) -> ActionResult:
 
     resp = await api_post("/v1/labels", payload)
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось создать метку: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create label"))
 
     return ActionResult.success(
-        message=f"Создал метку «{resp['title']}».",
+        message=f"Label created: {resp['title']}.",
         data={"label_id": resp["id"], "title": resp["title"], "hex_color": resp.get("hex_color")},
     )
 
@@ -165,10 +165,10 @@ async def _delete_label_impl(ctx, params: DeleteLabelParams) -> ActionResult:
         params={"imperal_id": imperal_id},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(f"Не удалось удалить метку: {resp.get('detail')}")
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete label"))
 
     return ActionResult.success(
-        message=f"Удалил метку #{params.label_id}.",
+        message=f"Label #{params.label_id} deleted.",
         data={"label_id": params.label_id, "deleted": True},
     )
 

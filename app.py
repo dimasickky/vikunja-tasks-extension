@@ -47,7 +47,7 @@ def _get_http() -> httpx.AsyncClient:
 def _imperal_id(ctx) -> str:
     """Extract imperal_id from ctx — same pattern as other extensions."""
     if hasattr(ctx, "user") and ctx.user:
-        return ctx.user.id
+        return ctx.user.imperal_id
     return ""
 
 
@@ -99,7 +99,7 @@ SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.txt").read_text()
 
 # ─── Extension ─────────────────────────────────────────────────────────── #
 
-ext = Extension("tasks", version="1.0.2")
+ext = Extension("tasks", version="1.1.0")
 
 chat = ChatExtension(
     ext=ext,

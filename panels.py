@@ -281,6 +281,5 @@ def _footer(conn: dict) -> ui.Stack:
             variant="ghost",
             size="sm",
             on_click=ui.Call("disconnect_vikunja"),
-            confirm="Disconnect from Vikunja? The API token in your instance will be revoked.",
         ),
     ], direction="horizontal", gap=2, sticky=True)

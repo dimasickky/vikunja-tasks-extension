@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.2] — 2026-04-29
+
+### Fixed
+
+- **`panels.py`** — drop `confirm=` kwarg from the Disconnect `ui.Button`. The parameter was never part of `imperal_sdk.ui.Button` (silently ignored on prod since 2.0.0), and the new V14 validator hard-fails on it. Disconnect now fires immediately on click — same effective behavior as today, just no fake-confirmation string in the props payload. Followup: wire a real `ui.Dialog`-based confirm flow once the frontend Dialog rendering contract has a reference implementation in another extension.
+
+---
+
 ## [2.0.1] — 2026-04-29
 
 ### Changed

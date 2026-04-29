@@ -224,16 +224,19 @@ def _inline_new_project_form() -> ui.Card:
 def _smart_views_card() -> ui.Card:
     items = [
         ui.ListItem(
+            id="smart_today",
             title="Today",
             icon="Calendar",
             on_click=ui.Call("__panel__board", view="today"),
         ),
         ui.ListItem(
+            id="smart_upcoming",
             title="Upcoming (7d)",
             icon="CalendarDays",
             on_click=ui.Call("__panel__board", view="upcoming"),
         ),
         ui.ListItem(
+            id="smart_overdue",
             title="Overdue",
             icon="AlertCircle",
             on_click=ui.Call("__panel__board", view="overdue"),
@@ -257,6 +260,7 @@ def _projects_card(projects: list, active_project_id: str) -> ui.Card:
         pid = p["id"]
         title = p.get("title", f"#{pid}")
         items.append(ui.ListItem(
+            id=f"project_{pid}",
             title=title,
             icon="Folder",
             selected=str(pid) == active_project_id,

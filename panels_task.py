@@ -222,10 +222,11 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
     # Comments section
     comment_items = [
         ui.ListItem(
+            id=f"comment_{c.get('id', i)}",
             title=f"@{c.get('author', {}).get('username', '?')}",
             subtitle=c.get("comment", ""),
         )
-        for c in comments
+        for i, c in enumerate(comments)
     ]
     comments_card = ui.Card(
         title=f"Comments ({len(comments)})",

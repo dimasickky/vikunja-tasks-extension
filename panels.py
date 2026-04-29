@@ -105,42 +105,37 @@ def _render_connect(view: str, banner: str | None = None) -> ui.Stack:
                 "encrypted at rest. Disconnect any time — the token is revoked.",
                 variant="caption",
             ),
-            ui.Input(
-                placeholder="https://vikunja.your-domain.com",
-                param_name="base_url",
-            ),
-            *(
-                [ui.Input(
-                    placeholder="API token (from Settings → API tokens)",
-                    param_name="pat",
-                )]
-                if use_pat else
-                [
-                    ui.Input(placeholder="Username", param_name="username"),
-                    ui.Input(placeholder="Password", param_name="password"),
-                ]
-            ),
-            ui.Stack([
-                ui.Button(
-                    "Connect" if not use_pat else "Connect with token",
-                    icon="Plug",
-                    variant="primary",
-                    size="sm",
-                    on_click=ui.Call(
-                        "connect_vikunja_with_pat" if use_pat else "connect_vikunja",
+            ui.Form(
+                action="connect_vikunja_with_pat" if use_pat else "connect_vikunja",
+                submit_label="Connect with token" if use_pat else "Connect",
+                children=[
+                    ui.Input(
+                        placeholder="https://vikunja.your-domain.com",
+                        param_name="base_url",
                     ),
-                ),
-                ui.Button(
-                    "I have a token" if not use_pat else "Use username + password",
-                    icon="Key" if not use_pat else "User",
-                    variant="ghost",
-                    size="sm",
-                    on_click=ui.Call(
-                        "__panel__sidebar",
-                        view="connect_pat" if not use_pat else "main",
+                    *(
+                        [ui.Input(
+                            placeholder="API token (from Settings → API tokens)",
+                            param_name="pat",
+                        )]
+                        if use_pat else
+                        [
+                            ui.Input(placeholder="Username", param_name="username"),
+                            ui.Input(placeholder="Password", param_name="password"),
+                        ]
                     ),
+                ],
+            ),
+            ui.Button(
+                "I have a token" if not use_pat else "Use username + password",
+                icon="Key" if not use_pat else "User",
+                variant="ghost",
+                size="sm",
+                on_click=ui.Call(
+                    "__panel__sidebar",
+                    view="connect_pat" if not use_pat else "main",
                 ),
-            ], direction="horizontal", gap=2),
+            ),
         ], gap=2),
     ))
 

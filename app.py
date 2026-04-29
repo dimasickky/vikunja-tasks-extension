@@ -127,7 +127,7 @@ SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.txt").read_text()
 
 # ─── Extension ─────────────────────────────────────────────────────────── #
 
-ext = Extension("tasks", version="2.0.0")
+ext = Extension("tasks", version="2.0.1")
 
 chat = ChatExtension(
     ext=ext,
@@ -138,7 +138,6 @@ chat = ChatExtension(
         "instance; data lives in the user's Vikunja, never on our side."
     ),
     system_prompt=SYSTEM_PROMPT,
-    model="claude-haiku-4-5-20251001",
 )
 
 

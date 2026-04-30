@@ -1,4 +1,4 @@
-"""tasks · Task detail panel (slot=center, when task selected or creating).
+"""tasks · Task detail renderer (called by panels_board, NOT a panel itself).
 
 Modes:
   - mode=new + project_id=N   → blank form to create task in project N
@@ -36,26 +36,15 @@ def _priority_options():
     ]
 
 
-# ─── Panel ─────────────────────────────────────────────────────────────── #
+# ─── Entry point (called by panels_board lazily) ───────────────────────── #
 
-@ext.panel(
-    "task",
-    slot="center",
-    title="Task",
-    icon="CheckSquare",
-    refresh=(
-        "on_event:task.updated,task.completed,task.commented,"
-        "task.labeled,task.unlabeled,task.assigned,task.unassigned"
-    ),
-)
-async def task_detail(
+async def render_task_detail(
     ctx,
     task_id: str = "",
     mode: str = "",
     project_id: str = "",
     **kwargs,
 ):
-    """Task detail editor + comments. `mode=new` renders blank create form."""
     imperal_id = _imperal_id(ctx)
     if not imperal_id:
         return ui.Empty(message="Sign in to use tasks.", icon="UserX")

@@ -49,11 +49,12 @@ def _task_card(task: dict) -> Any:
         meta_parts.append(f"📅 {due}")
     if prio >= 3:
         meta_parts.append(f"⚠ {_priority_label(prio)}")
-    meta = " · ".join(meta_parts) if meta_parts else None
 
-    return ui.Card(
+    return ui.ListItem(
+        id=f"task_{tid}",
         title=f"{'✅ ' if done else ''}{title}",
-        content=ui.Text(meta or "", variant="caption") if meta else None,
+        subtitle=" · ".join(meta_parts) if meta_parts else "",
+        icon="CheckCircle2" if done else "Circle",
         on_click=ui.Call("__panel__task", task_id=str(tid)),
     )
 

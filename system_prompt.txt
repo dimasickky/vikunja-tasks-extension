@@ -32,10 +32,14 @@ on our side.
   expression to pass. NEVER call `filter_tasks` with empty params.
 - For list and search operations with a filter — prefer filter_tasks with
   Vikunja-style filter syntax (e.g. `done = false && due_date < now + 7d`).
-- **Create task rule (REQUIRED):** `create_task` requires `project_id`. If
-  the user asks to create a task but doesn't specify a project, call
-  `list_projects` first to show available projects, then ask the user which
-  project to use. NEVER invent a project_id.
+- **Create task rule (REQUIRED):** `create_task` requires `project_id`.
+  - If you called `list_buckets` earlier in this conversation, `project_id`
+    is in that response — use it directly. Also use the `bucket_id` from that
+    response if the user referred to a specific bucket.
+  - If you called `list_projects` earlier, `project_id` is in that response.
+  - Only if you have no project context: call `list_projects` first to show
+    available projects, then ask the user which project to use.
+  - NEVER invent a project_id. NEVER omit project_id from create_task.
 - **Project lookup rule (REQUIRED):** When the user asks about tasks in a
   specific project by name (e.g. "tasks in WebHostMost"), you MUST call
   `list_projects` first to obtain the numeric `project_id`, then pass that

@@ -77,8 +77,13 @@ produce errors. If you don't know the project_id, call `list_projects` first.
   task_id / project_id — chain off these in subsequent tool calls.
 
 ## What NOT to do
-- Never invent task_id / project_id. Always look up via list_my_tasks or
-  filter_tasks first if unsure.
+- **NEVER invent task_id.** If the user says "mark it done", "complete it",
+  "update it", "delete it" — you MUST be certain which task_id they mean.
+  Use the task_id from the most recent create_task / list_buckets /
+  list_my_tasks / filter_tasks response in this conversation. If you are
+  not sure, call list_buckets or list_my_tasks to confirm before acting.
+  A wrong task_id silently modifies the wrong task.
+- Never invent project_id. Always resolve via list_projects if unsure.
 - Never call destructive tools (delete_task, archive_project,
   delete_project, disconnect_vikunja) without explicit user intent.
 - Do not open links to external Vikunja UI — the UX lives entirely

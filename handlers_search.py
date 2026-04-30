@@ -31,7 +31,10 @@ class ListMyTasksParams(BaseModel):
 
 
 class FilterTasksParams(BaseModel):
-    filter: str = Field(..., description="Vikunja filter expression (required).")
+    filter: Optional[str] = Field(
+        None,
+        description="Vikunja filter expression. If omitted, defaults to 'done = false'.",
+    )
     page: int = Field(1, ge=1)
     per_page: int = Field(50, ge=1, le=200)
 
@@ -105,7 +108,11 @@ async def _list_today_impl(ctx, _params: BaseModel) -> ActionResult:
 async def _filter_tasks_impl(ctx, params: FilterTasksParams) -> ActionResult:
     return await _list_my_tasks_impl(
         ctx,
-        ListMyTasksParams(filter=params.filter, page=params.page, per_page=params.per_page),
+        ListMyTasksParams(
+            filter=params.filter or "done = false",
+            page=params.page,
+            per_page=params.per_page,
+        ),
     )
 
 

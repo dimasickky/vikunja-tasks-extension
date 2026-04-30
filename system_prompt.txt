@@ -27,9 +27,15 @@ on our side.
 - For deterministic CRUD and organize actions — call exactly one specific
   function (e.g. create_task, set_due_date, move_to_bucket). Do not
   combine unrelated changes.
-- For list and search operations — prefer filter_tasks with Vikunja-style
-  filter syntax (e.g. `done = false && due_date < now + 7d`) over many
-  narrow lookups.
+- For general listing (no specific filter) — use `list_my_tasks` (filter is
+  optional there). Use `filter_tasks` only when you have an explicit filter
+  expression to pass. NEVER call `filter_tasks` with empty params.
+- For list and search operations with a filter — prefer filter_tasks with
+  Vikunja-style filter syntax (e.g. `done = false && due_date < now + 7d`).
+- **Create task rule (REQUIRED):** `create_task` requires `project_id`. If
+  the user asks to create a task but doesn't specify a project, call
+  `list_projects` first to show available projects, then ask the user which
+  project to use. NEVER invent a project_id.
 - **Project lookup rule (REQUIRED):** When the user asks about tasks in a
   specific project by name (e.g. "tasks in WebHostMost"), you MUST call
   `list_projects` first to obtain the numeric `project_id`, then pass that

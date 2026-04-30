@@ -36,7 +36,7 @@ def _priority_options():
     ]
 
 
-# ─── Entry point (called by panels_editor lazily) ───────────────────────── #
+# ─── Entry point (called by panels_editor at module level) ─────────────── #
 
 async def render_task_detail(
     ctx,
@@ -76,7 +76,9 @@ async def render_task_detail(
             message=f"Task not found: {task.get('detail')}", icon="AlertCircle",
         )
 
-    # Fetch comments inline
+    if not isinstance(task, dict):
+        return ui.Empty(message="Unexpected response from bridge.", icon="AlertCircle")
+
     comments_raw = await api_get(
         f"/v1/tasks/{tid}/comments", {"imperal_id": imperal_id},
     )
@@ -99,38 +101,36 @@ def _render_create_form(project_id: str) -> Any:
         ui.Card(
             title="Create Task",
             content=ui.Stack([
-                ui.Input(placeholder="Task title", param_name="title"),
-                ui.Input(
-                    placeholder="Description (optional, markdown)",
-                    param_name="description",
-                ),
-                ui.Input(
-                    placeholder="Due date (YYYY-MM-DDTHH:MM:SSZ, optional)",
-                    param_name="due_date",
-                ),
-                ui.Select(
-                    param_name="priority",
-                    options=_priority_options(),
-                    value="0",
-                ),
-                ui.Stack([
-                    ui.Button(
-                        "Create",
-                        icon="Check",
-                        variant="primary",
-                        size="sm",
-                        on_click=ui.Call(
-                            "create_task",
-                            project_id=int(project_id),
+                ui.Form(
+                    action="create_task",
+                    submit_label="Create",
+                    defaults={"project_id": int(project_id)},
+                    children=[
+                        ui.Input(placeholder="Task title", param_name="title"),
+                        ui.Input(
+                            placeholder="Description (optional, markdown)",
+                            param_name="description",
                         ),
+                        ui.Input(
+                            placeholder="Due date (YYYY-MM-DD)",
+                            param_name="due_date",
+                        ),
+                        ui.Select(
+                            param_name="priority",
+                            options=_priority_options(),
+                        ),
+                    ],
+                ),
+                ui.Button(
+                    "Cancel",
+                    variant="ghost",
+                    size="sm",
+                    on_click=ui.Call(
+                        "__panel__editor",
+                        note_id="board",
+                        project_id=project_id,
                     ),
-                    ui.Button(
-                        "Cancel",
-                        variant="ghost",
-                        size="sm",
-                        on_click=ui.Call("__panel__editor", note_id="board", project_id=project_id),
-                    ),
-                ], direction="h", gap=1),
+                ),
             ], gap=2),
         ),
     ], gap=2)
@@ -140,22 +140,25 @@ def _render_create_form(project_id: str) -> Any:
 
 def _render_edit_form(task: dict, comments: list[dict]) -> Any:
     tid = task["id"]
-    title = task.get("title", "?")
-    desc = task.get("description", "")
+    title = task.get("title") or "?"
+    desc = task.get("description") or ""
     due = _iso_to_date(task.get("due_date"))
-    prio = task.get("priority", 0)
+    prio = task.get("priority") or 0
     done = task.get("done", False)
-    percent = float(task.get("percent_done", 0.0))
     project_id = task.get("project_id", 0)
 
-    # Action bar
+    # Action bar (back / complete / delete — outside the form)
     actions = [
         ui.Button(
             "Back",
             icon="ArrowLeft",
             variant="ghost",
             size="sm",
-            on_click=ui.Call("__panel__editor", note_id=str(project_id), project_id=str(project_id)),
+            on_click=ui.Call(
+                "__panel__editor",
+                note_id=str(project_id),
+                project_id=str(project_id),
+            ),
         ),
     ]
     if not done:
@@ -178,37 +181,34 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
         ),
     )
 
-    # Main form
-    form_content = ui.Stack([
-        ui.Input(value=title, placeholder="Title", param_name="title"),
-        ui.Input(value=desc, placeholder="Description", param_name="description"),
-        ui.Stack([
-            ui.Input(
-                value=due,
-                placeholder="Due date (YYYY-MM-DD)",
-                param_name="due_date",
-            ),
-            ui.Select(
-                param_name="priority",
-                options=_priority_options(),
-                value=str(prio),
-            ),
-        ], direction="h", gap=2),
-        ui.Input(
-            value=f"{int(percent * 100)}",
-            placeholder="Progress % (0-100)",
-            param_name="percent_done_display",
-        ),
-        ui.Button(
-            "Save",
-            icon="Save",
-            variant="primary",
-            size="sm",
-            on_click=ui.Call("update_task", task_id=tid),
-        ),
-    ], gap=2)
+    # Edit form — task_id passed via defaults (not a visible field)
+    edit_form = ui.Form(
+        action="update_task",
+        submit_label="Save",
+        defaults={
+            "task_id": str(tid),
+            "title": title,
+            "description": desc,
+            "due_date": due,
+            "priority": str(prio),
+        },
+        children=[
+            ui.Input(placeholder="Title", param_name="title"),
+            ui.Input(placeholder="Description", param_name="description"),
+            ui.Stack([
+                ui.Input(
+                    placeholder="Due date (YYYY-MM-DD)",
+                    param_name="due_date",
+                ),
+                ui.Select(
+                    param_name="priority",
+                    options=_priority_options(),
+                ),
+            ], direction="h", gap=2),
+        ],
+    )
 
-    # Comments section
+    # Comments
     comment_items = [
         ui.ListItem(
             id=f"comment_{c.get('id', i)}",
@@ -220,21 +220,22 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
     comments_card = ui.Card(
         title=f"Comments ({len(comments)})",
         content=ui.Stack([
-            ui.List(items=comment_items) if comment_items else ui.Text("No comments yet.", variant="caption"),
-            ui.Input(placeholder="Write a comment…", param_name="comment"),
-            ui.Button(
-                "Add comment",
-                icon="MessageSquarePlus",
-                variant="secondary",
-                size="sm",
-                on_click=ui.Call("add_comment", task_id=tid),
+            ui.List(items=comment_items) if comment_items
+            else ui.Text("No comments yet.", variant="caption"),
+            ui.Form(
+                action="add_comment",
+                submit_label="Add comment",
+                defaults={"task_id": str(tid)},
+                children=[
+                    ui.Input(placeholder="Write a comment…", param_name="comment"),
+                ],
             ),
         ], gap=2),
     )
 
     return ui.Stack([
         _header_bar(title, actions=actions),
-        ui.Card(title="Details", content=form_content),
+        ui.Card(title="Details", content=edit_form),
         comments_card,
     ], gap=2)
 

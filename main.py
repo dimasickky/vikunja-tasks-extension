@@ -10,7 +10,7 @@ for _m in [k for k in sys.modules if k in (
     "handlers_crud", "handlers_organize", "handlers_structure",
     "handlers_search", "handlers_collab",
     "skeleton",
-    "panels", "panels_editor",
+    "panels", "panels_editor", "panels_task",
 )]:
     del sys.modules[_m]
 

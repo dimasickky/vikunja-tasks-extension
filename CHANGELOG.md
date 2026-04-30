@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.0.14] — 2026-04-30
+
+### Fixed
+
+- **`panels.py` + `panels_editor.py` + `panels_task.py`** — every `ui.Call("__panel__editor", ...)` now passes a `note_id` kwarg. Frontend `isCenterOverlay()` requires both `pid==='editor'` **and** `!!p.note_id` to route the panel into the center column; without `note_id` the panel rendered in the chat/right area instead. Mapping: board views → `note_id="board"`, project board view → `note_id=str(project_id)`, task detail → `note_id=str(tid)`, new task form → `note_id="new"`. Handler signature accepts `note_id` via `**kwargs` and discards it (it's a routing hint, not domain data). Closes the last gap in the center-slot rollout that 2.0.10–2.0.13 chipped away at.
+
+---
+
+## [2.0.13] — 2026-04-30
+
+### Fixed
+
+- **`panels.py`** — added `auto_action = ui.Call("__panel__editor")` to the sidebar panel so the center slot is claimed immediately when the sidebar loads (when no project is active). Without `auto_action` the first `ui.Call("__panel__editor")` from a sidebar click opened in the chat/right area instead of the center column. Mirrors the notes sidebar pattern (notes uses the same `auto_action = ui.Call("__panel__editor")` to seed its center slot).
+
+---
+
+## [2.0.12] — 2026-04-30
+
+### Fixed
+
+- **Architecture** — renamed `__panel__board` → `__panel__editor` to match the platform center-slot naming convention used by `notes` and `sql-db` (both expose their center panel as `__panel__editor`). The platform's center-slot router appears to recognize `editor` specifically; `board` was opening in the chat/right area for some clients.
+- **File rename** — `panels_board.py` → `panels_editor.py`.
+- **Decorator** — `@ext.panel("board", ...)` → `@ext.panel("editor", ...)`.
+- **Call sites** — `ui.Call("__panel__board", ...)` → `ui.Call("__panel__editor", ...)` in `panels.py`, `panels_task.py`, `handlers_connection.py`.
+- **`imperal.json`** — tool entry renamed `__panel__board` → `__panel__editor`.
+- **`main.py`** — purge list updated for the rename.
+
+---
+
 ## [2.0.11] — 2026-04-30
 
 ### Fixed

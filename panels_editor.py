@@ -19,6 +19,7 @@ from typing import Any
 from imperal_sdk import ui
 
 from app import ext, api_get, _imperal_id, is_no_connection_error
+from panels_task import render_task_detail
 
 log = logging.getLogger("tasks.board")
 
@@ -100,7 +101,6 @@ async def tasks_board(
 
     # ── Task detail / create form ─────────────────────────────────────
     if task_id or mode == "new":
-        from panels_task import render_task_detail
         return await render_task_detail(ctx, task_id=task_id, mode=mode, project_id=project_id)
 
     # ── Smart views ───────────────────────────────────────────────────

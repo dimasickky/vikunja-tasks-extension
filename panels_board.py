@@ -19,6 +19,7 @@ from typing import Any
 from imperal_sdk import ui
 
 from app import ext, api_get, _imperal_id, is_no_connection_error
+from panels_task import render_task_detail
 
 log = logging.getLogger("tasks.board")
 
@@ -55,7 +56,7 @@ def _task_card(task: dict) -> Any:
         title=f"{'✅ ' if done else ''}{title}",
         subtitle=" · ".join(meta_parts) if meta_parts else "",
         icon="CheckCircle2" if done else "Circle",
-        on_click=ui.Call("__panel__task", task_id=str(tid)),
+        on_click=ui.Call("__panel__board", task_id=str(tid)),
     )
 
 
@@ -80,6 +81,7 @@ async def _find_kanban_view(imperal_id: str, project_id: int) -> dict | None:
     refresh=(
         "on_event:task.created,task.updated,task.completed,task.deleted,"
         "task.moved,task.bucket_changed,task.due_changed,task.priority_changed,"
+        "task.commented,task.labeled,task.unlabeled,task.assigned,task.unassigned,"
         "project.created,project.updated"
     ),
 )
@@ -87,15 +89,21 @@ async def tasks_board(
     ctx,
     project_id: str = "",
     view: str = "",
+    task_id: str = "",
+    mode: str = "",
     **kwargs,
 ):
-    """Kanban board for a project, or filtered smart view across all projects."""
+    """Single center panel: board, smart view, task detail, or create form."""
     imperal_id = _imperal_id(ctx)
 
     if not imperal_id:
         return ui.Empty(message="Sign in to use tasks.", icon="UserX")
 
-    # ── Smart views (no project_id) ───────────────────────────────────
+    # ── Task detail / create form ─────────────────────────────────────
+    if task_id or mode == "new":
+        return await render_task_detail(ctx, task_id=task_id, mode=mode, project_id=project_id)
+
+    # ── Smart views ───────────────────────────────────────────────────
     if view in ("today", "upcoming", "overdue"):
         return await _render_smart_view(imperal_id, view)
 
@@ -227,7 +235,7 @@ def _header(title: str, imperal_id: str, project_id: int | None = None, count: i
                 icon="Plus",
                 variant="primary",
                 size="sm",
-                on_click=ui.Call("__panel__task", mode="new", project_id=str(project_id)),
+                on_click=ui.Call("__panel__board", mode="new", project_id=str(project_id)),
             )
         )
     actions.append(

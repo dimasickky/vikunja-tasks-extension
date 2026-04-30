@@ -1,6 +1,6 @@
 {
   "app_id": "tasks",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "capabilities": [],
   "required_scopes": ["*", "tasks.read", "tasks.write"],
   "tools": [
@@ -39,13 +39,7 @@
     },
     {
       "name": "__panel__board",
-      "description": "Panel: Kanban board (default center view).",
-      "scopes": [],
-      "parameters": {"params": {"type": "string", "required": true}}
-    },
-    {
-      "name": "__panel__task",
-      "description": "Panel: Task detail form with comments.",
+      "description": "Panel: Kanban board + task detail + create form (single center panel).",
       "scopes": [],
       "parameters": {"params": {"type": "string", "required": true}}
     }

@@ -12,7 +12,7 @@ from typing import Any
 
 from imperal_sdk import ui
 
-from app import ext, api_get, _imperal_id, is_no_connection_error
+from app import api_get, _imperal_id, is_no_connection_error
 
 log = logging.getLogger("tasks.task")
 

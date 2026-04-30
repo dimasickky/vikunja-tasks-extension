@@ -264,6 +264,10 @@ class _NoParams(BaseModel):
     pass
 
 
+class ListBucketsParams(BaseModel):
+    project_id: int = Field(..., description="Project whose kanban buckets to list.")
+
+
 @chat.function(
     "list_projects",
     action_type="read",
@@ -275,3 +279,48 @@ class _NoParams(BaseModel):
 )
 async def list_projects(ctx, params: _NoParams) -> ActionResult:
     return await _list_projects_impl(ctx)
+
+
+@chat.function(
+    "list_buckets",
+    action_type="read",
+    description=(
+        "List kanban buckets (columns) for a project. Returns bucket_id and title. "
+        "Call this before create_task or move_to_bucket when the user refers to a "
+        "bucket by name (e.g. 'TO-DO', 'In Progress', 'Done')."
+    ),
+)
+async def list_buckets(ctx, params: ListBucketsParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    views_resp = await api_get(
+        f"/v1/projects/{params.project_id}/views", {"imperal_id": imperal_id}
+    )
+    if isinstance(views_resp, dict) and views_resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(views_resp, "Couldn't fetch project views"))
+
+    views = views_resp if isinstance(views_resp, list) else []
+    kanban = next((v for v in views if v.get("view_kind") == "kanban"), None)
+    if kanban is None:
+        return ActionResult.error(f"No kanban view found for project #{params.project_id}.")
+
+    buckets_resp = await api_get(
+        f"/v1/projects/{params.project_id}/views/{kanban['id']}/buckets",
+        {"imperal_id": imperal_id},
+    )
+    if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(buckets_resp, "Couldn't fetch buckets"))
+
+    buckets = buckets_resp if isinstance(buckets_resp, list) else []
+    return ActionResult.success(
+        summary=f"{len(buckets)} bucket(s): {', '.join(b.get('title', '?') for b in buckets)}.",
+        data={
+            "project_id": params.project_id,
+            "buckets": [
+                {"bucket_id": b["id"], "title": b.get("title", "?"), "limit": b.get("limit", 0)}
+                for b in buckets
+            ],
+        },
+    )

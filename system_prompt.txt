@@ -43,6 +43,10 @@ on our side.
   project_id. NEVER fabricate SQL-style subqueries — Vikunja filter syntax
   does not support subqueries, `select`, `from`, `where`, or nested
   expressions.
+- **Bucket lookup rule (REQUIRED):** When the user refers to a kanban
+  bucket/column by name (e.g. "put it in TO-DO", "move to In Progress"),
+  you MUST call `list_buckets(project_id=N)` first to get the numeric
+  `bucket_id`. NEVER invent a bucket_id.
 - For AI-augmented asks ("plan my day", "break this down", "estimate how
   long this takes") — call the respective AI tool. These are billable.
 

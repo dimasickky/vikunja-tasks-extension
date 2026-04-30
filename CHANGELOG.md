@@ -1,21 +1,5 @@
 # Changelog
 
-## [2.0.6] — 2026-04-30
-
-### Fixed
-
-- **Panel slot — root cause of "click on a project does nothing".** `panels_board.py` and `panels_task.py` were declared with `slot="center"`, but the kernel's `the platform runtime.activities.panel_publish` whitelists only `slot in ("left","right")` — anything else is silently dropped from the published `config.ui`. Symptom in the published config we saw on prod: `Published config.ui for 'tasks': ['left']`, even though three panels were defined. Result: the sidebar's `ui.Call("__panel__board", project_id=...)` had no right-side panel to land in, so clicks were no-ops.
-
-  Fix:
-  - `panels_board.py`: `slot="center"` → `slot="right"`. The board panel now also accepts `task_id` / `mode` and dispatches to `task_detail` (imported from `panels_task.py`) when those kwargs are present. One right-slot panel, internal routing — works against any Vikunja deployment.
-  - `panels_task.py`: removed `@ext.panel("task", slot="center", ...)` decorator. `task_detail` stays as a plain async function called from `tasks_board`.
-  - All `ui.Call("__panel__task", …)` rewritten to `ui.Call("__panel__board", …)` — same kwargs, single panel handles both shapes.
-  - `imperal.json`: dropped `__panel__task` from the tools list and updated `__panel__board` description to reflect its composite role.
-
-  This is the universal/enterprise pattern for any current-spec extension on this platform: one left panel + one right panel, internal kwargs-based routing inside the right panel.
-
----
-
 ## [2.0.5] — 2026-04-30
 
 ### Fixed

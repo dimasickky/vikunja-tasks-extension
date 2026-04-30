@@ -180,7 +180,7 @@ def _top_actions(view: str) -> ui.Stack:
             icon="Plus",
             variant="primary",
             size="sm",
-            on_click=ui.Call("__panel__board", mode="new"),
+            on_click=ui.Call("__panel__task", mode="new"),
         ),
         ui.Button(
             "New Project",

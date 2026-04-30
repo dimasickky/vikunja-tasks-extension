@@ -36,13 +36,18 @@ def _priority_options():
     ]
 
 
-# ─── Helper rendered inside `board` panel (slot=right) ───────────────── #
-#
-# This used to be its own @ext.panel("task", slot="center"), but the
-# platform only allows slot in ("left","right") and only one panel per
-# slot wins. So `panels_board.tasks_board` registers as the sole right
-# panel and dispatches here when the call carries task_id / mode=new.
+# ─── Panel ─────────────────────────────────────────────────────────────── #
 
+@ext.panel(
+    "task",
+    slot="center",
+    title="Task",
+    icon="CheckSquare",
+    refresh=(
+        "on_event:task.updated,task.completed,task.commented,"
+        "task.labeled,task.unlabeled,task.assigned,task.unassigned"
+    ),
+)
 async def task_detail(
     ctx,
     task_id: str = "",

@@ -79,7 +79,16 @@ async def tasks_sidebar(ctx, view: str = "main", active_project_id: str = "", **
     projects = projects_resp if isinstance(projects_resp, list) else []
     children.append(_projects_card(projects, active_project_id))
     children.append(_footer(conn))
-    return ui.Stack(children=children, gap=2)
+
+    root = ui.Stack(children=children, gap=2)
+
+    # Claim the center slot on first load (same as notes auto_action pattern).
+    # Without this, the first ui.Call("__panel__editor") from a sidebar click
+    # opens in the chat/right area instead of the center column.
+    if not active_project_id:
+        root.props["auto_action"] = ui.Call("__panel__editor")
+
+    return root
 
 
 # ─── Connect-form view ─────────────────────────────────────────────────── #

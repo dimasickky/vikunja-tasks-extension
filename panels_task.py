@@ -128,7 +128,7 @@ def _render_create_form(project_id: str) -> Any:
                         "Cancel",
                         variant="ghost",
                         size="sm",
-                        on_click=ui.Call("__panel__editor", project_id=project_id),
+                        on_click=ui.Call("__panel__editor", note_id="board", project_id=project_id),
                     ),
                 ], direction="h", gap=1),
             ], gap=2),
@@ -155,7 +155,7 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
             icon="ArrowLeft",
             variant="ghost",
             size="sm",
-            on_click=ui.Call("__panel__editor", project_id=str(project_id)),
+            on_click=ui.Call("__panel__editor", note_id=str(project_id), project_id=str(project_id)),
         ),
     ]
     if not done:

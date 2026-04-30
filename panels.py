@@ -83,10 +83,10 @@ async def tasks_sidebar(ctx, view: str = "main", active_project_id: str = "", **
     root = ui.Stack(children=children, gap=2)
 
     # Claim the center slot on first load (same as notes auto_action pattern).
-    # Without this, the first ui.Call("__panel__editor") from a sidebar click
+    # Without this, the first ui.Call("__panel__editor", note_id="board") from a sidebar click
     # opens in the chat/right area instead of the center column.
     if not active_project_id:
-        root.props["auto_action"] = ui.Call("__panel__editor")
+        root.props["auto_action"] = ui.Call("__panel__editor", note_id="board")
 
     return root
 
@@ -189,7 +189,7 @@ def _top_actions(view: str) -> ui.Stack:
             icon="Plus",
             variant="primary",
             size="sm",
-            on_click=ui.Call("__panel__editor", mode="new"),
+            on_click=ui.Call("__panel__editor", note_id="new", mode="new"),
         ),
         ui.Button(
             "New Project",
@@ -236,19 +236,19 @@ def _smart_views_card() -> ui.Card:
             id="smart_today",
             title="Today",
             icon="Calendar",
-            on_click=ui.Call("__panel__editor", view="today"),
+            on_click=ui.Call("__panel__editor", note_id="board", view="today"),
         ),
         ui.ListItem(
             id="smart_upcoming",
             title="Upcoming (7d)",
             icon="CalendarDays",
-            on_click=ui.Call("__panel__editor", view="upcoming"),
+            on_click=ui.Call("__panel__editor", note_id="board", view="upcoming"),
         ),
         ui.ListItem(
             id="smart_overdue",
             title="Overdue",
             icon="AlertCircle",
-            on_click=ui.Call("__panel__editor", view="overdue"),
+            on_click=ui.Call("__panel__editor", note_id="board", view="overdue"),
         ),
     ]
     return ui.Card(title="Smart views", content=ui.List(items=items))
@@ -273,7 +273,7 @@ def _projects_card(projects: list, active_project_id: str) -> ui.Card:
             title=title,
             icon="Folder",
             selected=str(pid) == active_project_id,
-            on_click=ui.Call("__panel__editor", project_id=str(pid)),
+            on_click=ui.Call("__panel__editor", note_id=str(pid), project_id=str(pid)),
         ))
     return ui.Card(title="Projects", content=ui.List(items=items))
 

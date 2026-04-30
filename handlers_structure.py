@@ -306,8 +306,11 @@ async def list_buckets(ctx, params: ListBucketsParams) -> ActionResult:
     if kanban is None:
         return ActionResult.error(f"No kanban view found for project #{params.project_id}.")
 
+    # Use /tasks endpoint: same bucket shape but under tasks PAT scope.
+    # /buckets endpoint requires a separate Vikunja PAT scope not included
+    # in the PAT minted during the standard connect flow.
     buckets_resp = await api_get(
-        f"/v1/projects/{params.project_id}/views/{kanban['id']}/buckets",
+        f"/v1/projects/{params.project_id}/views/{kanban['id']}/tasks",
         {"imperal_id": imperal_id},
     )
     if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":

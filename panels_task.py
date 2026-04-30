@@ -129,8 +129,10 @@ async def _render_create_form(ctx, project_id: str) -> Any:
     if isinstance(views_resp, list):
         kanban = next((v for v in views_resp if v.get("view_kind") == "kanban"), None)
         if kanban:
+            # /tasks returns buckets with embedded tasks under the tasks PAT scope.
+            # /buckets requires a separate Vikunja PAT scope not minted during connect.
             buckets_resp = await api_get(
-                f"/v1/projects/{pid}/views/{kanban['id']}/buckets",
+                f"/v1/projects/{pid}/views/{kanban['id']}/tasks",
                 {"imperal_id": imperal_id},
             )
             if isinstance(buckets_resp, list):

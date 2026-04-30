@@ -51,28 +51,13 @@ def _task_card(task: dict) -> Any:
     if prio >= 3:
         meta_parts.append(f"⚠ {_priority_label(prio)}")
 
-    # Circle button: click to complete (or re-open detail if already done)
-    circle = ui.Button(
-        " ",
+    return ui.ListItem(
+        id=f"task_{tid}",
+        title=("✓ " if done else "") + title,
+        subtitle=" · ".join(meta_parts) if meta_parts else None,
         icon="CheckCircle2" if done else "Circle",
-        variant="ghost",
-        size="sm",
-        on_click=ui.Call("complete_task", task_id=tid) if not done
-                 else ui.Call("__panel__editor", note_id=str(tid), task_id=str(tid)),
+        on_click=ui.Call("__panel__editor", note_id=str(tid), task_id=str(tid)),
     )
-
-    title_parts: list = [
-        ui.Button(
-            f"[done] {title}" if done else title,
-            variant="ghost",
-            size="sm",
-            on_click=ui.Call("__panel__editor", note_id=str(tid), task_id=str(tid)),
-        )
-    ]
-    if meta_parts:
-        title_parts.append(ui.Text(" · ".join(meta_parts), variant="caption"))
-
-    return ui.Stack([circle, ui.Stack(title_parts, gap=0)], direction="h", gap=1)
 
 
 async def _find_kanban_view(imperal_id: str, project_id: int) -> dict | None:

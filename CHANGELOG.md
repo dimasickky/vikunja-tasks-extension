@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.0.18] — 2026-04-30
+
+### Fixed
+
+- **`handlers_structure.py` + `panels_task.py`** — `list_buckets` chat function and bucket selector in the create-task form both used the `/buckets` Vikunja endpoint, which requires a PAT scope not included in the PAT minted by the standard connect flow. Both now use the `/tasks` endpoint (returns buckets with embedded tasks under the tasks PAT scope) and strip out the task lists, keeping only bucket id/title/limit. Fixes "No Vikunja connected" error when the user asks about buckets in chat, and restores the bucket dropdown in the create-task form.
+- **`panels_editor.py`** — task cards reverted from nested Stack+Button layout (introduced in 2.0.16) back to `ui.ListItem`. The nested horizontal Stack with a circle button caused text overlap in kanban columns. The complete action remains accessible in the task detail view.
+- **`imperal.json`** — version synced from stale 2.0.15 to 2.0.18.
+
+---
+
 ## [2.0.14] — 2026-04-30
 
 ### Fixed

@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.11] — 2026-04-30
+
+### Fixed
+
+- **`panels_board.py`** — lazy import of `render_task_detail` moved inside the function body. Module-level `from panels_task import render_task_detail` caused `NameError: name 'ext' is not defined` in the Developer Portal validator because `panels_task.py` was loaded before `ext` was initialized in the validator's import context.
+
+---
+
+## [2.0.10] — 2026-04-30
+
+### Fixed
+
+- **Architecture** — merged `__panel__task` (second `slot="center"` panel) into `__panel__board`. Platform supports one center panel per extension; having two caused the board to open in the right chat sidebar instead of the center column.
+- **`panels_task.py`** — removed `@ext.panel` decorator, renamed `task_detail` → `render_task_detail` (plain async function called by `panels_board`).
+- **`panels_board.py`** — added `task_id`, `mode` routing; all `ui.Call("__panel__task", ...)` → `ui.Call("__panel__board", ...)`.
+- **`panels.py`** — `ui.Call("__panel__task", mode="new")` → `ui.Call("__panel__board", mode="new")`.
+- **`imperal.json`** — removed `__panel__task` tool entry; updated `__panel__board` description.
+
+---
+
 ## [2.0.9] — 2026-04-30
 
 ### Fixed

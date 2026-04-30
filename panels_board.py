@@ -174,9 +174,11 @@ async def _render_project_board(imperal_id: str, project_id: int) -> Any:
         )
     view_id = kanban["id"]
 
-    # Fetch buckets (with embedded tasks — Vikunja returns them together)
+    # Fetch buckets WITH embedded tasks. Vikunja v0.21+ splits this:
+    # /views/{vid}/buckets returns columns only (tasks=null), while
+    # /views/{vid}/tasks returns the same columns with tasks populated.
     buckets = await api_get(
-        f"/v1/projects/{project_id}/views/{view_id}/buckets",
+        f"/v1/projects/{project_id}/views/{view_id}/tasks",
         {"imperal_id": imperal_id},
     )
     if not isinstance(buckets, list):

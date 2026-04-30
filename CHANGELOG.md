@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.0.5] — 2026-04-30
+
+### Fixed
+
+- **`panels_board.py`** — switch project Kanban fetch from `/v1/projects/{pid}/views/{vid}/buckets` to `/v1/projects/{pid}/views/{vid}/tasks`. Vikunja v0.21+ split these: `/buckets` returns columns with `tasks=null`, while `/tasks` returns the same columns shape but with each bucket's `tasks` field populated. Result before this fix: clicking on a project showed the Kanban frame with column titles, but every column was empty even when tasks existed.
+
+### Backend (the backend service, deployed separately on the backend host)
+
+- **`routes_tasks.py`** — `/v1/tasks/all` now forwards to Vikunja `/api/v1/tasks` (not `/api/v1/tasks/all`, which was removed in Vikunja v0.21+ and returned `400 Invalid model`). Bridge route name unchanged for extension compatibility.
+- **`routes_projects.py`** — added `GET /v1/projects/{pid}/views/{vid}/tasks` route, forwards to Vikunja's `/api/v1/projects/{pid}/views/{vid}/tasks`. Companion to the `panels_board.py` switch above.
+
+---
+
 ## [2.0.4] — 2026-04-30
 
 ### Fixed

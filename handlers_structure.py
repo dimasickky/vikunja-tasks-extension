@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_delete, chat, is_no_connection_error
+from app import api_get, api_post, api_delete, chat, is_no_connection_error
 from handlers_crud import _require_user, _bridge_error_msg
 
 
@@ -173,6 +173,31 @@ async def _delete_label_impl(ctx, params: DeleteLabelParams) -> ActionResult:
     )
 
 
+# ─── List projects impl ────────────────────────────────────────────────── #
+
+async def _list_projects_impl(ctx) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    resp = await api_get("/v1/projects", {"imperal_id": imperal_id})
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch projects"))
+
+    projects = resp if isinstance(resp, list) else []
+    active = [p for p in projects if not p.get("is_archived", False)]
+    return ActionResult.success(
+        summary=f"{len(active)} project(s): {', '.join(p.get('title', '?') for p in active[:10])}.",
+        data={
+            "count": len(active),
+            "projects": [
+                {"project_id": p["id"], "title": p.get("title", "?"), "hex_color": p.get("hex_color")}
+                for p in active
+            ],
+        },
+    )
+
+
 # ─── @chat.function wrappers ───────────────────────────────────────────── #
 
 @chat.function(
@@ -233,3 +258,20 @@ async def create_label(ctx, params: CreateLabelParams) -> ActionResult:
 )
 async def delete_label(ctx, params: DeleteLabelParams) -> ActionResult:
     return await _delete_label_impl(ctx, params)
+
+
+class _NoParams(BaseModel):
+    pass
+
+
+@chat.function(
+    "list_projects",
+    action_type="read",
+    description=(
+        "List all active (non-archived) projects. Returns project_id and title. "
+        "Call this first when the user refers to a project by name — then use the "
+        "returned project_id in filter_tasks or other calls."
+    ),
+)
+async def list_projects(ctx, params: _NoParams) -> ActionResult:
+    return await _list_projects_impl(ctx)

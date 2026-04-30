@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.8] — 2026-04-30
+
+### Added
+
+- **`handlers_structure.py`** — new `list_projects` chat function. Returns all active (non-archived) projects with `project_id` + `title`. Exposes `api_get` import that was missing from the module (import added: `api_get`). This was the missing building block that forced the LLM to hallucinate project lookups as SQL subqueries.
+
+### Fixed
+
+- **`system_prompt.txt`** — added **Project lookup rule**: LLM must call `list_projects` first when user asks for tasks by project name, then pass the numeric `project_id` to `filter_tasks`. Added **Vikunja filter syntax** section explicitly listing valid operators/fields/time helpers and forbidding SQL-style subqueries (`select`, `from`, `where` — these produce errors). Fixes hallucination observed on prod: `project_id = '(select id from projects where title ~ '%webhostmost tasks%')'`.
+
+---
+
 ## [2.0.7] — 2026-04-30
 
 ### Fixed

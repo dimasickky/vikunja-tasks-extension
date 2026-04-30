@@ -68,7 +68,7 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
 
     tasks = resp if isinstance(resp, list) else []
     return ActionResult.success(
-        message=_summarise_tasks(tasks),
+        summary=_summarise_tasks(tasks),
         data={
             "count": len(tasks),
             "tasks": [

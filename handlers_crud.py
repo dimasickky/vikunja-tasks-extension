@@ -93,7 +93,7 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't create task"))
 
     return ActionResult.success(
-        message=f"Task created: {resp['title']} (project #{resp['project_id']}).",
+        summary=f"Task created: {resp['title']} (project #{resp['project_id']}).",
         data={
             "task_id": resp["id"],
             "title": resp["title"],
@@ -127,7 +127,7 @@ async def _update_task_impl(ctx, params: UpdateTaskParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't update task"))
 
     return ActionResult.success(
-        message=f"Task updated: {resp.get('title', params.task_id)}.",
+        summary=f"Task updated: {resp.get('title', params.task_id)}.",
         data={
             "task_id": resp.get("id", params.task_id),
             "title": resp.get("title"),
@@ -152,7 +152,7 @@ async def _complete_task_impl(ctx, params: CompleteTaskParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't complete task"))
 
     return ActionResult.success(
-        message=f"Task completed: {resp.get('title', params.task_id)}.",
+        summary=f"Task completed: {resp.get('title', params.task_id)}.",
         data={"task_id": resp.get("id", params.task_id), "done": True},
     )
 
@@ -170,7 +170,7 @@ async def _delete_task_impl(ctx, params: DeleteTaskParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete task"))
 
     return ActionResult.success(
-        message=f"Task #{params.task_id} deleted.",
+        summary=f"Task #{params.task_id} deleted.",
         data={"task_id": params.task_id, "deleted": True},
     )
 

@@ -47,7 +47,7 @@ async def _add_comment_impl(ctx, params: AddCommentParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't add comment"))
 
     return ActionResult.success(
-        message=f"Comment added to task #{params.task_id}.",
+        summary=f"Comment added to task #{params.task_id}.",
         data={
             "comment_id": resp.get("id"),
             "task_id": params.task_id,
@@ -83,7 +83,7 @@ async def _list_comments_impl(ctx, params: ListCommentsParams) -> ActionResult:
 
     comments = resp if isinstance(resp, list) else []
     return ActionResult.success(
-        message=f"{len(comments)} comment(s) on task #{params.task_id}.",
+        summary=f"{len(comments)} comment(s) on task #{params.task_id}.",
         data={
             "count": len(comments),
             "comments": [

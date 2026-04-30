@@ -66,7 +66,7 @@ async def _create_project_impl(ctx, params: CreateProjectParams) -> ActionResult
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't create project"))
 
     return ActionResult.success(
-        message=f"Project created: {resp['title']}.",
+        summary=f"Project created: {resp['title']}.",
         data={
             "project_id": resp["id"],
             "title": resp["title"],
@@ -95,7 +95,7 @@ async def _update_project_impl(ctx, params: UpdateProjectParams) -> ActionResult
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't update project"))
 
     return ActionResult.success(
-        message=f"Project updated: {resp.get('title', params.project_id)}.",
+        summary=f"Project updated: {resp.get('title', params.project_id)}.",
         data={"project_id": resp.get("id", params.project_id), "title": resp.get("title")},
     )
 
@@ -113,7 +113,7 @@ async def _archive_project_impl(ctx, params: ArchiveProjectParams) -> ActionResu
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't archive project"))
 
     return ActionResult.success(
-        message=f"Project #{params.project_id} archived.",
+        summary=f"Project #{params.project_id} archived.",
         data={"project_id": params.project_id, "is_archived": True},
     )
 
@@ -131,7 +131,7 @@ async def _delete_project_impl(ctx, params: DeleteProjectParams) -> ActionResult
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete project"))
 
     return ActionResult.success(
-        message=f"Project #{params.project_id} deleted (cascade).",
+        summary=f"Project #{params.project_id} deleted (cascade).",
         data={"project_id": params.project_id, "deleted": True},
     )
 
@@ -150,7 +150,7 @@ async def _create_label_impl(ctx, params: CreateLabelParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't create label"))
 
     return ActionResult.success(
-        message=f"Label created: {resp['title']}.",
+        summary=f"Label created: {resp['title']}.",
         data={"label_id": resp["id"], "title": resp["title"], "hex_color": resp.get("hex_color")},
     )
 
@@ -168,7 +168,7 @@ async def _delete_label_impl(ctx, params: DeleteLabelParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete label"))
 
     return ActionResult.success(
-        message=f"Label #{params.label_id} deleted.",
+        summary=f"Label #{params.label_id} deleted.",
         data={"label_id": params.label_id, "deleted": True},
     )
 

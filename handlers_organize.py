@@ -75,7 +75,7 @@ async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't assign user"))
     return ActionResult.success(
-        message=f"Assigned user {params.assignee_vikunja_user_id} to task #{params.task_id}.",
+        summary=f"Assigned user {params.assignee_vikunja_user_id} to task #{params.task_id}.",
         data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id},
     )
 
@@ -92,7 +92,7 @@ async def _unassign_task_impl(ctx, params: UnassignTaskParams) -> ActionResult:
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't unassign user"))
     return ActionResult.success(
-        message=f"Unassigned user {params.assignee_vikunja_user_id} from task #{params.task_id}.",
+        summary=f"Unassigned user {params.assignee_vikunja_user_id} from task #{params.task_id}.",
         data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id},
     )
 
@@ -109,7 +109,7 @@ async def _add_label_impl(ctx, params: AddLabelParams) -> ActionResult:
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't attach label"))
     return ActionResult.success(
-        message=f"Attached label #{params.label_id} to task #{params.task_id}.",
+        summary=f"Attached label #{params.label_id} to task #{params.task_id}.",
         data={"task_id": params.task_id, "label_id": params.label_id},
     )
 
@@ -126,7 +126,7 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't detach label"))
     return ActionResult.success(
-        message=f"Detached label #{params.label_id} from task #{params.task_id}.",
+        summary=f"Detached label #{params.label_id} from task #{params.task_id}.",
         data={"task_id": params.task_id, "label_id": params.label_id},
     )
 

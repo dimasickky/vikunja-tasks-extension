@@ -103,7 +103,7 @@ async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
                 "base_url": resp.get("base_url"),
                 "username": resp.get("username"),
                 "vikunja_user_id": resp.get("vikunja_user_id"),
-                "refresh_panels": ["sidebar", "board"],
+                "refresh_panels": ["sidebar", "editor"],
             },
             summary=f"Connected to {resp.get('base_url')} as {resp.get('username')}.",
         )
@@ -142,7 +142,7 @@ async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> 
                 "base_url": resp.get("base_url"),
                 "username": resp.get("username"),
                 "vikunja_user_id": resp.get("vikunja_user_id"),
-                "refresh_panels": ["sidebar", "board"],
+                "refresh_panels": ["sidebar", "editor"],
             },
             summary=f"Connected to {resp.get('base_url')} as {resp.get('username')}.",
         )
@@ -167,7 +167,7 @@ async def disconnect_vikunja(ctx, params: _NoParams) -> ActionResult:
                 _format_connect_error(resp, default="Couldn't disconnect."),
             )
         return ActionResult.success(
-            data={"deleted": resp.get("deleted", True), "refresh_panels": ["sidebar", "board"]},
+            data={"deleted": resp.get("deleted", True), "refresh_panels": ["sidebar", "editor"]},
             summary="Disconnected from Vikunja.",
         )
     except Exception as e:

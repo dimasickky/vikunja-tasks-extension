@@ -180,7 +180,7 @@ def _top_actions(view: str) -> ui.Stack:
             icon="Plus",
             variant="primary",
             size="sm",
-            on_click=ui.Call("__panel__board", mode="new"),
+            on_click=ui.Call("__panel__editor", mode="new"),
         ),
         ui.Button(
             "New Project",
@@ -227,19 +227,19 @@ def _smart_views_card() -> ui.Card:
             id="smart_today",
             title="Today",
             icon="Calendar",
-            on_click=ui.Call("__panel__board", view="today"),
+            on_click=ui.Call("__panel__editor", view="today"),
         ),
         ui.ListItem(
             id="smart_upcoming",
             title="Upcoming (7d)",
             icon="CalendarDays",
-            on_click=ui.Call("__panel__board", view="upcoming"),
+            on_click=ui.Call("__panel__editor", view="upcoming"),
         ),
         ui.ListItem(
             id="smart_overdue",
             title="Overdue",
             icon="AlertCircle",
-            on_click=ui.Call("__panel__board", view="overdue"),
+            on_click=ui.Call("__panel__editor", view="overdue"),
         ),
     ]
     return ui.Card(title="Smart views", content=ui.List(items=items))
@@ -264,7 +264,7 @@ def _projects_card(projects: list, active_project_id: str) -> ui.Card:
             title=title,
             icon="Folder",
             selected=str(pid) == active_project_id,
-            on_click=ui.Call("__panel__board", project_id=str(pid)),
+            on_click=ui.Call("__panel__editor", project_id=str(pid)),
         ))
     return ui.Card(title="Projects", content=ui.List(items=items))
 

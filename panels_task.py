@@ -1,4 +1,4 @@
-"""tasks · Task detail renderer (called by panels_board, NOT a panel itself).
+"""tasks · Task detail renderer (called by panels_editor, NOT a panel itself).
 
 Modes:
   - mode=new + project_id=N   → blank form to create task in project N
@@ -36,7 +36,7 @@ def _priority_options():
     ]
 
 
-# ─── Entry point (called by panels_board lazily) ───────────────────────── #
+# ─── Entry point (called by panels_editor lazily) ───────────────────────── #
 
 async def render_task_detail(
     ctx,
@@ -128,7 +128,7 @@ def _render_create_form(project_id: str) -> Any:
                         "Cancel",
                         variant="ghost",
                         size="sm",
-                        on_click=ui.Call("__panel__board", project_id=project_id),
+                        on_click=ui.Call("__panel__editor", project_id=project_id),
                     ),
                 ], direction="h", gap=1),
             ], gap=2),
@@ -155,7 +155,7 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
             icon="ArrowLeft",
             variant="ghost",
             size="sm",
-            on_click=ui.Call("__panel__board", project_id=str(project_id)),
+            on_click=ui.Call("__panel__editor", project_id=str(project_id)),
         ),
     ]
     if not done:

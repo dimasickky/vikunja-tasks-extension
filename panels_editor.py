@@ -55,7 +55,7 @@ def _task_card(task: dict) -> Any:
         title=f"{'✅ ' if done else ''}{title}",
         subtitle=" · ".join(meta_parts) if meta_parts else "",
         icon="CheckCircle2" if done else "Circle",
-        on_click=ui.Call("__panel__board", task_id=str(tid)),
+        on_click=ui.Call("__panel__editor", task_id=str(tid)),
     )
 
 
@@ -73,7 +73,7 @@ async def _find_kanban_view(imperal_id: str, project_id: int) -> dict | None:
 # ─── Panel ─────────────────────────────────────────────────────────────── #
 
 @ext.panel(
-    "board",
+    "editor",
     slot="center",
     title="Board",
     icon="Kanban",
@@ -235,7 +235,7 @@ def _header(title: str, imperal_id: str, project_id: int | None = None, count: i
                 icon="Plus",
                 variant="primary",
                 size="sm",
-                on_click=ui.Call("__panel__board", mode="new", project_id=str(project_id)),
+                on_click=ui.Call("__panel__editor", mode="new", project_id=str(project_id)),
             )
         )
     actions.append(
@@ -244,7 +244,7 @@ def _header(title: str, imperal_id: str, project_id: int | None = None, count: i
             icon="ArrowLeft",
             variant="ghost",
             size="sm",
-            on_click=ui.Call("__panel__board"),
+            on_click=ui.Call("__panel__editor"),
         )
     )
 

@@ -10,7 +10,7 @@ for _m in [k for k in sys.modules if k in (
     "handlers_crud", "handlers_organize", "handlers_structure",
     "handlers_search", "handlers_collab",
     "skeleton",
-    "panels", "panels_board",
+    "panels", "panels_editor",
 )]:
     del sys.modules[_m]
 
@@ -24,4 +24,4 @@ import handlers_search      # noqa: F401
 import handlers_collab      # noqa: F401
 import skeleton             # noqa: F401
 import panels               # noqa: F401  # @ext.panel("sidebar") — connect-first UX
-import panels_board         # noqa: F401  # @ext.panel("board") — center (board + task detail)
+import panels_editor         # noqa: F401  # @ext.panel("editor") — center (board + task detail)

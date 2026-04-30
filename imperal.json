@@ -1,6 +1,6 @@
 {
   "app_id": "tasks",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "capabilities": [],
   "required_scopes": ["*", "tasks.read", "tasks.write"],
   "tools": [

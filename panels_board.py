@@ -205,7 +205,7 @@ async def _render_project_board(imperal_id: str, project_id: int) -> Any:
             icon="Columns",
         )
     else:
-        body = ui.Stack(children=columns, direction="horizontal", gap=2, wrap=False)
+        body = ui.Stack(children=columns, direction="h", gap=2, wrap=False)
 
     return ui.Stack([
         _header(proj_title, imperal_id, project_id=project_id),
@@ -241,5 +241,5 @@ def _header(title: str, imperal_id: str, project_id: int | None = None, count: i
 
     return ui.Stack([
         ui.Text(label, variant="h3"),
-        ui.Stack(actions, direction="horizontal", gap=1),
-    ], direction="horizontal", sticky=True)
+        ui.Stack(actions, direction="h", gap=1),
+    ], direction="h", sticky=True)

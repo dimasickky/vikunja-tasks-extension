@@ -141,7 +141,7 @@ def _render_create_form(project_id: str) -> Any:
                         size="sm",
                         on_click=ui.Call("__panel__board", project_id=project_id),
                     ),
-                ], direction="horizontal", gap=1),
+                ], direction="h", gap=1),
             ], gap=2),
         ),
     ], gap=2)
@@ -204,7 +204,7 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
                 options=_priority_options(),
                 value=str(prio),
             ),
-        ], direction="horizontal", gap=2),
+        ], direction="h", gap=2),
         ui.Input(
             value=f"{int(percent * 100)}",
             placeholder="Progress % (0-100)",
@@ -255,5 +255,5 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
 def _header_bar(title: str, actions: list | None = None) -> Any:
     row = [ui.Text(title, variant="h3")]
     if actions:
-        row.append(ui.Stack(actions, direction="horizontal", gap=1))
-    return ui.Stack(row, direction="horizontal", sticky=True)
+        row.append(ui.Stack(actions, direction="h", gap=1))
+    return ui.Stack(row, direction="h", sticky=True)

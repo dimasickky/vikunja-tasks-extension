@@ -163,7 +163,7 @@ def _render_connect(view: str, banner: str | None = None) -> ui.Stack:
                     size="sm",
                     on_click=ui.Call("__panel__sidebar"),
                 ),
-            ], direction="horizontal", gap=2, wrap=True),
+            ], direction="h", gap=2, wrap=True),
         ], gap=2),
     ))
 
@@ -192,7 +192,7 @@ def _top_actions(view: str) -> ui.Stack:
                 view="main" if new_project_active else "new_project",
             ),
         ),
-    ], direction="horizontal", wrap=True, sticky=True)
+    ], direction="h", wrap=True, sticky=True)
 
 
 def _inline_new_project_form() -> ui.Card:
@@ -216,7 +216,7 @@ def _inline_new_project_form() -> ui.Card:
                     size="sm",
                     on_click=ui.Call("__panel__sidebar", view="main"),
                 ),
-            ], direction="horizontal", gap=1),
+            ], direction="h", gap=1),
         ], gap=2),
     )
 
@@ -281,4 +281,4 @@ def _footer(conn: dict) -> ui.Stack:
             size="sm",
             on_click=ui.Call("disconnect_vikunja"),
         ),
-    ], direction="horizontal", gap=2, sticky=True)
+    ], direction="h", gap=2, sticky=True)

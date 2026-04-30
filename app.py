@@ -127,7 +127,7 @@ SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.txt").read_text()
 
 # ─── Extension ─────────────────────────────────────────────────────────── #
 
-ext = Extension("tasks", version="2.0.5")
+ext = Extension("tasks", version="2.0.6")
 
 chat = ChatExtension(
     ext=ext,

@@ -1,15 +1,18 @@
-"""tasks · Kanban board panel (slot=center, default view).
+"""tasks · Right-slot composite panel — board / smart view / task detail.
 
-Renders project tasks grouped by bucket. Uses Vikunja native Kanban view —
-one view per project, auto-created by Vikunja with default_bucket_id and
-done_bucket_id. Tasks with bucket_id = done_bucket_id are marked done.
+The platform allows panels in slot in ("left","right") only — anything
+else is silently dropped by `the platform runtime.activities.panel_publish`.
+First panel per slot wins. So this single right-slot panel dispatches
+to the correct render path based on kwargs:
 
-Board views:
-  - view=today     → filter_tasks by due today, grouped by bucket
-  - view=upcoming  → filter_tasks by due in 7d, grouped by bucket
-  - view=overdue   → filter_tasks by overdue, single column
-  - project_id=N   → show project N's Kanban (default)
-  - empty          → show onboarding / first project prompt
+  - task_id present       → task_detail (open task or new-task form)
+  - view in (today/upcoming/overdue) → smart-view list
+  - project_id=N          → project N's Kanban
+  - else                  → onboarding "select a project"
+
+Vikunja Kanban model: each project auto-gets a Kanban view with
+default_bucket_id and done_bucket_id. Tasks land in default_bucket_id
+on create; moving a task into done_bucket_id marks it done.
 """
 from __future__ import annotations
 
@@ -54,7 +57,7 @@ def _task_card(task: dict) -> Any:
     return ui.Card(
         title=f"{'✅ ' if done else ''}{title}",
         content=ui.Text(meta or "", variant="caption") if meta else None,
-        on_click=ui.Call("__panel__task", task_id=str(tid)),
+        on_click=ui.Call("__panel__board", task_id=str(tid)),
     )
 
 
@@ -73,12 +76,13 @@ async def _find_kanban_view(imperal_id: str, project_id: int) -> dict | None:
 
 @ext.panel(
     "board",
-    slot="center",
+    slot="right",
     title="Board",
     icon="Kanban",
     refresh=(
         "on_event:task.created,task.updated,task.completed,task.deleted,"
         "task.moved,task.bucket_changed,task.due_changed,task.priority_changed,"
+        "task.commented,task.labeled,task.unlabeled,task.assigned,task.unassigned,"
         "project.created,project.updated"
     ),
 )
@@ -86,13 +90,28 @@ async def tasks_board(
     ctx,
     project_id: str = "",
     view: str = "",
+    task_id: str = "",
+    mode: str = "",
     **kwargs,
 ):
-    """Kanban board for a project, or filtered smart view across all projects."""
+    """Right-slot composite panel — routes between board / smart view / task detail.
+
+    Platform supports `slot in ("left","right")` only (kernel panel_publish
+    drops anything else). So board, task detail and smart views all live in
+    one right panel and dispatch on kwargs:
+      - task_id present  → task_detail (open / new)
+      - view in smart    → smart-view list
+      - project_id       → project Kanban
+      - else             → onboarding
+    """
     imperal_id = _imperal_id(ctx)
 
     if not imperal_id:
         return ui.Empty(message="Sign in to use tasks.", icon="UserX")
+
+    if task_id or mode == "new":
+        from panels_task import task_detail
+        return await task_detail(ctx, task_id=task_id, mode=mode, project_id=project_id, **kwargs)
 
     # ── Smart views (no project_id) ───────────────────────────────────
     if view in ("today", "upcoming", "overdue"):
@@ -226,7 +245,7 @@ def _header(title: str, imperal_id: str, project_id: int | None = None, count: i
                 icon="Plus",
                 variant="primary",
                 size="sm",
-                on_click=ui.Call("__panel__task", mode="new", project_id=str(project_id)),
+                on_click=ui.Call("__panel__board", mode="new", project_id=str(project_id)),
             )
         )
     actions.append(

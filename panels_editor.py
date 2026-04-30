@@ -199,11 +199,11 @@ async def _render_project_board(imperal_id: str, project_id: int) -> Any:
         btitle = b.get("title", "?")
         bid = b.get("id")
         tasks = b.get("tasks") or []
-        task_cards = [_task_card(t) for t in tasks]
+        task_items = [_task_card(t) for t in tasks]
         columns.append(
             ui.Card(
                 title=f"{btitle} ({len(tasks)})",
-                content=ui.Stack(children=task_cards, gap=1) if task_cards else
+                content=ui.List(items=task_items) if task_items else
                         ui.Text("—", variant="caption"),
             )
         )

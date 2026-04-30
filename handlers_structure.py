@@ -285,9 +285,11 @@ async def list_projects(ctx, params: _NoParams) -> ActionResult:
     "list_buckets",
     action_type="read",
     description=(
-        "List kanban buckets (columns) for a project. Returns bucket_id and title. "
-        "Call this before create_task or move_to_bucket when the user refers to a "
-        "bucket by name (e.g. 'TO-DO', 'In Progress', 'Done')."
+        "List kanban buckets (columns) for a project WITH their tasks. "
+        "Returns bucket_id, title, task_count, and the full task list per bucket. "
+        "Use this to: (1) look up bucket_id by name before create_task/move_to_bucket, "
+        "(2) answer 'what tasks are in column X' — read directly from the tasks array, "
+        "no further API call needed."
     ),
 )
 async def list_buckets(ctx, params: ListBucketsParams) -> ActionResult:
@@ -306,9 +308,8 @@ async def list_buckets(ctx, params: ListBucketsParams) -> ActionResult:
     if kanban is None:
         return ActionResult.error(f"No kanban view found for project #{params.project_id}.")
 
-    # Use /tasks endpoint: same bucket shape but under tasks PAT scope.
-    # /buckets endpoint requires a separate Vikunja PAT scope not included
-    # in the PAT minted during the standard connect flow.
+    # /tasks returns buckets with embedded tasks under the tasks PAT scope.
+    # /buckets requires a separate Vikunja PAT scope not minted during connect.
     buckets_resp = await api_get(
         f"/v1/projects/{params.project_id}/views/{kanban['id']}/tasks",
         {"imperal_id": imperal_id},
@@ -317,13 +318,32 @@ async def list_buckets(ctx, params: ListBucketsParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(buckets_resp, "Couldn't fetch buckets"))
 
     buckets = buckets_resp if isinstance(buckets_resp, list) else []
+
+    def _task_entry(t: dict) -> dict:
+        due = (t.get("due_date") or "")[:10]
+        return {
+            "task_id": t["id"],
+            "title": t.get("title", "?"),
+            "done": t.get("done", False),
+            "priority": t.get("priority", 0),
+            "due_date": due or None,
+        }
+
+    bucket_list = [
+        {
+            "bucket_id": b["id"],
+            "title": b.get("title", "?"),
+            "limit": b.get("limit", 0),
+            "task_count": len(b.get("tasks") or []),
+            "tasks": [_task_entry(t) for t in (b.get("tasks") or [])],
+        }
+        for b in buckets
+    ]
+    summary_parts = [f"{b['title']} ({b['task_count']})" for b in bucket_list]
     return ActionResult.success(
-        summary=f"{len(buckets)} bucket(s): {', '.join(b.get('title', '?') for b in buckets)}.",
+        summary=f"{len(buckets)} bucket(s): {', '.join(summary_parts)}.",
         data={
             "project_id": params.project_id,
-            "buckets": [
-                {"bucket_id": b["id"], "title": b.get("title", "?"), "limit": b.get("limit", 0)}
-                for b in buckets
-            ],
+            "buckets": bucket_list,
         },
     )

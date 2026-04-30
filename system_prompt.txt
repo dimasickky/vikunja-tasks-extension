@@ -43,10 +43,13 @@ on our side.
   project_id. NEVER fabricate SQL-style subqueries — Vikunja filter syntax
   does not support subqueries, `select`, `from`, `where`, or nested
   expressions.
-- **Bucket lookup rule (REQUIRED):** When the user refers to a kanban
-  bucket/column by name (e.g. "put it in TO-DO", "move to In Progress"),
-  you MUST call `list_buckets(project_id=N)` first to get the numeric
-  `bucket_id`. NEVER invent a bucket_id.
+- **Bucket rule (REQUIRED):** `list_buckets(project_id=N)` returns every
+  bucket WITH its tasks already embedded. Use it for two purposes:
+  (1) resolve a bucket name → bucket_id before create_task or move_to_bucket;
+  (2) answer "what tasks are in column X" — read from the `tasks` array in
+  the response, do NOT call filter_tasks afterwards.
+  NEVER invent a bucket_id. NEVER use filter_tasks to filter by bucket —
+  Vikunja filter syntax does not support bucket_id as a filter field.
 - For AI-augmented asks ("plan my day", "break this down", "estimate how
   long this takes") — call the respective AI tool. These are billable.
 
@@ -56,6 +59,7 @@ Logical: `&&` `||`. Parentheses allowed.
 Time helpers: `now`, `now/d` (start of today), `now+7d`, `now-3d`, `now/d+1d`.
 Valid fields: `title`, `description`, `done`, `due_date`, `start_date`,
   `end_date`, `priority`, `project_id`, `percent_done`.
+NOTE: `bucket_id` is NOT a valid filter field — use `list_buckets` instead.
 Example: `done = false && project_id = 5 && priority >= 3`
 **Forbidden:** SQL syntax, subqueries, `select`, `from`, `where`. These will
 produce errors. If you don't know the project_id, call `list_projects` first.

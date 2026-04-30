@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.0.20] — 2026-04-30
+
+### Fixed / Improved
+
+- **`handlers_structure.py` — `list_buckets`**: now returns tasks embedded per bucket (already available from the `/tasks` bridge endpoint — was being stripped before). Response shape: `{buckets: [{bucket_id, title, limit, task_count, tasks: [{task_id, title, done, priority, due_date}]}]}`. LLM can answer "what's in bucket X" from a single `list_buckets` call without chaining `filter_tasks`.
+- **`system_prompt.txt`**: updated bucket rule — LLM now knows `list_buckets` returns tasks and must NOT use `filter_tasks` to filter by bucket (Vikunja filter syntax does not support `bucket_id`). Added explicit `bucket_id` NOT-a-filter-field note to the filter fields list.
+- **`list_buckets` function description**: updated to reflect that it returns tasks per bucket.
+
+---
+
 ## [2.0.18] — 2026-04-30
 
 ### Fixed

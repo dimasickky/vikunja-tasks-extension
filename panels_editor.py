@@ -51,13 +51,28 @@ def _task_card(task: dict) -> Any:
     if prio >= 3:
         meta_parts.append(f"⚠ {_priority_label(prio)}")
 
-    return ui.ListItem(
-        id=f"task_{tid}",
-        title=f"{'✅ ' if done else ''}{title}",
-        subtitle=" · ".join(meta_parts) if meta_parts else "",
+    # Circle button: click to complete (or re-open detail if already done)
+    circle = ui.Button(
+        " ",
         icon="CheckCircle2" if done else "Circle",
-        on_click=ui.Call("__panel__editor", note_id=str(tid), task_id=str(tid)),
+        variant="ghost",
+        size="sm",
+        on_click=ui.Call("complete_task", task_id=tid) if not done
+                 else ui.Call("__panel__editor", note_id=str(tid), task_id=str(tid)),
     )
+
+    title_parts: list = [
+        ui.Button(
+            f"[done] {title}" if done else title,
+            variant="ghost",
+            size="sm",
+            on_click=ui.Call("__panel__editor", note_id=str(tid), task_id=str(tid)),
+        )
+    ]
+    if meta_parts:
+        title_parts.append(ui.Text(" · ".join(meta_parts), variant="caption"))
+
+    return ui.Stack([circle, ui.Stack(title_parts, gap=0)], direction="h", gap=1)
 
 
 async def _find_kanban_view(imperal_id: str, project_id: int) -> dict | None:
@@ -155,7 +170,7 @@ async def _render_smart_view(imperal_id: str, view: str) -> Any:
         _header(titles[view], imperal_id, count=len(tasks)),
         ui.Card(
             title=f"{titles[view]} ({len(tasks)})",
-            content=ui.List(items=cards),
+            content=ui.Stack(children=cards, gap=1),
         ),
     ], gap=2)
 
@@ -203,7 +218,7 @@ async def _render_project_board(imperal_id: str, project_id: int) -> Any:
         columns.append(
             ui.Card(
                 title=f"{btitle} ({len(tasks)})",
-                content=ui.List(items=task_cards) if task_cards else
+                content=ui.Stack(children=task_cards, gap=1) if task_cards else
                         ui.Text("—", variant="caption"),
             )
         )

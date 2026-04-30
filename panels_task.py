@@ -51,7 +51,7 @@ async def render_task_detail(
 
     # ── Create mode ───────────────────────────────────────────────────
     if mode == "new":
-        return _render_create_form(project_id)
+        return await _render_create_form(ctx, project_id)
 
     # ── Edit mode ─────────────────────────────────────────────────────
     if not task_id:
@@ -89,11 +89,65 @@ async def render_task_detail(
 
 # ─── Create form ──────────────────────────────────────────────────────── #
 
-def _render_create_form(project_id: str) -> Any:
+async def _render_create_form(ctx, project_id: str) -> Any:
+    imperal_id = _imperal_id(ctx)
+
+    # No project selected → show project picker
     if not project_id:
-        return ui.Empty(
-            message="Open a project first to add a task to it.",
-            icon="Folder",
+        projects_resp = await api_get("/v1/projects", {"imperal_id": imperal_id})
+        projects = [p for p in (projects_resp if isinstance(projects_resp, list) else [])
+                    if not p.get("is_archived", False)]
+        if not projects:
+            return ui.Empty(message="No projects yet — create one in the sidebar.", icon="Folder")
+        return ui.Stack([
+            _header_bar("New Task — Pick a project"),
+            ui.Card(
+                title="Select project",
+                content=ui.Stack([
+                    ui.Button(
+                        p.get("title", f"#{p['id']}"),
+                        icon="Folder",
+                        variant="ghost",
+                        size="sm",
+                        on_click=ui.Call(
+                            "__panel__editor",
+                            note_id="new",
+                            mode="new",
+                            project_id=str(p["id"]),
+                        ),
+                    )
+                    for p in projects
+                ], gap=1),
+            ),
+        ], gap=2)
+
+    pid = int(project_id)
+
+    # Fetch buckets for bucket selector
+    bucket_options: list = []
+    views_resp = await api_get(f"/v1/projects/{pid}/views", {"imperal_id": imperal_id})
+    if isinstance(views_resp, list):
+        kanban = next((v for v in views_resp if v.get("view_kind") == "kanban"), None)
+        if kanban:
+            buckets_resp = await api_get(
+                f"/v1/projects/{pid}/views/{kanban['id']}/buckets",
+                {"imperal_id": imperal_id},
+            )
+            if isinstance(buckets_resp, list):
+                bucket_options = [
+                    {"value": str(b["id"]), "label": b.get("title", f"Bucket #{b['id']}")}
+                    for b in buckets_resp
+                ]
+
+    form_children = [
+        ui.Input(placeholder="Task title", param_name="title"),
+        ui.Input(placeholder="Description (optional, markdown)", param_name="description"),
+        ui.Input(placeholder="Due date (YYYY-MM-DD)", param_name="due_date"),
+        ui.Select(param_name="priority", options=_priority_options()),
+    ]
+    if bucket_options:
+        form_children.append(
+            ui.Select(param_name="bucket_id", options=bucket_options),
         )
 
     return ui.Stack([
@@ -104,22 +158,8 @@ def _render_create_form(project_id: str) -> Any:
                 ui.Form(
                     action="create_task",
                     submit_label="Create",
-                    defaults={"project_id": int(project_id)},
-                    children=[
-                        ui.Input(placeholder="Task title", param_name="title"),
-                        ui.Input(
-                            placeholder="Description (optional, markdown)",
-                            param_name="description",
-                        ),
-                        ui.Input(
-                            placeholder="Due date (YYYY-MM-DD)",
-                            param_name="due_date",
-                        ),
-                        ui.Select(
-                            param_name="priority",
-                            options=_priority_options(),
-                        ),
-                    ],
+                    defaults={"project_id": pid},
+                    children=form_children,
                 ),
                 ui.Button(
                     "Cancel",

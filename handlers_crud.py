@@ -101,6 +101,7 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
             "due_date": resp.get("due_date"),
             "priority": resp.get("priority", 0),
             "bucket_id": resp.get("bucket_id", 0),
+            "refresh_panels": ["sidebar", "editor"],
         },
     )
 
@@ -135,6 +136,7 @@ async def _update_task_impl(ctx, params: UpdateTaskParams) -> ActionResult:
             "due_date": resp.get("due_date"),
             "priority": resp.get("priority", 0),
             "percent_done": resp.get("percent_done", 0.0),
+            "refresh_panels": ["sidebar", "editor"],
         },
     )
 
@@ -153,7 +155,11 @@ async def _complete_task_impl(ctx, params: CompleteTaskParams) -> ActionResult:
 
     return ActionResult.success(
         summary=f"Task completed: {resp.get('title', params.task_id)}.",
-        data={"task_id": resp.get("id", params.task_id), "done": True},
+        data={
+            "task_id": resp.get("id", params.task_id),
+            "done": resp.get("done", True),
+            "refresh_panels": ["sidebar", "editor"],
+        },
     )
 
 
@@ -171,7 +177,7 @@ async def _delete_task_impl(ctx, params: DeleteTaskParams) -> ActionResult:
 
     return ActionResult.success(
         summary=f"Task #{params.task_id} deleted.",
-        data={"task_id": params.task_id, "deleted": True},
+        data={"task_id": params.task_id, "deleted": True, "refresh_panels": ["sidebar", "editor"]},
     )
 
 

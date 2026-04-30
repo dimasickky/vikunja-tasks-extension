@@ -72,6 +72,7 @@ async def _create_project_impl(ctx, params: CreateProjectParams) -> ActionResult
             "title": resp["title"],
             "hex_color": resp.get("hex_color"),
             "parent_project_id": resp.get("parent_project_id", 0),
+            "refresh_panels": ["sidebar", "editor"],
         },
     )
 
@@ -96,7 +97,7 @@ async def _update_project_impl(ctx, params: UpdateProjectParams) -> ActionResult
 
     return ActionResult.success(
         summary=f"Project updated: {resp.get('title', params.project_id)}.",
-        data={"project_id": resp.get("id", params.project_id), "title": resp.get("title")},
+        data={"project_id": resp.get("id", params.project_id), "title": resp.get("title"), "refresh_panels": ["sidebar", "editor"]},
     )
 
 
@@ -114,7 +115,7 @@ async def _archive_project_impl(ctx, params: ArchiveProjectParams) -> ActionResu
 
     return ActionResult.success(
         summary=f"Project #{params.project_id} archived.",
-        data={"project_id": params.project_id, "is_archived": True},
+        data={"project_id": params.project_id, "is_archived": True, "refresh_panels": ["sidebar", "editor"]},
     )
 
 
@@ -132,7 +133,7 @@ async def _delete_project_impl(ctx, params: DeleteProjectParams) -> ActionResult
 
     return ActionResult.success(
         summary=f"Project #{params.project_id} deleted (cascade).",
-        data={"project_id": params.project_id, "deleted": True},
+        data={"project_id": params.project_id, "deleted": True, "refresh_panels": ["sidebar", "editor"]},
     )
 
 
@@ -151,7 +152,7 @@ async def _create_label_impl(ctx, params: CreateLabelParams) -> ActionResult:
 
     return ActionResult.success(
         summary=f"Label created: {resp['title']}.",
-        data={"label_id": resp["id"], "title": resp["title"], "hex_color": resp.get("hex_color")},
+        data={"label_id": resp["id"], "title": resp["title"], "hex_color": resp.get("hex_color"), "refresh_panels": ["sidebar", "editor"]},
     )
 
 
@@ -169,7 +170,7 @@ async def _delete_label_impl(ctx, params: DeleteLabelParams) -> ActionResult:
 
     return ActionResult.success(
         summary=f"Label #{params.label_id} deleted.",
-        data={"label_id": params.label_id, "deleted": True},
+        data={"label_id": params.label_id, "deleted": True, "refresh_panels": ["sidebar", "editor"]},
     )
 
 

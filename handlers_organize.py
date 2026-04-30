@@ -76,7 +76,7 @@ async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't assign user"))
     return ActionResult.success(
         summary=f"Assigned user {params.assignee_vikunja_user_id} to task #{params.task_id}.",
-        data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id},
+        data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id, "refresh_panels": ["sidebar", "editor"]},
     )
 
 
@@ -93,7 +93,7 @@ async def _unassign_task_impl(ctx, params: UnassignTaskParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't unassign user"))
     return ActionResult.success(
         summary=f"Unassigned user {params.assignee_vikunja_user_id} from task #{params.task_id}.",
-        data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id},
+        data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id, "refresh_panels": ["sidebar", "editor"]},
     )
 
 
@@ -110,7 +110,7 @@ async def _add_label_impl(ctx, params: AddLabelParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't attach label"))
     return ActionResult.success(
         summary=f"Attached label #{params.label_id} to task #{params.task_id}.",
-        data={"task_id": params.task_id, "label_id": params.label_id},
+        data={"task_id": params.task_id, "label_id": params.label_id, "refresh_panels": ["sidebar", "editor"]},
     )
 
 
@@ -127,7 +127,7 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't detach label"))
     return ActionResult.success(
         summary=f"Detached label #{params.label_id} from task #{params.task_id}.",
-        data={"task_id": params.task_id, "label_id": params.label_id},
+        data={"task_id": params.task_id, "label_id": params.label_id, "refresh_panels": ["sidebar", "editor"]},
     )
 
 

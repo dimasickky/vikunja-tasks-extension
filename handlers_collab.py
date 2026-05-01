@@ -9,8 +9,6 @@ from app import api_post, api_get, chat, is_no_connection_error
 from handlers_crud import _require_user, _bridge_error_msg
 
 
-# ─── Params ────────────────────────────────────────────────────────────── #
-
 class AddCommentParams(BaseModel):
     task_id: int
     comment: str = Field(..., min_length=1, description="Comment text (markdown supported).")
@@ -32,17 +30,13 @@ class ListCommentsParams(BaseModel):
     task_id: int
 
 
-# ─── Impl ──────────────────────────────────────────────────────────────── #
-
 async def _add_comment_impl(ctx, params: AddCommentParams) -> ActionResult:
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
 
-    resp = await api_post(
-        f"/v1/tasks/{params.task_id}/comments",
-        {"imperal_id": imperal_id, "comment": params.comment},
-    )
+    resp = await api_post(ctx, f"/v1/tasks/{params.task_id}/comments",
+                          {"imperal_id": imperal_id, "comment": params.comment})
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't add comment"))
 
@@ -50,8 +44,8 @@ async def _add_comment_impl(ctx, params: AddCommentParams) -> ActionResult:
         summary=f"Comment added to task #{params.task_id}.",
         data={
             "comment_id": resp.get("id"),
-            "task_id": params.task_id,
-            "comment": resp.get("comment", params.comment),
+            "task_id":    params.task_id,
+            "comment":    resp.get("comment", params.comment),
         },
     )
 
@@ -61,49 +55,17 @@ async def _mention_user_impl(ctx, params: MentionUserParams) -> ActionResult:
     if params.message:
         text = f"{params.message}\n\n{text}"
 
-    result = await _add_comment_impl(
-        ctx, AddCommentParams(task_id=params.task_id, comment=text),
-    )
-    # Replay as "mention" event topic for automation distinction
+    result = await _add_comment_impl(ctx, AddCommentParams(task_id=params.task_id, comment=text))
     if hasattr(result, "data") and result.data:
         result.data["mentioned_username"] = params.username
     return result
 
 
-async def _list_comments_impl(ctx, params: ListCommentsParams) -> ActionResult:
-    imperal_id = _require_user(ctx)
-    if isinstance(imperal_id, ActionResult):
-        return imperal_id
-
-    resp = await api_get(
-        f"/v1/tasks/{params.task_id}/comments", {"imperal_id": imperal_id},
-    )
-    if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch comments"))
-
-    comments = resp if isinstance(resp, list) else []
-    return ActionResult.success(
-        summary=f"{len(comments)} comment(s) on task #{params.task_id}.",
-        data={
-            "count": len(comments),
-            "comments": [
-                {
-                    "comment_id": c["id"],
-                    "comment": c.get("comment", ""),
-                    "author": c.get("author", {}).get("username", ""),
-                    "created": c.get("created"),
-                }
-                for c in comments
-            ],
-        },
-    )
-
-
-# ─── @chat.function wrappers ───────────────────────────────────────────── #
-
 @chat.function(
     "add_comment",
     action_type="write",
+    chain_callable=True,
+    effects=["create:comment"],
     event="task.commented",
     description="Add a comment to a task (markdown supported).",
 )
@@ -114,6 +76,8 @@ async def add_comment(ctx, params: AddCommentParams) -> ActionResult:
 @chat.function(
     "mention_user",
     action_type="write",
+    chain_callable=True,
+    effects=["create:comment"],
     event="task.mentioned",
     description=(
         "Mention a user in a task comment. Vikunja auto-links '@username' and notifies. "
@@ -130,4 +94,27 @@ async def mention_user(ctx, params: MentionUserParams) -> ActionResult:
     description="List all comments on a task.",
 )
 async def list_comments(ctx, params: ListCommentsParams) -> ActionResult:
-    return await _list_comments_impl(ctx, params)
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    resp = await api_get(ctx, f"/v1/tasks/{params.task_id}/comments", {"imperal_id": imperal_id})
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch comments"))
+
+    comments = resp if isinstance(resp, list) else []
+    return ActionResult.success(
+        summary=f"{len(comments)} comment(s) on task #{params.task_id}.",
+        data={
+            "count":    len(comments),
+            "comments": [
+                {
+                    "comment_id": c["id"],
+                    "comment":    c.get("comment", ""),
+                    "author":     c.get("author", {}).get("username", ""),
+                    "created":    c.get("created"),
+                }
+                for c in comments
+            ],
+        },
+    )

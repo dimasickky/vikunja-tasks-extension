@@ -1,17 +1,4 @@
-"""tasks · BYO connection handlers (connect / disconnect / status).
-
-Thin chat-function wrappers that proxy to the backend service:
-    POST   /v1/connect           username + password → mints PAT on bridge
-    POST   /v1/connect/with-pat  user pastes a ready PAT
-    DELETE /v1/connect           revoke + delete
-    GET    /v1/connection        status (no PAT echoed)
-
-The user's password and PAT plaintext NEVER touch this extension's stack
-beyond the single chat-function call frame — they're forwarded immediately
-to the bridge via httpx and discarded after the request returns. The
-bridge is the only place that holds plaintext during the request, and
-the only place that stores the encrypted form at rest.
-"""
+"""tasks · BYO connection handlers (connect / disconnect / status)."""
 from __future__ import annotations
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
@@ -23,8 +10,6 @@ from app import api_post, api_delete, api_get, chat, require_imperal_id
 
 _MODEL_CONFIG = ConfigDict(populate_by_name=True)
 
-
-# ─── Params ────────────────────────────────────────────────────────────── #
 
 class ConnectVikunjaParams(BaseModel):
     """Connect via username + password (default flow)."""
@@ -66,11 +51,20 @@ class _NoParams(BaseModel):
     model_config = _MODEL_CONFIG
 
 
-# ─── Handlers ──────────────────────────────────────────────────────────── #
+def _format_connect_error(resp: dict, default: str) -> str:
+    detail = resp.get("detail")
+    if isinstance(detail, str) and detail.strip():
+        return detail
+    if isinstance(detail, dict):
+        return detail.get("detail") or detail.get("error") or default
+    return default
+
 
 @chat.function(
     "connect_vikunja",
     action_type="write",
+    chain_callable=True,
+    effects=["create:connection"],
     event="connection.created",
     description=(
         "Connect a user's Vikunja instance via username + password. "
@@ -88,22 +82,20 @@ async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
         if not params.password:
             return ActionResult.error("Password is required.")
 
-        resp = await api_post("/v1/connect", {
+        resp = await api_post(ctx, "/v1/connect", {
             "imperal_id": require_imperal_id(ctx),
-            "base_url": params.base_url.strip(),
-            "username": params.username.strip(),
-            "password": params.password,
+            "base_url":   params.base_url.strip(),
+            "username":   params.username.strip(),
+            "password":   params.password,
         })
         if resp.get("status") == "error":
-            return ActionResult.error(
-                _format_connect_error(resp, default="Couldn't connect to Vikunja."),
-            )
+            return ActionResult.error(_format_connect_error(resp, "Couldn't connect to Vikunja."))
         return ActionResult.success(
             data={
-                "base_url": resp.get("base_url"),
-                "username": resp.get("username"),
-                "vikunja_user_id": resp.get("vikunja_user_id"),
-                "refresh_panels": ["sidebar", "editor"],
+                "base_url":          resp.get("base_url"),
+                "username":          resp.get("username"),
+                "vikunja_user_id":   resp.get("vikunja_user_id"),
+                "refresh_panels":    ["sidebar", "editor"],
             },
             summary=f"Connected to {resp.get('base_url')} as {resp.get('username')}.",
         )
@@ -114,6 +106,8 @@ async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
 @chat.function(
     "connect_vikunja_with_pat",
     action_type="write",
+    chain_callable=True,
+    effects=["create:connection"],
     event="connection.created",
     description=(
         "Advanced connect: user pastes a pre-existing Vikunja Personal "
@@ -128,21 +122,19 @@ async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> 
         if not params.pat.strip():
             return ActionResult.error("API token is required.")
 
-        resp = await api_post("/v1/connect/with-pat", {
+        resp = await api_post(ctx, "/v1/connect/with-pat", {
             "imperal_id": require_imperal_id(ctx),
-            "base_url": params.base_url.strip(),
-            "pat": params.pat.strip(),
+            "base_url":   params.base_url.strip(),
+            "pat":        params.pat.strip(),
         })
         if resp.get("status") == "error":
-            return ActionResult.error(
-                _format_connect_error(resp, default="The token is not accepted by Vikunja."),
-            )
+            return ActionResult.error(_format_connect_error(resp, "The token is not accepted by Vikunja."))
         return ActionResult.success(
             data={
-                "base_url": resp.get("base_url"),
-                "username": resp.get("username"),
+                "base_url":        resp.get("base_url"),
+                "username":        resp.get("username"),
                 "vikunja_user_id": resp.get("vikunja_user_id"),
-                "refresh_panels": ["sidebar", "editor"],
+                "refresh_panels":  ["sidebar", "editor"],
             },
             summary=f"Connected to {resp.get('base_url')} as {resp.get('username')}.",
         )
@@ -153,6 +145,8 @@ async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> 
 @chat.function(
     "disconnect_vikunja",
     action_type="destructive",
+    chain_callable=True,
+    effects=["delete:connection"],
     event="connection.deleted",
     description=(
         "Disconnect from the user's Vikunja: revoke the stored API token "
@@ -161,11 +155,9 @@ async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> 
 )
 async def disconnect_vikunja(ctx, params: _NoParams) -> ActionResult:
     try:
-        resp = await api_delete("/v1/connect", {"imperal_id": require_imperal_id(ctx)})
+        resp = await api_delete(ctx, "/v1/connect", {"imperal_id": require_imperal_id(ctx)})
         if resp.get("status") == "error":
-            return ActionResult.error(
-                _format_connect_error(resp, default="Couldn't disconnect."),
-            )
+            return ActionResult.error(_format_connect_error(resp, "Couldn't disconnect."))
         return ActionResult.success(
             data={"deleted": resp.get("deleted", True), "refresh_panels": ["sidebar", "editor"]},
             summary="Disconnected from Vikunja.",
@@ -185,16 +177,14 @@ async def disconnect_vikunja(ctx, params: _NoParams) -> ActionResult:
 )
 async def get_connection_status(ctx, params: _NoParams) -> ActionResult:
     try:
-        resp = await api_get("/v1/connection", {"imperal_id": require_imperal_id(ctx)})
-        if resp.get("status") == "error":
-            return ActionResult.error(
-                _format_connect_error(resp, default="Couldn't read connection status."),
-            )
+        resp = await api_get(ctx, "/v1/connection", {"imperal_id": require_imperal_id(ctx)})
+        if isinstance(resp, dict) and resp.get("status") == "error":
+            return ActionResult.error(_format_connect_error(resp, "Couldn't read connection status."))
         return ActionResult.success(
             data={
-                "connected": resp.get("connected", False),
-                "base_url": resp.get("base_url"),
-                "username": resp.get("username"),
+                "connected":       resp.get("connected", False),
+                "base_url":        resp.get("base_url"),
+                "username":        resp.get("username"),
                 "vikunja_user_id": resp.get("vikunja_user_id"),
             },
             summary=(
@@ -205,15 +195,3 @@ async def get_connection_status(ctx, params: _NoParams) -> ActionResult:
         )
     except Exception as e:
         return ActionResult.error(f"Status check failed: {e}")
-
-
-# ─── Helpers ───────────────────────────────────────────────────────────── #
-
-def _format_connect_error(resp: dict, default: str) -> str:
-    """Pull a human-readable error out of bridge's normalised error shape."""
-    detail = resp.get("detail")
-    if isinstance(detail, str) and detail.strip():
-        return detail
-    if isinstance(detail, dict):
-        return detail.get("detail") or detail.get("error") or default
-    return default

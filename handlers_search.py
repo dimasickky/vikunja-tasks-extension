@@ -1,8 +1,4 @@
-"""tasks · Read-only search / list operations.
-
-Uses Vikunja's native filter syntax via /api/v1/tasks/all passthrough.
-Filter grammar: `done = false && due_date < now + 7d && priority >= 3` etc.
-"""
+"""tasks · Read-only search / list operations."""
 from __future__ import annotations
 
 from typing import Optional
@@ -13,8 +9,6 @@ from imperal_sdk.chat import ActionResult
 from app import api_get, chat, is_no_connection_error
 from handlers_crud import _require_user, _bridge_error_msg
 
-
-# ─── Params ────────────────────────────────────────────────────────────── #
 
 class ListMyTasksParams(BaseModel):
     filter: Optional[str] = Field(
@@ -39,10 +33,11 @@ class FilterTasksParams(BaseModel):
     per_page: int = Field(50, ge=1, le=200)
 
 
-# ─── Impl ──────────────────────────────────────────────────────────────── #
+class _NoParams(BaseModel):
+    pass
+
 
 def _summarise_tasks(tasks: list[dict], limit: int = 10) -> str:
-    """Human-readable one-line summary for ActionResult.message."""
     if not tasks:
         return "No tasks."
     if len(tasks) == 1:
@@ -58,14 +53,11 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
         return imperal_id
 
     q: dict = {"imperal_id": imperal_id, "page": params.page, "per_page": params.per_page}
-    if params.filter:
-        q["filter"] = params.filter
-    if params.sort_by:
-        q["sort_by"] = params.sort_by
-    if params.search:
-        q["s"] = params.search
+    if params.filter:   q["filter"] = params.filter
+    if params.sort_by:  q["sort_by"] = params.sort_by
+    if params.search:   q["s"] = params.search
 
-    resp = await api_get("/v1/tasks/all", q)
+    resp = await api_get(ctx, "/v1/tasks/all", q)
     if isinstance(resp, dict) and resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"))
 
@@ -76,50 +68,17 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
             "count": len(tasks),
             "tasks": [
                 {
-                    "task_id": t["id"],
-                    "title": t["title"],
+                    "task_id":    t["id"],
+                    "title":      t["title"],
                     "project_id": t.get("project_id"),
-                    "done": t.get("done", False),
-                    "due_date": t.get("due_date"),
-                    "priority": t.get("priority", 0),
+                    "done":       t.get("done", False),
+                    "due_date":   t.get("due_date"),
+                    "priority":   t.get("priority", 0),
                 }
                 for t in tasks
             ],
         },
     )
-
-
-async def _list_overdue_impl(ctx, _params: BaseModel) -> ActionResult:
-    return await _list_my_tasks_impl(
-        ctx, ListMyTasksParams(filter="done = false && due_date < now", sort_by="due_date"),
-    )
-
-
-async def _list_today_impl(ctx, _params: BaseModel) -> ActionResult:
-    return await _list_my_tasks_impl(
-        ctx,
-        ListMyTasksParams(
-            filter="done = false && due_date >= now/d && due_date < now/d+1d",
-            sort_by="priority",
-        ),
-    )
-
-
-async def _filter_tasks_impl(ctx, params: FilterTasksParams) -> ActionResult:
-    return await _list_my_tasks_impl(
-        ctx,
-        ListMyTasksParams(
-            filter=params.filter or "done = false",
-            page=params.page,
-            per_page=params.per_page,
-        ),
-    )
-
-
-# ─── @chat.function wrappers ───────────────────────────────────────────── #
-
-class _NoParams(BaseModel):
-    pass
 
 
 @chat.function(
@@ -140,7 +99,9 @@ async def list_my_tasks(ctx, params: ListMyTasksParams) -> ActionResult:
     description="List all overdue tasks (done=false AND due_date in the past).",
 )
 async def list_overdue(ctx, params: _NoParams) -> ActionResult:
-    return await _list_overdue_impl(ctx, params)
+    return await _list_my_tasks_impl(
+        ctx, ListMyTasksParams(filter="done = false && due_date < now", sort_by="due_date"),
+    )
 
 
 @chat.function(
@@ -149,7 +110,12 @@ async def list_overdue(ctx, params: _NoParams) -> ActionResult:
     description="List tasks due today (done=false AND due_date between start-of-day and end-of-day).",
 )
 async def list_today(ctx, params: _NoParams) -> ActionResult:
-    return await _list_today_impl(ctx, params)
+    return await _list_my_tasks_impl(
+        ctx, ListMyTasksParams(
+            filter="done = false && due_date >= now/d && due_date < now/d+1d",
+            sort_by="priority",
+        ),
+    )
 
 
 @chat.function(
@@ -162,4 +128,10 @@ async def list_today(ctx, params: _NoParams) -> ActionResult:
     ),
 )
 async def filter_tasks(ctx, params: FilterTasksParams) -> ActionResult:
-    return await _filter_tasks_impl(ctx, params)
+    return await _list_my_tasks_impl(
+        ctx, ListMyTasksParams(
+            filter=params.filter or "done = false",
+            page=params.page,
+            per_page=params.per_page,
+        ),
+    )

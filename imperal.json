@@ -1,60 +1,1298 @@
 {
+  "manifest_schema_version": 3,
   "app_id": "tasks",
-  "version": "2.0.24",
-  "capabilities": [],
-  "required_scopes": ["*", "tasks.read", "tasks.write"],
+  "version": "3.0.0",
+  "name": "Tasks",
+  "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
+  "icon": "icon.svg",
+  "actions_explicit": true,
+  "capabilities": [
+    "tasks:read",
+    "tasks:write"
+  ],
   "tools": [
     {
       "name": "tool_tasks_chat",
-      "description": "Tasks manager — bring-your-own Vikunja. Connect your own instance, then manage kanban boards, projects, due dates, labels, assignees, comments, plus AI-powered breakdown and planning.",
-      "scopes": ["*"],
+      "description": "Tasks manager — kanban boards, projects, due dates, labels, assignees, comments. Each user connects their own Vikunja instance; data lives in the user's Vikunja, never on our side.",
+      "scopes": [],
       "parameters": {
-        "message": {"type": "string", "required": false},
-        "kwargs": {"type": "string", "required": true}
+        "message": {
+          "type": "string",
+          "required": false
+        },
+        "kwargs": {
+          "type": "string",
+          "required": true
+        }
       }
     },
     {
       "name": "skeleton_refresh_tasks",
-      "description": "Background: today / overdue / upcoming counts + recent tasks + active projects (when connected).",
-      "scopes": ["tasks.read"],
-      "parameters": {
-        "kwargs": {"type": "string", "required": true}
-      }
+      "description": "Background: today/overdue/upcoming counts + recent tasks + active projects.",
+      "scopes": [],
+      "parameters": {}
     },
     {
       "name": "skeleton_alert_tasks",
-      "description": "Alerts: overdue tasks, due-today, sudden backlog spike.",
-      "scopes": ["tasks.read"],
+      "description": "Alerts: overdue tasks, due-today, sudden spike in backlog.",
+      "scopes": [
+        "tasks.read"
+      ],
       "parameters": {
-        "old": {"type": "string", "required": false},
-        "new": {"type": "string", "required": false},
-        "kwargs": {"type": "string", "required": true}
+        "old": {
+          "type": "string",
+          "required": false
+        },
+        "new": {
+          "type": "string",
+          "required": false
+        },
+        "kwargs": {
+          "type": "string",
+          "required": true
+        }
       }
     },
     {
-      "name": "__panel__sidebar",
-      "description": "Panel: Tasks sidebar (connect form when disconnected; smart views + projects when connected).",
+      "name": "connect_vikunja",
+      "description": "Connect a user's Vikunja instance via username + password. The password is forwarded to the backend service once, exchanged for a long-lived Personal Access Token, and discarded. Only the encrypted PAT is stored. Returns base_url + username on success.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:connection"
+      ],
+      "params_schema": {
+        "description": "Connect via username + password (default flow).",
+        "properties": {
+          "base_url": {
+            "default": "",
+            "description": "Your Vikunja base URL, e.g. https://vikunja.example.com",
+            "title": "Base Url",
+            "type": "string"
+          },
+          "username": {
+            "default": "",
+            "description": "Your Vikunja username.",
+            "title": "Username",
+            "type": "string"
+          },
+          "password": {
+            "default": "",
+            "description": "Your Vikunja password (used once to mint a long-lived API token, never stored).",
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "title": "ConnectVikunjaParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "connection.created",
       "scopes": [],
-      "parameters": {"params": {"type": "string", "required": true}}
+      "owner_chat_tool": "tool_tasks_chat"
     },
     {
-      "name": "__panel__editor",
-      "description": "Panel: Kanban board + task detail + create form (single center panel).",
+      "name": "connect_vikunja_with_pat",
+      "description": "Advanced connect: user pastes a pre-existing Vikunja Personal Access Token (Settings → API tokens in their Vikunja UI). The PAT is encrypted on bridge and stored at rest.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:connection"
+      ],
+      "params_schema": {
+        "description": "Advanced: user pastes a pre-existing PAT minted in their Vikunja UI.",
+        "properties": {
+          "base_url": {
+            "default": "",
+            "title": "Base Url",
+            "type": "string"
+          },
+          "pat": {
+            "default": "",
+            "description": "Vikunja Personal Access Token (Settings → API tokens).",
+            "title": "Pat",
+            "type": "string"
+          }
+        },
+        "title": "ConnectVikunjaWithPatParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "connection.created",
       "scopes": [],
-      "parameters": {"params": {"type": "string", "required": true}}
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "disconnect_vikunja",
+      "description": "Disconnect from the user's Vikunja: revoke the stored API token in their instance and delete the local connection record.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:connection"
+      ],
+      "params_schema": {
+        "properties": {},
+        "title": "_NoParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "connection.deleted",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "get_connection_status",
+      "description": "Check whether the user has a Vikunja connected (read-only — never echoes the API token). Returns connected: bool plus base_url and username when connected.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "params_schema": {
+        "properties": {},
+        "title": "_NoParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "create_task",
+      "description": "Create a new task in a project. Returns task_id + full task details.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "description": "Project (board) to create task in.",
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Task title.",
+            "maxLength": 250,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "description": "Optional description, markdown.",
+            "title": "Description",
+            "type": "string"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 due date (e.g. 2026-04-25T12:00:00Z).",
+            "title": "Due Date"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "0=none, 5=urgent.",
+            "title": "Priority"
+          },
+          "bucket_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Kanban bucket; default = first bucket of project.",
+            "title": "Bucket Id"
+          }
+        },
+        "required": [
+          "project_id",
+          "title"
+        ],
+        "title": "CreateTaskParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.created",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "update_task",
+      "description": "Update any fields of a task (title, description, due_date, priority, percent_done, bucket, etc.).",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End Date"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Priority"
+          },
+          "percent_done": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Percent Done"
+          },
+          "bucket_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Bucket Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Move to another project.",
+            "title": "Project Id"
+          },
+          "hex_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hex Color"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "UpdateTaskParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.updated",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "complete_task",
+      "description": "Mark a task as done (done=true, percent_done=1.0).",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "CompleteTaskParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.completed",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "delete_task",
+      "description": "Permanently delete a task. Cannot be undone.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "DeleteTaskParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.deleted",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "create_subtask",
+      "description": "Create a subtask under a parent task. Returns the new subtask's task_id.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "parent_task_id": {
+            "description": "ID of the parent task.",
+            "title": "Parent Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Subtask title.",
+            "maxLength": 250,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "description": "Optional description.",
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "parent_task_id",
+          "title"
+        ],
+        "title": "CreateSubtaskParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.created",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_subtasks",
+      "description": "List all subtasks of a given task, including their done/pending status.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Parent task ID to list subtasks for.",
+            "title": "Task Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "ListSubtasksParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "assign_task",
+      "description": "Assign a Vikunja user as assignee to a task.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "assignee_vikunja_user_id": {
+            "description": "Vikunja user id — from users table.",
+            "title": "Assignee Vikunja User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "assignee_vikunja_user_id"
+        ],
+        "title": "AssignTaskParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.assigned",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "unassign_task",
+      "description": "Remove a Vikunja user from task assignees.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "assignee_vikunja_user_id": {
+            "title": "Assignee Vikunja User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "assignee_vikunja_user_id"
+        ],
+        "title": "UnassignTaskParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.unassigned",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "add_label",
+      "description": "Attach an existing label to a task.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "label_id": {
+            "title": "Label Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "label_id"
+        ],
+        "title": "AddLabelParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.labeled",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "remove_label",
+      "description": "Detach a label from a task.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "label_id": {
+            "title": "Label Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "label_id"
+        ],
+        "title": "DetachLabelParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.unlabeled",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "set_due_date",
+      "description": "Set or change due date of a task. Use ISO 8601 UTC.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "due_date": {
+            "description": "ISO 8601 (e.g. 2026-04-25T12:00:00Z).",
+            "title": "Due Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "due_date"
+        ],
+        "title": "SetDueDateParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.due_changed",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "set_priority",
+      "description": "Set priority 0 (none) to 5 (critical).",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "priority": {
+            "description": "0=none, 1=low, 2=medium, 3=high, 4=urgent, 5=critical.",
+            "maximum": 5,
+            "minimum": 0,
+            "title": "Priority",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "priority"
+        ],
+        "title": "SetPriorityParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.priority_changed",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "move_to_project",
+      "description": "Move a task to another project.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "project_id"
+        ],
+        "title": "MoveToProjectParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.moved",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "move_to_bucket",
+      "description": "Move a task to another kanban bucket (column).",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "bucket_id": {
+            "title": "Bucket Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "bucket_id"
+        ],
+        "title": "MoveToBucketParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.bucket_changed",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "create_project",
+      "description": "Create a new project (kanban board). Returns project_id.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:project"
+      ],
+      "params_schema": {
+        "properties": {
+          "title": {
+            "maxLength": 250,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "parent_project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent Project Id"
+          },
+          "hex_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "e.g. 'ff5500' — without '#'.",
+            "title": "Hex Color"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "CreateProjectParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "project.created",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "update_project",
+      "description": "Update project title, description, or color.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:project"
+      ],
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "hex_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hex Color"
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "title": "UpdateProjectParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "project.updated",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "archive_project",
+      "description": "Archive a project (is_archived=true) — hide from active views but keep data.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:project"
+      ],
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "title": "ArchiveProjectParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "project.archived",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "delete_project",
+      "description": "Permanently delete a project with all its tasks. Cannot be undone.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:project"
+      ],
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "title": "DeleteProjectParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "project.deleted",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "create_label",
+      "description": "Create a new label with title and optional color.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:label"
+      ],
+      "params_schema": {
+        "properties": {
+          "title": {
+            "maxLength": 250,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "hex_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hex Color"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "CreateLabelParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "label.created",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "delete_label",
+      "description": "Permanently delete a label — removes from all tasks.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:label"
+      ],
+      "params_schema": {
+        "properties": {
+          "label_id": {
+            "title": "Label Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label_id"
+        ],
+        "title": "DeleteLabelParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "label.deleted",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_projects",
+      "description": "List all active (non-archived) projects. Returns project_id and title. Call this first when the user refers to a project by name — then use the returned project_id in filter_tasks or other calls.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "params_schema": {
+        "properties": {},
+        "title": "_NoParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_buckets",
+      "description": "List kanban buckets (columns) for a project WITH their tasks. Returns bucket_id, title, task_count, and the full task list per bucket. Use this to: (1) look up bucket_id by name before create_task/move_to_bucket, (2) answer 'what tasks are in column X' — read directly from the tasks array, no further API call needed.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "description": "Project whose kanban buckets to list.",
+            "title": "Project Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "title": "ListBucketsParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_my_tasks",
+      "description": "List tasks with optional Vikunja filter syntax. Examples: `done = false`, `priority >= 3 && due_date < now + 7d`.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "params_schema": {
+        "properties": {
+          "filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vikunja filter syntax, e.g. 'done = false && project_id = 5'.",
+            "title": "Filter"
+          },
+          "sort_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Field name; prefix with '-' for desc, e.g. 'due_date' or '-priority'.",
+            "title": "Sort By"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Free-text search in title/description.",
+            "title": "Search"
+          },
+          "page": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 50,
+            "maximum": 200,
+            "minimum": 1,
+            "title": "Per Page",
+            "type": "integer"
+          }
+        },
+        "title": "ListMyTasksParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_overdue",
+      "description": "List all overdue tasks (done=false AND due_date in the past).",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "params_schema": {
+        "properties": {},
+        "title": "_NoParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_today",
+      "description": "List tasks due today (done=false AND due_date between start-of-day and end-of-day).",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "params_schema": {
+        "properties": {},
+        "title": "_NoParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "filter_tasks",
+      "description": "Filter tasks with Vikunja expression. Operators: = != > < >= <= in like. Logical: && ||. Time helpers: now, now/d, now+7d, now-3d. Fields: title, description, done, due_date, start_date, end_date, priority, project_id, percent_done.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "params_schema": {
+        "properties": {
+          "filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vikunja filter expression. If omitted, defaults to 'done = false'.",
+            "title": "Filter"
+          },
+          "page": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 50,
+            "maximum": 200,
+            "minimum": 1,
+            "title": "Per Page",
+            "type": "integer"
+          }
+        },
+        "title": "FilterTasksParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "add_comment",
+      "description": "Add a comment to a task (markdown supported).",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:comment"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "comment": {
+            "description": "Comment text (markdown supported).",
+            "minLength": 1,
+            "title": "Comment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "comment"
+        ],
+        "title": "AddCommentParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.commented",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "mention_user",
+      "description": "Mention a user in a task comment. Vikunja auto-links '@username' and notifies. Use when user wants to notify/loop in someone.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:comment"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "username": {
+            "description": "Vikunja username to mention (without @). Vikunja auto-links and notifies.",
+            "title": "Username",
+            "type": "string"
+          },
+          "message": {
+            "default": "",
+            "description": "Optional context around the mention. If empty, plain '@username' is posted.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "username"
+        ],
+        "title": "MentionUserParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.mentioned",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_comments",
+      "description": "List all comments on a task.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "ListCommentsParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
     }
   ],
-  "signals": [
-    "connection.created", "connection.deleted",
-    "task.created", "task.updated", "task.completed", "task.deleted",
-    "task.assigned", "task.unassigned",
-    "task.labeled", "task.unlabeled",
-    "task.due_changed", "task.priority_changed",
-    "task.moved", "task.bucket_changed",
-    "task.commented", "task.mentioned",
-    "task.due_soon", "task.overdue",
-    "project.created", "project.updated", "project.archived", "project.deleted",
-    "label.created", "label.deleted"
+  "signals": [],
+  "schedules": [],
+  "required_scopes": [
+    "tasks.read"
   ],
-  "schedules": []
+  "icon_size_bytes": 329,
+  "lifecycle": {
+    "health_check": {
+      "interval_sec": 60
+    }
+  }
 }

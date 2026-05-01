@@ -1,8 +1,4 @@
-"""tasks · Organize operations (assign, label, due, priority, move).
-
-Some ops are thin specialisations of _update_task_impl (single-field update).
-assign_task and add_label use dedicated bridge endpoints.
-"""
+"""tasks · Organize operations (assign, label, due, priority, move)."""
 from __future__ import annotations
 
 from typing import Optional
@@ -18,8 +14,6 @@ from handlers_crud import (
     UpdateTaskParams,
 )
 
-
-# ─── Params ────────────────────────────────────────────────────────────── #
 
 class AssignTaskParams(BaseModel):
     task_id: int
@@ -61,22 +55,20 @@ class MoveToBucketParams(BaseModel):
     bucket_id: int
 
 
-# ─── Impl ──────────────────────────────────────────────────────────────── #
+# ─── Impl ─────────────────────────────────────────────────────────────────── #
 
 async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
-
-    resp = await api_post(
-        f"/v1/tasks/{params.task_id}/assign",
-        {"imperal_id": imperal_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id},
-    )
+    resp = await api_post(ctx, f"/v1/tasks/{params.task_id}/assign",
+                          {"imperal_id": imperal_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id})
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't assign user"))
     return ActionResult.success(
         summary=f"Assigned user {params.assignee_vikunja_user_id} to task #{params.task_id}.",
-        data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id, "refresh_panels": ["sidebar", "editor"]},
+        data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id,
+              "refresh_panels": ["sidebar", "editor"]},
     )
 
 
@@ -84,16 +76,14 @@ async def _unassign_task_impl(ctx, params: UnassignTaskParams) -> ActionResult:
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
-
-    resp = await api_delete(
-        f"/v1/tasks/{params.task_id}/assign/{params.assignee_vikunja_user_id}",
-        params={"imperal_id": imperal_id},
-    )
+    resp = await api_delete(ctx, f"/v1/tasks/{params.task_id}/assign/{params.assignee_vikunja_user_id}",
+                            params={"imperal_id": imperal_id})
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't unassign user"))
     return ActionResult.success(
         summary=f"Unassigned user {params.assignee_vikunja_user_id} from task #{params.task_id}.",
-        data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id, "refresh_panels": ["sidebar", "editor"]},
+        data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id,
+              "refresh_panels": ["sidebar", "editor"]},
     )
 
 
@@ -101,11 +91,8 @@ async def _add_label_impl(ctx, params: AddLabelParams) -> ActionResult:
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
-
-    resp = await api_post(
-        f"/v1/tasks/{params.task_id}/labels",
-        {"imperal_id": imperal_id, "label_id": params.label_id},
-    )
+    resp = await api_post(ctx, f"/v1/tasks/{params.task_id}/labels",
+                          {"imperal_id": imperal_id, "label_id": params.label_id})
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't attach label"))
     return ActionResult.success(
@@ -118,11 +105,8 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
-
-    resp = await api_delete(
-        f"/v1/tasks/{params.task_id}/labels/{params.label_id}",
-        params={"imperal_id": imperal_id},
-    )
+    resp = await api_delete(ctx, f"/v1/tasks/{params.task_id}/labels/{params.label_id}",
+                            params={"imperal_id": imperal_id})
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't detach label"))
     return ActionResult.success(
@@ -131,35 +115,13 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
     )
 
 
-async def _set_due_date_impl(ctx, params: SetDueDateParams) -> ActionResult:
-    return await _update_task_impl(
-        ctx, UpdateTaskParams(task_id=params.task_id, due_date=params.due_date),
-    )
-
-
-async def _set_priority_impl(ctx, params: SetPriorityParams) -> ActionResult:
-    return await _update_task_impl(
-        ctx, UpdateTaskParams(task_id=params.task_id, priority=params.priority),
-    )
-
-
-async def _move_to_project_impl(ctx, params: MoveToProjectParams) -> ActionResult:
-    return await _update_task_impl(
-        ctx, UpdateTaskParams(task_id=params.task_id, project_id=params.project_id),
-    )
-
-
-async def _move_to_bucket_impl(ctx, params: MoveToBucketParams) -> ActionResult:
-    return await _update_task_impl(
-        ctx, UpdateTaskParams(task_id=params.task_id, bucket_id=params.bucket_id),
-    )
-
-
-# ─── @chat.function wrappers ───────────────────────────────────────────── #
+# ─── @chat.function wrappers ──────────────────────────────────────────────── #
 
 @chat.function(
     "assign_task",
     action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
     event="task.assigned",
     description="Assign a Vikunja user as assignee to a task.",
 )
@@ -170,6 +132,8 @@ async def assign_task(ctx, params: AssignTaskParams) -> ActionResult:
 @chat.function(
     "unassign_task",
     action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
     event="task.unassigned",
     description="Remove a Vikunja user from task assignees.",
 )
@@ -180,6 +144,8 @@ async def unassign_task(ctx, params: UnassignTaskParams) -> ActionResult:
 @chat.function(
     "add_label",
     action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
     event="task.labeled",
     description="Attach an existing label to a task.",
 )
@@ -190,6 +156,8 @@ async def add_label(ctx, params: AddLabelParams) -> ActionResult:
 @chat.function(
     "remove_label",
     action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
     event="task.unlabeled",
     description="Detach a label from a task.",
 )
@@ -200,38 +168,46 @@ async def remove_label(ctx, params: DetachLabelParams) -> ActionResult:
 @chat.function(
     "set_due_date",
     action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
     event="task.due_changed",
     description="Set or change due date of a task. Use ISO 8601 UTC.",
 )
 async def set_due_date(ctx, params: SetDueDateParams) -> ActionResult:
-    return await _set_due_date_impl(ctx, params)
+    return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, due_date=params.due_date))
 
 
 @chat.function(
     "set_priority",
     action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
     event="task.priority_changed",
     description="Set priority 0 (none) to 5 (critical).",
 )
 async def set_priority(ctx, params: SetPriorityParams) -> ActionResult:
-    return await _set_priority_impl(ctx, params)
+    return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, priority=params.priority))
 
 
 @chat.function(
     "move_to_project",
     action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
     event="task.moved",
     description="Move a task to another project.",
 )
 async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
-    return await _move_to_project_impl(ctx, params)
+    return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, project_id=params.project_id))
 
 
 @chat.function(
     "move_to_bucket",
     action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
     event="task.bucket_changed",
     description="Move a task to another kanban bucket (column).",
 )
 async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
-    return await _move_to_bucket_impl(ctx, params)
+    return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, bucket_id=params.bucket_id))

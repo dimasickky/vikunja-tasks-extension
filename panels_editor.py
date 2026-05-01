@@ -44,6 +44,7 @@ def _task_card(task: dict) -> Any:
     prio = task.get("priority", 0)
     due = _due_badge(task)
     done = task.get("done", False)
+    pct = task.get("percent_done", 0.0)
 
     meta_parts = []
     if due:
@@ -51,11 +52,16 @@ def _task_card(task: dict) -> Any:
     if prio >= 3:
         meta_parts.append(f"⚠ {_priority_label(prio)}")
 
+    badge = None
+    if not done and pct > 0:
+        badge = ui.Badge(label=f"{int(pct * 100)}%", color="blue")
+
     return ui.ListItem(
         id=f"task_{tid}",
         title=("✓ " if done else "") + title,
         subtitle=" · ".join(meta_parts) if meta_parts else None,
         icon="CheckCircle2" if done else "Circle",
+        badge=badge,
         on_click=ui.Call("__panel__editor", note_id=str(tid), task_id=str(tid)),
     )
 
@@ -214,7 +220,7 @@ async def _render_project_board(imperal_id: str, project_id: int) -> Any:
             icon="Columns",
         )
     else:
-        body = ui.Stack(children=columns, direction="h", gap=2, wrap=False)
+        body = ui.Stack(children=columns, direction="h", gap=2, wrap=False, className="overflow-x-auto")
 
     return ui.Stack([
         _header(proj_title, imperal_id, project_id=project_id),

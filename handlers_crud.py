@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_delete, chat, _imperal_id, is_no_connection_error
+from app import api_get, api_post, api_delete, chat, _imperal_id, is_no_connection_error
 
 
 # ─── Params ────────────────────────────────────────────────────────────── #
@@ -45,6 +45,16 @@ class CompleteTaskParams(BaseModel):
 
 class DeleteTaskParams(BaseModel):
     task_id: int
+
+
+class CreateSubtaskParams(BaseModel):
+    parent_task_id: int = Field(..., description="ID of the parent task.")
+    title: str = Field(..., min_length=1, max_length=250, description="Subtask title.")
+    description: str = Field("", description="Optional description.")
+
+
+class ListSubtasksParams(BaseModel):
+    task_id: int = Field(..., description="Parent task ID to list subtasks for.")
 
 
 # ─── Impl functions (single source of truth) ───────────────────────────── #
@@ -221,3 +231,61 @@ async def complete_task(ctx, params: CompleteTaskParams) -> ActionResult:
 )
 async def delete_task(ctx, params: DeleteTaskParams) -> ActionResult:
     return await _delete_task_impl(ctx, params)
+
+
+@chat.function(
+    "create_subtask",
+    action_type="write",
+    event="task.created",
+    description="Create a subtask under a parent task. Returns the new subtask's task_id.",
+)
+async def create_subtask(ctx, params: CreateSubtaskParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    resp = await api_post(f"/v1/tasks/{params.parent_task_id}/subtasks", {
+        "imperal_id": imperal_id,
+        "title": params.title,
+        "description": params.description,
+    })
+    if resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create subtask"))
+
+    return ActionResult.success(
+        summary=f"Subtask created: {resp.get('title')}.",
+        data={
+            "subtask_id": resp["id"],
+            "parent_task_id": params.parent_task_id,
+            "title": resp["title"],
+            "refresh_panels": ["sidebar", "editor"],
+        },
+    )
+
+
+@chat.function(
+    "list_subtasks",
+    action_type="read",
+    description="List all subtasks of a given task, including their done/pending status.",
+)
+async def list_subtasks(ctx, params: ListSubtasksParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    resp = await api_get(f"/v1/tasks/{params.task_id}/subtasks", {"imperal_id": imperal_id})
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch subtasks"))
+
+    subtasks = resp if isinstance(resp, list) else []
+    done_ct = sum(1 for s in subtasks if s.get("done"))
+    return ActionResult.success(
+        summary=f"Task #{params.task_id} has {len(subtasks)} subtask(s), {done_ct} done.",
+        data={
+            "task_id": params.task_id,
+            "subtasks": [
+                {"task_id": s["id"], "title": s["title"], "done": s.get("done", False)}
+                for s in subtasks
+            ],
+        },
+    )

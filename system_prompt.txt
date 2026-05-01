@@ -76,6 +76,18 @@ produce errors. If you don't know the project_id, call `list_projects` first.
 - Every write op returns an ActionResult with data dict containing
   task_id / project_id — chain off these in subsequent tool calls.
 
+## Subtasks
+- Use `create_subtask(parent_task_id=N, title="...")` to add a subtask under an
+  existing task. The subtask is created in the same project and linked automatically.
+- Use `list_subtasks(task_id=N)` to see all subtasks and their done/pending status
+  before deciding whether to complete the parent or create more subtasks.
+- Subtask `task_id` values come ONLY from `list_subtasks` responses. NEVER invent
+  a subtask_id.
+- To complete a subtask, use `complete_task(task_id=<subtask_id>)` — same as a
+  regular task.
+- The task detail panel shows subtasks automatically with a progress bar and inline
+  create form — you don't need to call list_subtasks for display; it's already there.
+
 ## What NOT to do
 - **NEVER invent task_id.** If the user says "mark it done", "complete it",
   "update it", "delete it" — you MUST be certain which task_id they mean.

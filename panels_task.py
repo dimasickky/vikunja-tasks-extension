@@ -275,9 +275,51 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
         ], gap=2),
     )
 
+    # Subtasks
+    related = task.get("related_tasks") or {}
+    subtask_list = related.get("subtask") or []
+    done_ct = sum(1 for s in subtask_list if s.get("done"))
+    total = len(subtask_list)
+    sub_items = [
+        ui.ListItem(
+            id=f"sub_{s['id']}",
+            title=("✓ " if s.get("done") else "") + s.get("title", "?"),
+            icon="CheckCircle2" if s.get("done") else "Circle",
+            actions=[] if s.get("done") else [
+                {"icon": "Check", "label": "Complete",
+                 "on_click": ui.Call("complete_task", task_id=s["id"])},
+                {"icon": "Trash2", "label": "Delete",
+                 "on_click": ui.Call("delete_task", task_id=s["id"]),
+                 "confirm": f"Delete '{s.get('title', '?')}'?"},
+            ],
+        )
+        for s in subtask_list
+    ]
+    progress_nodes: list = []
+    if total:
+        progress_nodes.append(ui.Progress(
+            value=int(done_ct / total * 100),
+            label=f"{done_ct}/{total} done",
+            color="green" if done_ct == total else "blue",
+        ))
+    subtasks_card = ui.Card(
+        title=f"Subtasks ({done_ct}/{total})" if total else "Subtasks",
+        content=ui.Stack([
+            *progress_nodes,
+            ui.List(items=sub_items) if sub_items else ui.Text("No subtasks yet.", variant="caption"),
+            ui.Form(
+                action="create_subtask",
+                submit_label="Add",
+                defaults={"parent_task_id": str(tid)},
+                children=[ui.Input(placeholder="Subtask title…", param_name="title")],
+            ),
+        ], gap=2),
+    )
+
     return ui.Stack([
         _header_bar(title, actions=actions),
         ui.Card(title="Details", content=edit_form),
+        subtasks_card,
         comments_card,
     ], gap=2)
 

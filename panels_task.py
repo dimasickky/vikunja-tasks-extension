@@ -65,7 +65,7 @@ async def render_task_detail(
     except ValueError:
         return ui.Empty(message=f"Invalid task_id: {task_id}", icon="AlertCircle")
 
-    task = await api_get(f"/v1/tasks/{tid}", {"imperal_id": imperal_id})
+    task = await api_get(ctx, f"/v1/tasks/{tid}", {"imperal_id": imperal_id})
     if isinstance(task, dict) and task.get("status") == "error":
         if is_no_connection_error(task):
             return ui.Empty(
@@ -80,7 +80,7 @@ async def render_task_detail(
         return ui.Empty(message="Unexpected response from bridge.", icon="AlertCircle")
 
     comments_raw = await api_get(
-        f"/v1/tasks/{tid}/comments", {"imperal_id": imperal_id},
+        ctx, f"/v1/tasks/{tid}/comments", {"imperal_id": imperal_id},
     )
     comments = comments_raw if isinstance(comments_raw, list) else []
 
@@ -94,7 +94,7 @@ async def _render_create_form(ctx, project_id: str) -> Any:
 
     # No project selected → show project picker
     if not project_id:
-        projects_resp = await api_get("/v1/projects", {"imperal_id": imperal_id})
+        projects_resp = await api_get(ctx, "/v1/projects", {"imperal_id": imperal_id})
         projects = [p for p in (projects_resp if isinstance(projects_resp, list) else [])
                     if not p.get("is_archived", False)]
         if not projects:
@@ -125,13 +125,14 @@ async def _render_create_form(ctx, project_id: str) -> Any:
 
     # Fetch buckets for bucket selector
     bucket_options: list = []
-    views_resp = await api_get(f"/v1/projects/{pid}/views", {"imperal_id": imperal_id})
+    views_resp = await api_get(ctx, f"/v1/projects/{pid}/views", {"imperal_id": imperal_id})
     if isinstance(views_resp, list):
         kanban = next((v for v in views_resp if v.get("view_kind") == "kanban"), None)
         if kanban:
             # /tasks returns buckets with embedded tasks under the tasks PAT scope.
             # /buckets requires a separate Vikunja PAT scope not minted during connect.
             buckets_resp = await api_get(
+                ctx,
                 f"/v1/projects/{pid}/views/{kanban['id']}/tasks",
                 {"imperal_id": imperal_id},
             )

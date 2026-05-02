@@ -46,7 +46,7 @@ async def tasks_sidebar(ctx, view: str = "main", active_project_id: str = "", **
         return ui.Empty(message="Sign in to use tasks.", icon="UserX")
 
     # Probe connection status via bridge.
-    conn = await api_get("/v1/connection", {"imperal_id": imperal_id}) or {}
+    conn = await api_get(ctx, "/v1/connection", {"imperal_id": imperal_id}) or {}
     connected = bool(conn.get("connected")) and conn.get("status") != "error"
 
     if not connected:
@@ -61,7 +61,7 @@ async def tasks_sidebar(ctx, view: str = "main", active_project_id: str = "", **
     children.append(_smart_views_card())
 
     # Projects list
-    projects_resp = await api_get("/v1/projects", {"imperal_id": imperal_id})
+    projects_resp = await api_get(ctx, "/v1/projects", {"imperal_id": imperal_id})
     if isinstance(projects_resp, dict) and projects_resp.get("status") == "error":
         if is_no_connection_error(projects_resp):
             # Connection died between status check and projects fetch — render reconnect.

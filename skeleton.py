@@ -14,7 +14,7 @@ log = logging.getLogger("tasks.skeleton")
     ttl=300,
     description="Background: today/overdue/upcoming counts + recent tasks + active projects.",
 )
-async def skeleton_refresh_tasks(ctx) -> dict:
+async def skeleton_refresh_tasks(ctx, **_) -> dict:
     """Refresh task counters and recent activity. Idempotent — safe per tick."""
     imperal_id = _imperal_id(ctx)
     if not imperal_id:

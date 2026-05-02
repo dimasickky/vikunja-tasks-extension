@@ -66,9 +66,9 @@ def _task_card(task: dict) -> Any:
     )
 
 
-async def _find_kanban_view(imperal_id: str, project_id: int) -> dict | None:
+async def _find_kanban_view(ctx, imperal_id: str, project_id: int) -> dict | None:
     """Locate the Kanban view of a project. Vikunja auto-creates one per project."""
-    views = await api_get(f"/v1/projects/{project_id}/views", {"imperal_id": imperal_id})
+    views = await api_get(ctx, f"/v1/projects/{project_id}/views", {"imperal_id": imperal_id})
     if not isinstance(views, list):
         return None
     for v in views:
@@ -111,7 +111,7 @@ async def tasks_board(
 
     # ── Smart views ───────────────────────────────────────────────────
     if view in ("today", "upcoming", "overdue"):
-        return await _render_smart_view(imperal_id, view)
+        return await _render_smart_view(ctx, imperal_id, view)
 
     # ── Project-specific board ────────────────────────────────────────
     if not project_id:
@@ -125,10 +125,10 @@ async def tasks_board(
     except ValueError:
         return ui.Empty(message=f"Invalid project_id: {project_id}", icon="AlertCircle")
 
-    return await _render_project_board(imperal_id, pid)
+    return await _render_project_board(ctx, imperal_id, pid)
 
 
-async def _render_smart_view(imperal_id: str, view: str) -> Any:
+async def _render_smart_view(ctx, imperal_id: str, view: str) -> Any:
     """Single-column tasks list for today / upcoming / overdue smart views."""
     filters = {
         "today": "done = false && due_date >= now/d && due_date < now/d+1d",
@@ -137,7 +137,7 @@ async def _render_smart_view(imperal_id: str, view: str) -> Any:
     }
     titles = {"today": "Today", "upcoming": "Upcoming (7 days)", "overdue": "Overdue"}
 
-    resp = await api_get("/v1/tasks/all", {
+    resp = await api_get(ctx, "/v1/tasks/all", {
         "imperal_id": imperal_id,
         "filter": filters[view],
         "sort_by": "due_date" if view != "overdue" else "-priority",
@@ -166,10 +166,10 @@ async def _render_smart_view(imperal_id: str, view: str) -> Any:
     ], gap=2)
 
 
-async def _render_project_board(imperal_id: str, project_id: int) -> Any:
+async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
     """Kanban board for a specific project."""
     # Fetch project meta
-    project = await api_get(f"/v1/projects/{project_id}", {"imperal_id": imperal_id})
+    project = await api_get(ctx, f"/v1/projects/{project_id}", {"imperal_id": imperal_id})
     if isinstance(project, dict) and project.get("status") == "error":
         if is_no_connection_error(project):
             return ui.Empty(
@@ -181,7 +181,7 @@ async def _render_project_board(imperal_id: str, project_id: int) -> Any:
     proj_title = project.get("title", f"Project #{project_id}")
 
     # Locate Kanban view
-    kanban = await _find_kanban_view(imperal_id, project_id)
+    kanban = await _find_kanban_view(ctx, imperal_id, project_id)
     if kanban is None:
         return ui.Empty(
             message=f"No Kanban view for '{proj_title}' — strange, should be auto-created.",
@@ -193,6 +193,7 @@ async def _render_project_board(imperal_id: str, project_id: int) -> Any:
     # /views/{vid}/buckets returns columns only (tasks=null), while
     # /views/{vid}/tasks returns the same columns with tasks populated.
     buckets = await api_get(
+        ctx,
         f"/v1/projects/{project_id}/views/{view_id}/tasks",
         {"imperal_id": imperal_id},
     )

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from imperal_sdk.chat import ActionResult
 
 from app import api_get, api_post, api_delete, chat, _imperal_id, is_no_connection_error
+from panels_task import _toggle_checklist_item
 
 
 class CreateTaskParams(BaseModel):
@@ -48,6 +49,12 @@ class CreateSubtaskParams(BaseModel):
 
 class ListSubtasksParams(BaseModel):
     task_id: int = Field(..., description="Parent task ID to list subtasks for.")
+
+
+class ToggleChecklistItemParams(BaseModel):
+    task_id: int = Field(..., description="Task whose description checklist to update.")
+    item_index: int = Field(..., ge=0, description="Zero-based index of the checklist item.")
+    checked: bool = Field(..., description="True to mark done, False to uncheck.")
 
 
 # ─── Impl functions ───────────────────────────────────────────────────────── #

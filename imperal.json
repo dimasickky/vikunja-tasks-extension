@@ -30,7 +30,12 @@
       "name": "skeleton_refresh_tasks",
       "description": "Background: today/overdue/upcoming counts + recent tasks + active projects.",
       "scopes": [],
-      "parameters": {}
+      "parameters": {
+        "_": {
+          "type": "string",
+          "required": true
+        }
+      }
     },
     {
       "name": "skeleton_alert_tasks",
@@ -504,6 +509,46 @@
       },
       "return_schema": {},
       "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "toggle_checklist_item",
+      "description": "Check or uncheck a TipTap checklist item in a task description. Use item_index (0-based) from the visible checklist order.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Task whose description checklist to update.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "item_index": {
+            "description": "Zero-based index of the checklist item.",
+            "minimum": 0,
+            "title": "Item Index",
+            "type": "integer"
+          },
+          "checked": {
+            "description": "True to mark done, False to uncheck.",
+            "title": "Checked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "task_id",
+          "item_index",
+          "checked"
+        ],
+        "title": "ToggleChecklistItemParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.updated",
       "scopes": [],
       "owner_chat_tool": "tool_tasks_chat"
     },

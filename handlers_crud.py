@@ -285,3 +285,49 @@ async def list_subtasks(ctx, params: ListSubtasksParams) -> ActionResult:
             ],
         },
     )
+
+
+@chat.function(
+    "toggle_checklist_item",
+    action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
+    event="task.updated",
+    description=(
+        "Check or uncheck a TipTap checklist item in a task description. "
+        "Use item_index (0-based) from the visible checklist order."
+    ),
+)
+async def toggle_checklist_item(ctx, params: ToggleChecklistItemParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    task = await api_get(ctx, f"/v1/tasks/{params.task_id}", {"imperal_id": imperal_id})
+    if isinstance(task, dict) and task.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(task, "Couldn't fetch task"))
+
+    desc = task.get("description") or ""
+    new_desc = _toggle_checklist_item(desc, params.item_index, params.checked)
+    if new_desc == desc:
+        return ActionResult.error(
+            f"Checklist item #{params.item_index} not found in task description."
+        )
+
+    resp = await api_post(ctx, f"/v1/tasks/{params.task_id}", {
+        "imperal_id": imperal_id,
+        "description": new_desc,
+    })
+    if resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update checklist item"))
+
+    state = "done" if params.checked else "unchecked"
+    return ActionResult.success(
+        summary=f"Checklist item #{params.item_index} marked {state}.",
+        data={
+            "task_id":    params.task_id,
+            "item_index": params.item_index,
+            "checked":    params.checked,
+            "refresh_panels": ["editor"],
+        },
+    )

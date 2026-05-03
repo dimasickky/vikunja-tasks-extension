@@ -19,7 +19,7 @@ from typing import Any
 from imperal_sdk import ui
 
 from app import ext, api_get, _imperal_id, is_no_connection_error
-from panels_task import render_task_detail
+from panels_task import render_task_detail, _parse_checklist
 
 log = logging.getLogger("tasks.board")
 

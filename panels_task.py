@@ -76,6 +76,12 @@ def _toggle_checklist_item(html: str, index: int, checked: bool) -> str:
     return html[:m.start()] + m.group(1) + new_val + m.group(2) + html[m.end():]
 
 
+def _strip_tasklist(html: str) -> str:
+    """Remove TipTap taskList blocks from HTML — we render them as DUI elements."""
+    return re.sub(r'<ul[^>]*data-type=["\']taskList["\'][^>]*>.*?</ul>', "", html,
+                  flags=re.DOTALL).strip()
+
+
 # ─── Helpers ───────────────────────────────────────────────────────────── #
 
 def _iso_to_date(iso: str | None) -> str:
@@ -290,31 +296,34 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
         ),
     )
 
-    # Edit form — task_id passed via defaults (not a visible field)
+    # Rendered description (HTML stripped of taskList — shown separately as checklist)
+    desc_html = _strip_tasklist(desc) if desc else ""
+
+    # Edit form — title, due_date, priority only (description edited separately)
     edit_form = ui.Form(
         action="update_task",
         submit_label="Save",
         defaults={
             "task_id": str(tid),
             "title": title,
-            "description": desc,
             "due_date": due,
             "priority": str(prio),
         },
         children=[
             ui.Input(placeholder="Title", param_name="title"),
-            ui.Input(placeholder="Description", param_name="description"),
             ui.Stack([
-                ui.Input(
-                    placeholder="Due date (YYYY-MM-DD)",
-                    param_name="due_date",
-                ),
-                ui.Select(
-                    param_name="priority",
-                    options=_priority_options(),
-                ),
+                ui.Input(placeholder="Due date (YYYY-MM-DD)", param_name="due_date"),
+                ui.Select(param_name="priority", options=_priority_options()),
             ], direction="h", gap=2),
         ],
+    )
+
+    # Description edit form (separate card to keep the main form clean)
+    desc_edit_form = ui.Form(
+        action="update_task",
+        submit_label="Save description",
+        defaults={"task_id": str(tid), "description": desc},
+        children=[ui.Input(placeholder="Description (HTML/markdown)", param_name="description")],
     )
 
     # Comments
@@ -422,9 +431,19 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
         ], gap=2),
     )
 
+    # Description card: rendered HTML view + inline edit form
+    desc_content_nodes: list = []
+    if desc_html:
+        desc_content_nodes.append(ui.Html(desc_html, sandbox=False))
+    else:
+        desc_content_nodes.append(ui.Text("No description.", variant="caption"))
+    desc_content_nodes.append(ui.Divider())
+    desc_content_nodes.append(desc_edit_form)
+
     sections: list = [
         _header_bar(title, actions=actions),
         ui.Card(title="Details", content=edit_form),
+        ui.Card(title="Description", content=ui.Stack(desc_content_nodes, gap=2)),
     ]
     if checklist_nodes:
         sections.extend(checklist_nodes)

@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.0.1] — 2026-05-04
+
+### Added
+
+- **`handlers_collab.py` — `update_comment`**: новый `@chat.function` для редактирования текста существующего комментария (`action_type="write"`). Вызывает `POST /v1/tasks/{task_id}/comments/{comment_id}` на bridge.
+- **`handlers_collab.py` — `delete_comment`**: новый `@chat.function` для удаления комментария (`action_type="destructive"`). Вызывает `DELETE /v1/tasks/{task_id}/comments/{comment_id}` на bridge.
+
+### Fixed
+
+- **`panels_task.py` — subtask actions**: выполненные subtask'и теперь показывают кнопку Delete (раньше `actions=[]` скрывал её для done-задач). Complete скрывается только для выполненных.
+- **`panels_task.py` — comment actions**: каждый комментарий теперь имеет кнопку Delete с подтверждением (`ui.Call("delete_comment", ...)`).
+
+---
+
 ## [2.0.20] — 2026-04-30
 
 ### Fixed / Improved

@@ -1,7 +1,7 @@
 {
   "manifest_schema_version": 3,
   "app_id": "tasks",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -1325,6 +1325,75 @@
       },
       "return_schema": {},
       "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "update_comment",
+      "description": "Edit the text of an existing comment on a task.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:comment"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "comment_id": {
+            "title": "Comment Id",
+            "type": "integer"
+          },
+          "comment": {
+            "description": "New comment text (markdown supported).",
+            "minLength": 1,
+            "title": "Comment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "comment_id",
+          "comment"
+        ],
+        "title": "UpdateCommentParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.comment_updated",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "delete_comment",
+      "description": "Permanently delete a comment from a task. Cannot be undone.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:comment"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "comment_id": {
+            "title": "Comment Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "comment_id"
+        ],
+        "title": "DeleteCommentParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.comment_deleted",
       "scopes": [],
       "owner_chat_tool": "tool_tasks_chat"
     }

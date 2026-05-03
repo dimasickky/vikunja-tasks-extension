@@ -332,8 +332,15 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
             id=f"comment_{c.get('id', i)}",
             title=f"@{c.get('author', {}).get('username', '?')}",
             subtitle=c.get("comment", ""),
+            actions=[
+                {"icon": "Trash2", "label": "Delete",
+                 "on_click": ui.Call("delete_comment",
+                                     task_id=tid, comment_id=c["id"]),
+                 "confirm": "Delete this comment?"},
+            ],
         )
         for i, c in enumerate(comments)
+        if c.get("id")
     ]
     comments_card = ui.Card(
         title=f"Comments ({len(comments)})",
@@ -400,13 +407,21 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
             title=("✓ " if s.get("done") else "") + s.get("title", "?"),
             icon="CheckCircle2" if s.get("done") else "Circle",
             on_click=ui.Call("__panel__editor", note_id=str(s["id"]), task_id=str(s["id"])),
-            actions=[] if s.get("done") else [
-                {"icon": "Check", "label": "Complete",
-                 "on_click": ui.Call("complete_task", task_id=s["id"])},
-                {"icon": "Trash2", "label": "Delete",
-                 "on_click": ui.Call("delete_task", task_id=s["id"]),
-                 "confirm": f"Delete '{s.get('title', '?')}'?"},
-            ],
+            actions=(
+                [
+                    {"icon": "Trash2", "label": "Delete",
+                     "on_click": ui.Call("delete_task", task_id=s["id"]),
+                     "confirm": f"Delete '{s.get('title', '?')}'?"},
+                ]
+                if s.get("done") else
+                [
+                    {"icon": "Check", "label": "Complete",
+                     "on_click": ui.Call("complete_task", task_id=s["id"])},
+                    {"icon": "Trash2", "label": "Delete",
+                     "on_click": ui.Call("delete_task", task_id=s["id"]),
+                     "confirm": f"Delete '{s.get('title', '?')}'?"},
+                ]
+            ),
         )
         for s in subtask_list
     ]

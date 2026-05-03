@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_get, chat, is_no_connection_error
+from app import api_post, api_get, api_delete, chat, is_no_connection_error
 from handlers_crud import _require_user, _bridge_error_msg
 
 
@@ -28,6 +28,17 @@ class MentionUserParams(BaseModel):
 
 class ListCommentsParams(BaseModel):
     task_id: int
+
+
+class UpdateCommentParams(BaseModel):
+    task_id: int
+    comment_id: int
+    comment: str = Field(..., min_length=1, description="New comment text (markdown supported).")
+
+
+class DeleteCommentParams(BaseModel):
+    task_id: int
+    comment_id: int
 
 
 async def _add_comment_impl(ctx, params: AddCommentParams) -> ActionResult:
@@ -117,4 +128,58 @@ async def list_comments(ctx, params: ListCommentsParams) -> ActionResult:
                 for c in comments
             ],
         },
+    )
+
+
+@chat.function(
+    "update_comment",
+    action_type="write",
+    chain_callable=True,
+    effects=["update:comment"],
+    event="task.comment_updated",
+    description="Edit the text of an existing comment on a task.",
+)
+async def update_comment(ctx, params: UpdateCommentParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    resp = await api_post(
+        ctx,
+        f"/v1/tasks/{params.task_id}/comments/{params.comment_id}",
+        {"imperal_id": imperal_id, "comment": params.comment},
+    )
+    if resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update comment"))
+
+    return ActionResult.success(
+        summary=f"Comment #{params.comment_id} on task #{params.task_id} updated.",
+        data={"comment_id": params.comment_id, "task_id": params.task_id},
+    )
+
+
+@chat.function(
+    "delete_comment",
+    action_type="destructive",
+    chain_callable=True,
+    effects=["delete:comment"],
+    event="task.comment_deleted",
+    description="Permanently delete a comment from a task. Cannot be undone.",
+)
+async def delete_comment(ctx, params: DeleteCommentParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    resp = await api_delete(
+        ctx,
+        f"/v1/tasks/{params.task_id}/comments/{params.comment_id}",
+        {"imperal_id": imperal_id},
+    )
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete comment"))
+
+    return ActionResult.success(
+        summary=f"Comment #{params.comment_id} deleted from task #{params.task_id}.",
+        data={"comment_id": params.comment_id, "task_id": params.task_id},
     )

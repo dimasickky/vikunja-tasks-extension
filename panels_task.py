@@ -84,6 +84,13 @@ async def render_task_detail(
     )
     comments = comments_raw if isinstance(comments_raw, list) else []
 
+    # Fallback: if Vikunja didn't embed related_tasks in the task response,
+    # fetch subtasks explicitly so the detail panel is never silently empty.
+    if not (task.get("related_tasks") or {}).get("subtask"):
+        fallback = await api_get(ctx, f"/v1/tasks/{tid}/subtasks", {"imperal_id": imperal_id})
+        if isinstance(fallback, list) and fallback:
+            task.setdefault("related_tasks", {})["subtask"] = fallback
+
     return _render_edit_form(task, comments)
 
 
@@ -286,6 +293,7 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
             id=f"sub_{s['id']}",
             title=("✓ " if s.get("done") else "") + s.get("title", "?"),
             icon="CheckCircle2" if s.get("done") else "Circle",
+            on_click=ui.Call("__panel__editor", note_id=str(s["id"]), task_id=str(s["id"])),
             actions=[] if s.get("done") else [
                 {"icon": "Check", "label": "Complete",
                  "on_click": ui.Call("complete_task", task_id=s["id"])},

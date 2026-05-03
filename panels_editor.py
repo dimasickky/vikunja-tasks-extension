@@ -46,14 +46,23 @@ def _task_card(task: dict) -> Any:
     done = task.get("done", False)
     pct = task.get("percent_done", 0.0)
 
+    subtasks = (task.get("related_tasks") or {}).get("subtask") or []
+    sub_total = len(subtasks)
+    sub_done = sum(1 for s in subtasks if s.get("done"))
+
     meta_parts = []
     if due:
         meta_parts.append(f"📅 {due}")
     if prio >= 3:
         meta_parts.append(f"⚠ {_priority_label(prio)}")
+    if sub_total:
+        meta_parts.append(f"☑ {sub_done}/{sub_total}")
 
     badge = None
-    if not done and pct > 0:
+    if sub_total and not done:
+        color = "green" if sub_done == sub_total else "blue"
+        badge = ui.Badge(label=f"{sub_done}/{sub_total}", color=color)
+    elif not done and pct > 0:
         badge = ui.Badge(label=f"{int(pct * 100)}%", color="blue")
 
     return ui.ListItem(

@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.3.0] — 2026-05-04
+
+### Added — kanban subtask grouping (UI-side)
+
+- **`panels_editor.py`** — kanban board and smart views (today / upcoming / overdue) now hide subtasks from the main card list and surface them inside a collapsible "↳ Subtasks (done/total)" section at the bottom of each bucket. Implementation:
+  - `_collect_child_task_ids(all_tasks)` — single global pass over every bucket's tasks, builds a set of task ids that appear as `related_tasks.subtask` of another task. A subtask sitting in a different bucket than its parent (Vikunja allows that) is still hidden from top-level rendering.
+  - `_split_top_and_children(tasks, child_ids)` — partitions a bucket's tasks into top-level cards and children.
+  - `_subtasks_section(children)` — renders the collapsed `ui.Section(collapsible=True)` with each child as a normal `_task_card` (kept clickable; opens task detail).
+  - Bucket-card title counter changed to `(N top-level)` so the header number matches what's visible. Total-with-children count is shown inside the collapsible section title.
+- **No bridge changes.** Vikunja still stores subtasks as plain tasks linked via `task_relations`; the visual nesting is purely client-side, so it works regardless of the Vikunja version, the per-view `show_subtasks` toggle, or whether the user brings an external Vikunja instance.
+
+---
+
 ## [3.2.1] — 2026-05-04
 
 ### Bridge (`/home/the backend service/routes_tasks.py`) — rollback of v3.2.0 kanban fix

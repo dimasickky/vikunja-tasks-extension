@@ -38,6 +38,32 @@ def _due_badge(task: dict) -> str | None:
     return d[:10]
 
 
+def _collect_child_task_ids(all_tasks: list[dict]) -> set[int]:
+    """Set of task ids that appear as `related_tasks.subtask` of any task in the list."""
+    child_ids: set[int] = set()
+    for t in all_tasks:
+        for s in (t.get("related_tasks") or {}).get("subtask") or []:
+            sid = s.get("id")
+            if sid:
+                child_ids.add(sid)
+    return child_ids
+
+
+def _split_top_and_children(tasks: list[dict], child_ids: set[int]) -> tuple[list[dict], list[dict]]:
+    top = [t for t in tasks if t["id"] not in child_ids]
+    children = [t for t in tasks if t["id"] in child_ids]
+    return top, children
+
+
+def _subtasks_section(children: list[dict]) -> Any:
+    sub_done = sum(1 for c in children if c.get("done"))
+    return ui.Section(
+        title=f"↳ Subtasks ({sub_done}/{len(children)})",
+        collapsible=True,
+        children=[_task_card(c) for c in children],
+    )
+
+
 def _task_card(task: dict) -> Any:
     title = task.get("title", "?")
     tid = task["id"]
@@ -165,12 +191,21 @@ async def _render_smart_view(ctx, imperal_id: str, view: str) -> Any:
             ui.Empty(message="No tasks match this view.", icon="CheckCircle"),
         ], gap=2)
 
-    cards = [_task_card(t) for t in tasks]
+    child_ids = _collect_child_task_ids(tasks)
+    top, children = _split_top_and_children(tasks, child_ids)
+
+    body_children: list[Any] = []
+    if top:
+        body_children.append(ui.Stack(children=[_task_card(t) for t in top], gap=1))
+    if children:
+        body_children.append(_subtasks_section(children))
+
     return ui.Stack([
-        _header(titles[view], imperal_id, count=len(tasks)),
+        _header(titles[view], imperal_id, count=len(top)),
         ui.Card(
-            title=f"{titles[view]} ({len(tasks)})",
-            content=ui.Stack(children=cards, gap=1),
+            title=f"{titles[view]} ({len(top)})",
+            content=ui.Stack(children=body_children, gap=1) if body_children
+                    else ui.Text("—", variant="caption"),
         ),
     ], gap=2)
 
@@ -209,18 +244,33 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
     if not isinstance(buckets, list):
         buckets = []
 
-    # Build column UI
+    # Collect child task ids globally (a subtask may sit in a different bucket
+    # than its parent — Vikunja allows that). We hide every child from the
+    # main card list and surface them inside a collapsible "↳ Subtasks" section
+    # at the bottom of whichever bucket physically holds them.
+    all_tasks = [t for b in buckets for t in (b.get("tasks") or [])]
+    child_ids = _collect_child_task_ids(all_tasks)
+
     columns = []
     for b in buckets:
         btitle = b.get("title", "?")
         bid = b.get("id")
         tasks = b.get("tasks") or []
-        task_items = [_task_card(t) for t in tasks]
+        top, children = _split_top_and_children(tasks, child_ids)
+
+        bucket_body: list[Any] = []
+        if top:
+            bucket_body.append(ui.List(items=[_task_card(t) for t in top]))
+        elif not children:
+            bucket_body.append(ui.Text("—", variant="caption"))
+        if children:
+            bucket_body.append(_subtasks_section(children))
+
         columns.append(
             ui.Card(
-                title=f"{btitle} ({len(tasks)})",
-                content=ui.List(items=task_items) if task_items else
-                        ui.Text("—", variant="caption"),
+                title=f"{btitle} ({len(top)})",
+                content=ui.Stack(children=bucket_body, gap=1) if len(bucket_body) > 1
+                        else bucket_body[0],
             )
         )
 

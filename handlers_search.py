@@ -114,6 +114,50 @@ async def list_today(ctx, params: NoParams) -> ActionResult:
     )
 
 
+class FindTaskParams(BaseModel):
+    query: str = Field(
+        ...,
+        min_length=1,
+        description=(
+            "Substring of task title to search for. Returns matching tasks with "
+            "their integer task_id, project_id, bucket_id."
+        ),
+    )
+
+
+@chat.function(
+    "find_task",
+    action_type="read",
+    description=(
+        "Search tasks by title substring. Returns matching tasks with their "
+        "integer task_id and project_id. Call this first when the user mentions "
+        "a task by name and you don't have its integer ID — never invent task_id."
+    ),
+)
+async def find_task(ctx, params: FindTaskParams) -> ActionResult:
+    result = await _list_my_tasks_impl(
+        ctx, ListMyTasksParams(search=params.query, per_page=20),
+    )
+    if result.status != "success":
+        return result
+
+    tasks = (result.data or {}).get("tasks", []) if isinstance(result.data, dict) else []
+    n = len(tasks)
+    if n == 0:
+        summary = f"No tasks found matching '{params.query}'."
+    else:
+        preview = ", ".join(
+            f"{t.get('title','?')} (#{t.get('task_id')})" for t in tasks[:5]
+        )
+        more = f" + {n - 5} more" if n > 5 else ""
+        summary = f"Found {n} task(s) matching '{params.query}': {preview}{more}."
+
+    return ActionResult.success(
+        summary=summary,
+        data={"count": n, "query": params.query, "tasks": tasks},
+    )
+
+
 @chat.function(
     "filter_tasks",
     action_type="read",

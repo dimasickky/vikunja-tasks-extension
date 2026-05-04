@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.2.0] — 2026-05-04
+
+### Fundamental fixes — chat ID-resolution, reopen, fresh skeleton, kanban subtask hiding
+
+- **`handlers_search.py` — new `find_task(query)` chat function (read-only, V16/V17 compliant).** Поиск задач по подстроке title через Vikunja `s=` параметр. Возвращает `data.tasks[i].task_id` для последующих write-вызовов. Закрывает класс «LLM придумал task_id, потому что user назвал задачу по имени» — система-промпт теперь требует find_task FIRST когда integer ID неизвестен.
+- **`handlers_crud.py` — new `uncomplete_task(task_id)` chat function (write, chain_callable=True, effects=["update:task"], event=task.uncompleted).** Inverse от complete_task — POST `{done: false, percent_done: 0.0}`. Закрывает «случайно завершил задачу — теперь не могу переоткрыть из чата».
+- **`panels_task.py` — UI Reopen buttons.** Parent action bar: при `done=true` рендерится "Reopen" вместо "Complete". Subtask actions (для done-сабтасков): добавлена кнопка "Reopen" перед "Delete" с иконкой `RotateCcw`.
+- **`system_prompt.txt`** — новый раздел «Task name → task_id resolution (REQUIRED)» в `## Tool selection`. Plus added uncomplete_task usage to `## Subtasks`.
+- **`skeleton.py` — TTL 300s → 30s** для @ext.skeleton("tasks").
+  - **Investigated:** SDK 4.1.0 `imperal_sdk/skeleton/client.py:25` (`SkeletonClient`) — read-only HTTP client, нет API `invalidate()`/`delete()`/`refresh()`. Invariant I-SKELETON-PROTOCOL-READ-ONLY + I-NO-SKELETON-PUT в SDK документации. Skeleton refresh — единственный writer — kernel `the platform` activity на тике. Соседние extensions (`notes`, `sql-db`) тоже не вызывают skeleton-invalidate (sql-db invalidate'ит только локальный `ctx.cache` schema snapshot).
+  - **Approach chosen — option B (lower TTL):** snapshot из 300s → 30s. Канонический способ закрыть staleness window без выхода за SDK-контракт. Panels уже real-time (fetch fresh via api_get + `refresh_panels: ["sidebar", "editor"]`); 30s TTL влияет только на LLM-context view (counters / recent_tasks).
+
+### Bridge (`/home/the backend service/routes_tasks.py`)
+
+- **`create_subtask`** — добавлен Step 4: после создания child + linking parent->child relation, делается POST `/api/v1/tasks/{child_id}` с `bucket_id: 0` чтобы убрать сабтаск с kanban-доски. Vikunja автоматически кладёт каждую новую задачу в default bucket проекта; subtask должен быть «linked-only», виден только внутри parent task detail. Step 4 обёрнут в try/except — non-fatal: relation важнее. Финальный return — re-fetch свежего child task с обновлёнными `related_tasks` и cleared `bucket_id`. Backup сохранён `routes_tasks.py.bak.pre-3.2.0`. Service restarted — `/health` 200.
+- **Caveat:** окончательное скрытие сабтаска на kanban зависит от Vikunja view-настройки `show_subtasks` (per-view флаг). Bridge-fix убирает bucket binding — это работает на старых версиях Vikunja и view'ах без show_subtasks toggle.
+
+---
+
 ## [3.1.0] — 2026-05-04
 
 ### SDK 4.1.0 federal compliance pass

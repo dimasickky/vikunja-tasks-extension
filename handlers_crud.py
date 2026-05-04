@@ -37,6 +37,10 @@ class CompleteTaskParams(BaseModel):
     task_id: int
 
 
+class UncompleteTaskParams(BaseModel):
+    task_id: int = Field(..., description="Integer task ID. Never UUID.")
+
+
 class DeleteTaskParams(BaseModel):
     task_id: int
 
@@ -162,6 +166,25 @@ async def _complete_task_impl(ctx, params: CompleteTaskParams) -> ActionResult:
     )
 
 
+async def _uncomplete_task_impl(ctx, params: UncompleteTaskParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    resp = await api_post(
+        ctx, f"/v1/tasks/{params.task_id}",
+        {"imperal_id": imperal_id, "done": False, "percent_done": 0.0},
+    )
+    if resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't reopen task"))
+
+    return ActionResult.success(
+        summary=f"Task reopened: {resp.get('title', params.task_id)}.",
+        data={"task_id": resp.get("id", params.task_id), "done": resp.get("done", False),
+              "refresh_panels": ["sidebar", "editor"]},
+    )
+
+
 async def _delete_task_impl(ctx, params: DeleteTaskParams) -> ActionResult:
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
@@ -213,6 +236,18 @@ async def update_task(ctx, params: UpdateTaskParams) -> ActionResult:
 )
 async def complete_task(ctx, params: CompleteTaskParams) -> ActionResult:
     return await _complete_task_impl(ctx, params)
+
+
+@chat.function(
+    "uncomplete_task",
+    action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
+    event="task.uncompleted",
+    description="Reopen a task — mark it as not done (done=false, percent_done=0). Inverse of complete_task.",
+)
+async def uncomplete_task(ctx, params: UncompleteTaskParams) -> ActionResult:
+    return await _uncomplete_task_impl(ctx, params)
 
 
 @chat.function(

@@ -286,6 +286,16 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
                 on_click=ui.Call("complete_task", task_id=tid),
             ),
         )
+    else:
+        actions.append(
+            ui.Button(
+                "Reopen",
+                icon="RotateCcw",
+                variant="primary",
+                size="sm",
+                on_click=ui.Call("uncomplete_task", task_id=tid),
+            ),
+        )
     actions.append(
         ui.Button(
             "Delete",
@@ -409,6 +419,8 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
             on_click=ui.Call("__panel__editor", note_id=str(s["id"]), task_id=str(s["id"])),
             actions=(
                 [
+                    {"icon": "RotateCcw", "label": "Reopen",
+                     "on_click": ui.Call("uncomplete_task", task_id=s["id"])},
                     {"icon": "Trash2", "label": "Delete",
                      "on_click": ui.Call("delete_task", task_id=s["id"]),
                      "confirm": f"Delete '{s.get('title', '?')}'?"},

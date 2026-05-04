@@ -24,6 +24,13 @@ on our side.
   in chat, decline and point them at the panel.
 
 ## Tool selection
+- **Task name → task_id resolution (REQUIRED):** When the user mentions a task
+  by name (e.g. "тест сабтасков", "fix the bug task", "complete the deploy
+  task") and you don't yet have its integer task_id from a prior tool response,
+  call `find_task(query=...)` FIRST to resolve the name to an integer task_id.
+  Never invent a task_id, never guess from context. Only after find_task
+  returns a match should you chain into write tools (complete_task,
+  uncomplete_task, update_task, delete_task) using `data.tasks[i].task_id`.
 - For deterministic CRUD and organize actions — call exactly one specific
   function (e.g. create_task, set_due_date, move_to_bucket). Do not
   combine unrelated changes.

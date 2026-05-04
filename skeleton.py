@@ -8,10 +8,18 @@ from app import ext, api_get, imperal_id_of, is_no_connection_error
 log = logging.getLogger("tasks.skeleton")
 
 
+# NOTE on TTL (v3.2.0): SDK 4.1.0 SkeletonClient is read-only — there is no
+# `ctx.skeleton.invalidate()` API for handlers to call after a write. The
+# canonical refresh path is the kernel skeleton-tick workflow (per-extension
+# `ttl_seconds`). To keep the LLM's view of task counters / recent_tasks fresh
+# after writes initiated through chat, we lower TTL from 300s to 30s. Panels
+# (panels.py / panels_editor.py / panels_task.py) do NOT read skeleton — they
+# fetch fresh via api_get — so panel UX is already real-time via
+# `refresh_panels`. The 30s TTL closes the staleness window for the LLM only.
 @ext.skeleton(
     "tasks",
     alert=True,
-    ttl=300,
+    ttl=30,
     description="Background: today/overdue/upcoming counts + recent tasks + active projects.",
 )
 async def skeleton_refresh_tasks(ctx) -> dict:

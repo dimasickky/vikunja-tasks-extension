@@ -1,7 +1,7 @@
 {
   "manifest_schema_version": 3,
   "app_id": "tasks",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -408,6 +408,33 @@
       },
       "return_schema": {},
       "event": "task.completed",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "uncomplete_task",
+      "description": "Reopen a task — mark it as not done (done=false, percent_done=0). Inverse of complete_task.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Integer task ID. Never UUID.",
+            "title": "Task Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "UncompleteTaskParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "task.uncompleted",
       "scopes": [],
       "owner_chat_tool": "tool_tasks_chat"
     },
@@ -1190,6 +1217,32 @@
         "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
         "properties": {},
         "title": "NoParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "find_task",
+      "description": "Search tasks by title substring. Returns matching tasks with their integer task_id and project_id. Call this first when the user mentions a task by name and you don't have its integer ID — never invent task_id.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "params_schema": {
+        "properties": {
+          "query": {
+            "description": "Substring of task title to search for. Returns matching tasks with their integer task_id, project_id, bucket_id.",
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "FindTaskParams",
         "type": "object"
       },
       "return_schema": {},

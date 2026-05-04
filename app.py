@@ -111,7 +111,7 @@ SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.txt").read_text()
 
 ext = Extension(
     "tasks",
-    version="3.3.0",
+    version="3.4.0",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Tasks",
     description=(

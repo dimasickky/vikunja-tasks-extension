@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.4.0] — 2026-05-04
+
+### Changed — task description editor
+
+- **`panels_task.py`** — task detail panel description edit form switched from a single-line `ui.Input` to `ui.RichEditor` (SDK 4.1.0 TipTap WYSIWYG component, same TipTap engine Vikunja stores descriptions with). Round-trips HTML faithfully: paragraphs, headings, lists, bold/italic, code blocks, links — all preserved end-to-end (Vikunja → bridge → extension panel → bridge → Vikunja). The rendered `ui.Html(...)` preview above the editor was already correct; only the edit affordance was the regression. TipTap `taskList` nodes inside description continue to be stripped from the rendered preview and surfaced as a separate interactive Checklist card via `toggle_checklist_item`; whatever taskList items the user keeps when editing in the rich editor are saved back verbatim.
+- **No bridge changes.** Description payload to Vikunja is identical (HTML body in `description` field).
+
+---
+
 ## [3.3.0] — 2026-05-04
 
 ### Added — kanban subtask grouping (UI-side)

@@ -328,12 +328,24 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
         ],
     )
 
-    # Description edit form (separate card to keep the main form clean)
+    # Description edit form — uses RichEditor (TipTap WYSIWYG, same engine
+    # Vikunja stores its description in). The editor takes / emits HTML, so
+    # round-tripping with Vikunja preserves formatting (paragraphs, lists,
+    # bold, headings, code blocks). Vikunja's TipTap taskList nodes are
+    # stripped from the rendered preview above and surfaced as a separate
+    # interactive Checklist card; if the user edits via the rich editor
+    # any taskList items they keep are saved back verbatim.
     desc_edit_form = ui.Form(
         action="update_task",
         submit_label="Save description",
         defaults={"task_id": str(tid), "description": desc},
-        children=[ui.Input(placeholder="Description (HTML/markdown)", param_name="description")],
+        children=[
+            ui.RichEditor(
+                content=desc,
+                param_name="description",
+                placeholder="Task description — formatting supported (bold, lists, headings, code)…",
+            ),
+        ],
     )
 
     # Comments

@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.2.1] — 2026-05-04
+
+### Bridge (`/home/the backend service/routes_tasks.py`) — rollback of v3.2.0 kanban fix
+
+- **`create_subtask` — reverted Step 4** (`POST /api/v1/tasks/{child_id}` with `bucket_id: 0`). The call was confirmed to be a silent no-op against Vikunja's `task_buckets` join table — the API echoes `bucket_id: 0` back in the response but the `task_buckets` row (keyed per `project_view_id`) stays untouched, so the subtask still renders on the kanban board.
+- **Investigation summary** — Vikunja's REST API has no path to detach a task from all buckets:
+  - `Task.bucket_id` is a virtual response field; the canonical store is the `task_buckets` join table (keyed per `project_view_id`). The `POST /tasks/{id}` bucket-update path requires the new `bucket_id` to belong to the same view, so `0` is silently rejected.
+  - There is no `DELETE /projects/{p}/views/{v}/buckets/{b}/tasks/{t}` endpoint.
+  - The `Task` model has no `is_subtask` / `hide_on_board` flag.
+  - The view-level `bucket_configuration_mode=filter` could in theory exclude subtasks via a filter query, but switching modes wipes all manual bucket assignments — a destructive global change to the user's board.
+  - Direct `DELETE FROM task_buckets WHERE task_id=…` against the Vikunja DB does correctly remove the card from the kanban view (verified end-to-end on `tasks.webhostmost.com`: subtask 1226 disappeared from `GET /projects/32/views/176/tasks` and Vikunja did not re-create the row), but the bridge BYO model gives only API access to a user's Vikunja, not DB. Implementing this would break the BYO contract for users who bring an external Vikunja instance.
+- **Decision** — accept this as a documented Vikunja-side limitation rather than ship a fake fix. The bridge `create_subtask` docstring now records the full investigation so the next person doesn't re-discover it.
+- **End-user workaround** — in Vikunja UI, drag the subtask card off the board or move it to a hidden bucket. This UX is Vikunja-side and not exposed via API.
+- Bridge restarted; `/health` returns 200.
+
+### Extension
+
+- **`app.py`** — version bumped to `3.2.1`. Manifest rebuilt via `imperal build .`.
+
+---
+
 ## [3.2.0] — 2026-05-04
 
 ### Added

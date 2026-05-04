@@ -2,20 +2,21 @@
 
 ## [3.2.0] — 2026-05-04
 
-### Fundamental fixes — chat ID-resolution, reopen, fresh skeleton, kanban subtask hiding
+### Added
 
-- **`handlers_search.py` — new `find_task(query)` chat function (read-only, V16/V17 compliant).** Поиск задач по подстроке title через Vikunja `s=` параметр. Возвращает `data.tasks[i].task_id` для последующих write-вызовов. Закрывает класс «LLM придумал task_id, потому что user назвал задачу по имени» — система-промпт теперь требует find_task FIRST когда integer ID неизвестен.
-- **`handlers_crud.py` — new `uncomplete_task(task_id)` chat function (write, chain_callable=True, effects=["update:task"], event=task.uncompleted).** Inverse от complete_task — POST `{done: false, percent_done: 0.0}`. Закрывает «случайно завершил задачу — теперь не могу переоткрыть из чата».
-- **`panels_task.py` — UI Reopen buttons.** Parent action bar: при `done=true` рендерится "Reopen" вместо "Complete". Subtask actions (для done-сабтасков): добавлена кнопка "Reopen" перед "Delete" с иконкой `RotateCcw`.
-- **`system_prompt.txt`** — новый раздел «Task name → task_id resolution (REQUIRED)» в `## Tool selection`. Plus added uncomplete_task usage to `## Subtasks`.
-- **`skeleton.py` — TTL 300s → 30s** для @ext.skeleton("tasks").
-  - **Investigated:** SDK 4.1.0 `imperal_sdk/skeleton/client.py:25` (`SkeletonClient`) — read-only HTTP client, нет API `invalidate()`/`delete()`/`refresh()`. Invariant I-SKELETON-PROTOCOL-READ-ONLY + I-NO-SKELETON-PUT в SDK документации. Skeleton refresh — единственный writer — kernel `the platform` activity на тике. Соседние extensions (`notes`, `sql-db`) тоже не вызывают skeleton-invalidate (sql-db invalidate'ит только локальный `ctx.cache` schema snapshot).
-  - **Approach chosen — option B (lower TTL):** snapshot из 300s → 30s. Канонический способ закрыть staleness window без выхода за SDK-контракт. Panels уже real-time (fetch fresh via api_get + `refresh_panels: ["sidebar", "editor"]`); 30s TTL влияет только на LLM-context view (counters / recent_tasks).
+- **`handlers_search.py` — `find_task(query)` chat function (read-only).** Searches tasks by title substring via Vikunja `s=` query parameter and returns matching tasks with their integer `task_id`, `project_id`, `done`, `due_date`, `priority`. Closes the "LLM fabricated task_id because the user referred to a task by name" failure mode — system_prompt now mandates `find_task` FIRST whenever an integer task_id is unknown. V16/V17 compliant (`FindTaskParams` is a module-scope BaseModel with detailed Field description).
+- **`handlers_crud.py` — `uncomplete_task(task_id)` chat function** (`action_type="write"`, `chain_callable=True`, `effects=["update:task"]`, `event="task.uncompleted"`). Inverse of `complete_task` — POSTs `{done: false, percent_done: 0.0}` to bridge. Closes "accidentally completed a task and can't reopen it from chat".
+- **`panels_task.py` — Reopen UI buttons.** Parent task action bar now renders a "Reopen" button (`ui.Call("uncomplete_task", task_id=...)`) instead of "Complete" when the task is `done=true`. Subtask action row now also includes a "Reopen" button (`RotateCcw` icon) before the existing "Delete" button for completed subtasks.
+
+### Changed
+
+- **`system_prompt.txt`** — new "Task name → task_id resolution (REQUIRED)" rule under `## Tool selection`. The LLM must call `find_task(query=...)` before any task-targeted write tool when only the task title is known. Also documents `uncomplete_task` under `## Subtasks`.
+- **`skeleton.py`** — `@ext.skeleton("tasks")` TTL reduced from `300` to `30`. Investigated the canonical SDK invalidation API first: `imperal_sdk/skeleton/client.py:25` (`SkeletonClient`) is documented read-only with invariants `I-SKELETON-PROTOCOL-READ-ONLY` and `I-NO-SKELETON-PUT`; the only writer is the kernel `the platform` activity on its tick. Sibling extensions (`notes`, `sql-db`) do not invalidate skeletons either (sql-db invalidates only its local `ctx.cache` schema snapshot). With no SDK invalidation API available, lowering TTL is the canonical option to close the LLM-context staleness window without breaking SDK contract. Panels are already real-time (fetch fresh via `api_get` + `refresh_panels` field on `ActionResult.data`); the 30s TTL affects only LLM-context counters/`recent_tasks`.
 
 ### Bridge (`/home/the backend service/routes_tasks.py`)
 
-- **`create_subtask`** — добавлен Step 4: после создания child + linking parent->child relation, делается POST `/api/v1/tasks/{child_id}` с `bucket_id: 0` чтобы убрать сабтаск с kanban-доски. Vikunja автоматически кладёт каждую новую задачу в default bucket проекта; subtask должен быть «linked-only», виден только внутри parent task detail. Step 4 обёрнут в try/except — non-fatal: relation важнее. Финальный return — re-fetch свежего child task с обновлёнными `related_tasks` и cleared `bucket_id`. Backup сохранён `routes_tasks.py.bak.pre-3.2.0`. Service restarted — `/health` 200.
-- **Caveat:** окончательное скрытие сабтаска на kanban зависит от Vikunja view-настройки `show_subtasks` (per-view флаг). Bridge-fix убирает bucket binding — это работает на старых версиях Vikunja и view'ах без show_subtasks toggle.
+- **`create_subtask`** — added Step 4: after creating the child task and linking the parent→child relation, the bridge now POSTs `/api/v1/tasks/{child_id}` with `bucket_id: 0` to detach the subtask from the kanban board. Vikunja auto-places every new task into the project's default bucket; subtasks must be link-only — visible inside parent task detail, not as a separate kanban card. The detach call is wrapped in try/except (non-fatal — the relation matters more). The handler now re-fetches the freshly updated child task before returning so the response carries up-to-date `related_tasks` and a cleared `bucket_id`. Backup at `/home/the backend service/routes_tasks.py.bak.pre-3.2.0`. Service restarted; `/health` returns 200.
+- **Caveat:** complete subtask hiding on kanban also depends on Vikunja's per-view `show_subtasks` toggle. The bridge fix removes bucket binding, which works on Vikunja versions and views without that toggle.
 
 ---
 
@@ -23,21 +24,21 @@
 
 ### SDK 4.1.0 federal compliance pass
 
-- **`requirements.txt`**: pin bumped `imperal-sdk==4.0.1` → `imperal-sdk==4.1.0`. Worker venv уже на 4.1.0 (last-install-wins from sibling extensions); now declared explicitly. Restores hard-equality pin invariant.
-- **`app.py`**: добавлен публичный `NoParams(BaseModel)` для no-arg @chat.function handlers (V17 compliance). Унифицирован с тремя ранее раздельными `_NoParams` в `handlers_search.py`, `handlers_structure.py`, `handlers_connection.py` — теперь один класс на module scope в `app.py`, импортируемый везде.
-- **`app.py`**: `_imperal_id(ctx)` → `imperal_id_of(ctx)` — public API, без underscore-prefix (cross-module use). Обновлены импорты в `handlers_crud.py` и `skeleton.py`.
-- **`app.py`** — `tool_tasks_chat` ChatExtension wrapper: description дополнен инструкцией «pass user message verbatim as `message`» согласно federal Runtime Invariant **I-CHAT-FUNCTION-VERBATIM-PARAMS** (2026-05-02).
-- **`skeleton.py`** — `skeleton_refresh_tasks(ctx, **_)` → `(ctx)` и `skeleton_alert_tasks(ctx, old, new, **kwargs)` → `(ctx, old, new)`. Универсальный `**kwargs`-sink убран — federal V22 lifecycle сигнатуры строго типизированы (после kernel-side фикса I-EXT-SYSTEM-TASK-NO-MESSAGE-KWARG защитный sink не нужен).
+- **`requirements.txt`** — pin bumped `imperal-sdk==4.0.1` → `imperal-sdk==4.1.0`. Worker venv was already on 4.1.0 (last-install-wins from sibling extensions); now declared explicitly. Restores the hard-equality pin invariant.
+- **`app.py`** — added a public `NoParams(BaseModel)` for no-arg `@chat.function` handlers (V17 compliance). Replaces three previously separate `_NoParams` classes in `handlers_search.py`, `handlers_structure.py`, `handlers_connection.py` — now a single module-scope class in `app.py`, imported everywhere.
+- **`app.py`** — renamed `_imperal_id(ctx)` → `imperal_id_of(ctx)` (public cross-module API; underscore prefix removed). Imports updated in `handlers_crud.py`, `skeleton.py`, `panels.py`, `panels_editor.py`, `panels_task.py`.
+- **`app.py`** — `tool_tasks_chat` ChatExtension wrapper description extended to instruct the LLM to "pass user message verbatim as `message`", per federal Runtime Invariant `I-CHAT-FUNCTION-VERBATIM-PARAMS` (2026-05-02).
+- **`skeleton.py`** — `skeleton_refresh_tasks(ctx, **_)` → `(ctx)` and `skeleton_alert_tasks(ctx, old, new, **kwargs)` → `(ctx, old, new)`. Universal `**kwargs` sinks removed — federal V22 requires strictly typed lifecycle signatures; after the kernel-side fix for `I-EXT-SYSTEM-TASK-NO-MESSAGE-KWARG`, the defensive sinks are no longer needed.
 
 ### Improved
 
-- **`handlers_organize.py`**: descriptions для `assign_task`, `unassign_task`, `add_label`, `remove_label`, `set_due_date`, `set_priority`, `move_to_project`, `move_to_bucket` дополнены — явно указано, что все ID являются integer'ами и где их брать (через `list_buckets`/`list_projects`/etc.). Pydantic `Field(description=...)` для каждого ID-параметра тоже расширен. Закрывает класс ошибок «LLM передал UUID/имя вместо integer ID».
-- **`system_prompt.txt`**: добавлена секция `## ID conventions (CRITICAL — read before any tool call)` — строгое правило «все Vikunja ID = positive integers, никогда не UUID/name/slug». Перечислены все ID-поля (task_id, parent_task_id, project_id, bucket_id, label_id, comment_id, assignee_vikunja_user_id, vikunja_user_id) и стандартный flow «list_* → integer ID → write call».
+- **`handlers_organize.py`** — descriptions for `assign_task`, `unassign_task`, `add_label`, `remove_label`, `set_due_date`, `set_priority`, `move_to_project`, `move_to_bucket` extended to state explicitly that all IDs are integers and where to obtain them (via `list_buckets` / `list_projects` / etc.). The Pydantic `Field(description=...)` for every ID parameter is also expanded. Closes the failure class "LLM passed a UUID or name where an integer ID was required".
+- **`system_prompt.txt`** — new `## ID conventions (CRITICAL — read before any tool call)` section. Strict rule: all Vikunja IDs are positive integers, never UUID / name / slug. Lists every ID field (`task_id`, `parent_task_id`, `project_id`, `bucket_id`, `label_id`, `comment_id`, `assignee_vikunja_user_id`, `vikunja_user_id`) and the standard `list_*` → integer ID → write call flow.
 
 ### Cleanup
 
-- Удалены dead imports `is_no_connection_error` (`handlers_organize.py`, `handlers_collab.py`, `handlers_search.py`, `handlers_structure.py` — нигде не использовался) и `Optional` (`handlers_organize.py` — нигде не использовался).
-- Удалены три Nextcloud conflicted-copy файла из репо: `handlers_collab (conflicted copy 2026-05-04 013552).py`, `handlers_crud (conflicted copy 2026-05-03 210133).py`, `panels_editor (conflicted copy 2026-05-03 213503).py`. Добавлен gitignore-паттерн `* (conflicted copy *)*`.
+- Removed dead imports: `is_no_connection_error` from `handlers_organize.py`, `handlers_collab.py`, `handlers_search.py`, `handlers_structure.py` (unused), and `Optional` from `handlers_organize.py` (unused).
+- Removed three Nextcloud conflicted-copy files from the repo: `handlers_collab (conflicted copy 2026-05-04 013552).py`, `handlers_crud (conflicted copy 2026-05-03 210133).py`, `panels_editor (conflicted copy 2026-05-03 213503).py`. Added `*conflicted copy*` ignore pattern to `.gitignore`.
 
 ---
 

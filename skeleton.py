@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from app import ext, api_get, _imperal_id, is_no_connection_error
+from app import ext, api_get, imperal_id_of, is_no_connection_error
 
 log = logging.getLogger("tasks.skeleton")
 
@@ -14,9 +14,9 @@ log = logging.getLogger("tasks.skeleton")
     ttl=300,
     description="Background: today/overdue/upcoming counts + recent tasks + active projects.",
 )
-async def skeleton_refresh_tasks(ctx, **_) -> dict:
+async def skeleton_refresh_tasks(ctx) -> dict:
     """Refresh task counters and recent activity. Idempotent — safe per tick."""
-    imperal_id = _imperal_id(ctx)
+    imperal_id = imperal_id_of(ctx)
     if not imperal_id:
         return {"response": {"note": "no user on context"}}
 
@@ -98,7 +98,7 @@ async def skeleton_refresh_tasks(ctx, **_) -> dict:
     scopes=["tasks.read"],
     description="Alerts: overdue tasks, due-today, sudden spike in backlog.",
 )
-async def skeleton_alert_tasks(ctx, old: dict = None, new: dict = None, **kwargs) -> dict:
+async def skeleton_alert_tasks(ctx, old: dict = None, new: dict = None) -> dict:
     """Compare old/new skeleton, alert on overdue spikes and due-today changes."""
     if not new:
         return {"response": ""}

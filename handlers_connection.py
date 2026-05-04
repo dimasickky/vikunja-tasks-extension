@@ -5,7 +5,7 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_delete, api_get, chat, require_imperal_id
+from app import api_post, api_delete, api_get, chat, require_imperal_id, NoParams
 
 
 _MODEL_CONFIG = ConfigDict(populate_by_name=True)
@@ -47,7 +47,7 @@ class ConnectVikunjaWithPatParams(BaseModel):
     )
 
 
-class _NoParams(BaseModel):
+class NoParams(BaseModel):
     model_config = _MODEL_CONFIG
 
 
@@ -153,7 +153,7 @@ async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> 
         "in their instance and delete the local connection record."
     ),
 )
-async def disconnect_vikunja(ctx, params: _NoParams) -> ActionResult:
+async def disconnect_vikunja(ctx, params: NoParams) -> ActionResult:
     try:
         resp = await api_delete(ctx, "/v1/connect", {"imperal_id": require_imperal_id(ctx)})
         if resp.get("status") == "error":
@@ -175,7 +175,7 @@ async def disconnect_vikunja(ctx, params: _NoParams) -> ActionResult:
         "username when connected."
     ),
 )
-async def get_connection_status(ctx, params: _NoParams) -> ActionResult:
+async def get_connection_status(ctx, params: NoParams) -> ActionResult:
     try:
         resp = await api_get(ctx, "/v1/connection", {"imperal_id": require_imperal_id(ctx)})
         if isinstance(resp, dict) and resp.get("status") == "error":

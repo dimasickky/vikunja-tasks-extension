@@ -10,8 +10,15 @@ import logging
 import os
 from pathlib import Path
 
+from pydantic import BaseModel
+
 from imperal_sdk import Extension
 from imperal_sdk.chat import ChatExtension, ActionResult  # noqa: F401 — re-exported
+
+
+class NoParams(BaseModel):
+    """Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance)."""
+    pass
 
 log = logging.getLogger("tasks")
 
@@ -36,14 +43,14 @@ def _auth_headers() -> dict:
 
 # ─── Identity helpers ─────────────────────────────────────────────────────── #
 
-def _imperal_id(ctx) -> str:
+def imperal_id_of(ctx) -> str:
     if hasattr(ctx, "user") and ctx.user:
         return ctx.user.imperal_id
     return ""
 
 
 def require_imperal_id(ctx) -> str:
-    iid = _imperal_id(ctx)
+    iid = imperal_id_of(ctx)
     if not iid:
         raise RuntimeError(
             "No authenticated user on context. Refusing to call the backend service "
@@ -104,7 +111,7 @@ SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.txt").read_text()
 
 ext = Extension(
     "tasks",
-    version="3.0.1",
+    version="3.1.0",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Tasks",
     description=(
@@ -121,7 +128,9 @@ chat = ChatExtension(
     description=(
         "Tasks manager — kanban boards, projects, due dates, labels, "
         "assignees, comments. Each user connects their own Vikunja "
-        "instance; data lives in the user's Vikunja, never on our side."
+        "instance; data lives in the user's Vikunja, never on our side. "
+        "When invoking this tool, pass the user's request verbatim as "
+        "`message`; the extension dispatches to typed @chat.function handlers."
     ),
     system_prompt=SYSTEM_PROMPT,
 )

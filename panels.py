@@ -18,7 +18,7 @@ import logging
 
 from imperal_sdk import ui
 
-from app import ext, api_get, _imperal_id, is_no_connection_error
+from app import ext, api_get, imperal_id_of, is_no_connection_error
 
 log = logging.getLogger("tasks.panels")
 
@@ -41,7 +41,7 @@ log = logging.getLogger("tasks.panels")
 )
 async def tasks_sidebar(ctx, view: str = "main", active_project_id: str = "", **kwargs):
     """Sidebar: connect form when disconnected; smart views + projects when connected."""
-    imperal_id = _imperal_id(ctx)
+    imperal_id = imperal_id_of(ctx)
     if not imperal_id:
         return ui.Empty(message="Sign in to use tasks.", icon="UserX")
 

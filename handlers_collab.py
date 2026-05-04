@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_get, api_delete, chat, is_no_connection_error
+from app import api_post, api_get, api_delete, chat
 from handlers_crud import _require_user, _bridge_error_msg
 
 

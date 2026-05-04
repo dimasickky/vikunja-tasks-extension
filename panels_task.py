@@ -14,7 +14,7 @@ from typing import Any
 
 from imperal_sdk import ui
 
-from app import api_get, _imperal_id, is_no_connection_error
+from app import api_get, imperal_id_of, is_no_connection_error
 
 log = logging.getLogger("tasks.task")
 
@@ -110,7 +110,7 @@ async def render_task_detail(
     project_id: str = "",
     **kwargs,
 ):
-    imperal_id = _imperal_id(ctx)
+    imperal_id = imperal_id_of(ctx)
     if not imperal_id:
         return ui.Empty(message="Sign in to use tasks.", icon="UserX")
 
@@ -162,7 +162,7 @@ async def render_task_detail(
 # ─── Create form ──────────────────────────────────────────────────────── #
 
 async def _render_create_form(ctx, project_id: str) -> Any:
-    imperal_id = _imperal_id(ctx)
+    imperal_id = imperal_id_of(ctx)
 
     # No project selected → show project picker
     if not project_id:

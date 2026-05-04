@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.1.0] — 2026-05-04
+
+### SDK 4.1.0 federal compliance pass
+
+- **`requirements.txt`**: pin bumped `imperal-sdk==4.0.1` → `imperal-sdk==4.1.0`. Worker venv уже на 4.1.0 (last-install-wins from sibling extensions); now declared explicitly. Restores hard-equality pin invariant.
+- **`app.py`**: добавлен публичный `NoParams(BaseModel)` для no-arg @chat.function handlers (V17 compliance). Унифицирован с тремя ранее раздельными `_NoParams` в `handlers_search.py`, `handlers_structure.py`, `handlers_connection.py` — теперь один класс на module scope в `app.py`, импортируемый везде.
+- **`app.py`**: `_imperal_id(ctx)` → `imperal_id_of(ctx)` — public API, без underscore-prefix (cross-module use). Обновлены импорты в `handlers_crud.py` и `skeleton.py`.
+- **`app.py`** — `tool_tasks_chat` ChatExtension wrapper: description дополнен инструкцией «pass user message verbatim as `message`» согласно federal Runtime Invariant **I-CHAT-FUNCTION-VERBATIM-PARAMS** (2026-05-02).
+- **`skeleton.py`** — `skeleton_refresh_tasks(ctx, **_)` → `(ctx)` и `skeleton_alert_tasks(ctx, old, new, **kwargs)` → `(ctx, old, new)`. Универсальный `**kwargs`-sink убран — federal V22 lifecycle сигнатуры строго типизированы (после kernel-side фикса I-EXT-SYSTEM-TASK-NO-MESSAGE-KWARG защитный sink не нужен).
+
+### Improved
+
+- **`handlers_organize.py`**: descriptions для `assign_task`, `unassign_task`, `add_label`, `remove_label`, `set_due_date`, `set_priority`, `move_to_project`, `move_to_bucket` дополнены — явно указано, что все ID являются integer'ами и где их брать (через `list_buckets`/`list_projects`/etc.). Pydantic `Field(description=...)` для каждого ID-параметра тоже расширен. Закрывает класс ошибок «LLM передал UUID/имя вместо integer ID».
+- **`system_prompt.txt`**: добавлена секция `## ID conventions (CRITICAL — read before any tool call)` — строгое правило «все Vikunja ID = positive integers, никогда не UUID/name/slug». Перечислены все ID-поля (task_id, parent_task_id, project_id, bucket_id, label_id, comment_id, assignee_vikunja_user_id, vikunja_user_id) и стандартный flow «list_* → integer ID → write call».
+
+### Cleanup
+
+- Удалены dead imports `is_no_connection_error` (`handlers_organize.py`, `handlers_collab.py`, `handlers_search.py`, `handlers_structure.py` — нигде не использовался) и `Optional` (`handlers_organize.py` — нигде не использовался).
+- Удалены три Nextcloud conflicted-copy файла из репо: `handlers_collab (conflicted copy 2026-05-04 013552).py`, `handlers_crud (conflicted copy 2026-05-03 210133).py`, `panels_editor (conflicted copy 2026-05-03 213503).py`. Добавлен gitignore-паттерн `* (conflicted copy *)*`.
+
+---
+
 ## [3.0.1] — 2026-05-04
 
 ### Added

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_get, api_post, api_delete, chat, _imperal_id, is_no_connection_error
+from app import api_get, api_post, api_delete, chat, imperal_id_of, is_no_connection_error
 from panels_task import _toggle_checklist_item
 
 
@@ -60,7 +60,7 @@ class ToggleChecklistItemParams(BaseModel):
 # ─── Impl functions ───────────────────────────────────────────────────────── #
 
 def _require_user(ctx) -> str | ActionResult:
-    imperal_id = _imperal_id(ctx)
+    imperal_id = imperal_id_of(ctx)
     if not imperal_id:
         return ActionResult.error("No authenticated user on context.")
     return imperal_id

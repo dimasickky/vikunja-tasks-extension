@@ -1,12 +1,11 @@
 """tasks · Organize operations (assign, label, due, priority, move)."""
 from __future__ import annotations
 
-from typing import Optional
 from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_delete, chat, is_no_connection_error
+from app import api_post, api_delete, chat
 from handlers_crud import (
     _require_user,
     _update_task_impl,
@@ -16,43 +15,49 @@ from handlers_crud import (
 
 
 class AssignTaskParams(BaseModel):
-    task_id: int
-    assignee_vikunja_user_id: int = Field(..., description="Vikunja user id — from users table.")
+    task_id: int = Field(..., description="Integer task ID from a prior list_my_tasks/filter_tasks/create_task response. Never UUID.")
+    assignee_vikunja_user_id: int = Field(
+        ...,
+        description=(
+            "Integer Vikunja user ID (from Vikunja's users table). NOT imperal_id, NOT username, NOT email. "
+            "Obtain via list_comments (author objects) or by asking the user for their numeric Vikunja user id."
+        ),
+    )
 
 
 class UnassignTaskParams(BaseModel):
-    task_id: int
-    assignee_vikunja_user_id: int
+    task_id: int = Field(..., description="Integer task ID. Never UUID.")
+    assignee_vikunja_user_id: int = Field(..., description="Integer Vikunja user ID (same one used in assign_task).")
 
 
 class AddLabelParams(BaseModel):
-    task_id: int
-    label_id: int
+    task_id: int = Field(..., description="Integer task ID. Never UUID.")
+    label_id: int = Field(..., description="Integer label ID — obtain via create_label response or Vikunja UI. Never label name.")
 
 
 class DetachLabelParams(BaseModel):
-    task_id: int
-    label_id: int
+    task_id: int = Field(..., description="Integer task ID. Never UUID.")
+    label_id: int = Field(..., description="Integer label ID currently attached to this task.")
 
 
 class SetDueDateParams(BaseModel):
-    task_id: int
-    due_date: str = Field(..., description="ISO 8601 (e.g. 2026-04-25T12:00:00Z).")
+    task_id: int = Field(..., description="Integer task ID. Never UUID.")
+    due_date: str = Field(..., description="ISO 8601 UTC string, e.g. '2026-04-25T12:00:00Z'.")
 
 
 class SetPriorityParams(BaseModel):
-    task_id: int
+    task_id: int = Field(..., description="Integer task ID. Never UUID.")
     priority: int = Field(..., ge=0, le=5, description="0=none, 1=low, 2=medium, 3=high, 4=urgent, 5=critical.")
 
 
 class MoveToProjectParams(BaseModel):
-    task_id: int
-    project_id: int
+    task_id: int = Field(..., description="Integer task ID. Never UUID.")
+    project_id: int = Field(..., description="Integer project ID from list_projects response. Never project name.")
 
 
 class MoveToBucketParams(BaseModel):
-    task_id: int
-    bucket_id: int
+    task_id: int = Field(..., description="Integer task ID. Never UUID.")
+    bucket_id: int = Field(..., description="Integer bucket ID from list_buckets response. Never bucket name.")
 
 
 # ─── Impl ─────────────────────────────────────────────────────────────────── #
@@ -123,7 +128,11 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
     chain_callable=True,
     effects=["update:task"],
     event="task.assigned",
-    description="Assign a Vikunja user as assignee to a task.",
+    description=(
+        "Assign a Vikunja user (by integer Vikunja user ID) to a task. "
+        "If the user gave a username or email, ask them for their numeric Vikunja user ID first — "
+        "we don't have a list_users endpoint."
+    ),
 )
 async def assign_task(ctx, params: AssignTaskParams) -> ActionResult:
     return await _assign_task_impl(ctx, params)
@@ -135,7 +144,7 @@ async def assign_task(ctx, params: AssignTaskParams) -> ActionResult:
     chain_callable=True,
     effects=["update:task"],
     event="task.unassigned",
-    description="Remove a Vikunja user from task assignees.",
+    description="Remove a Vikunja user (by integer user ID) from a task's assignee list.",
 )
 async def unassign_task(ctx, params: UnassignTaskParams) -> ActionResult:
     return await _unassign_task_impl(ctx, params)
@@ -147,7 +156,11 @@ async def unassign_task(ctx, params: UnassignTaskParams) -> ActionResult:
     chain_callable=True,
     effects=["update:task"],
     event="task.labeled",
-    description="Attach an existing label to a task.",
+    description=(
+        "Attach an existing label (by integer label_id) to a task (by integer task_id). "
+        "If you only know the label name, call create_label or ask the user for the numeric label_id — "
+        "Vikunja addresses labels by ID, never by name."
+    ),
 )
 async def add_label(ctx, params: AddLabelParams) -> ActionResult:
     return await _add_label_impl(ctx, params)
@@ -159,7 +172,7 @@ async def add_label(ctx, params: AddLabelParams) -> ActionResult:
     chain_callable=True,
     effects=["update:task"],
     event="task.unlabeled",
-    description="Detach a label from a task.",
+    description="Detach a label (by integer label_id) from a task (by integer task_id).",
 )
 async def remove_label(ctx, params: DetachLabelParams) -> ActionResult:
     return await _detach_label_impl(ctx, params)
@@ -171,7 +184,10 @@ async def remove_label(ctx, params: DetachLabelParams) -> ActionResult:
     chain_callable=True,
     effects=["update:task"],
     event="task.due_changed",
-    description="Set or change due date of a task. Use ISO 8601 UTC.",
+    description=(
+        "Set or change due date of a task. Pass integer task_id and due_date as ISO 8601 UTC string "
+        "(e.g. '2026-04-25T12:00:00Z'). Convert relative dates ('Friday', 'tomorrow') in user's timezone first."
+    ),
 )
 async def set_due_date(ctx, params: SetDueDateParams) -> ActionResult:
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, due_date=params.due_date))
@@ -183,7 +199,7 @@ async def set_due_date(ctx, params: SetDueDateParams) -> ActionResult:
     chain_callable=True,
     effects=["update:task"],
     event="task.priority_changed",
-    description="Set priority 0 (none) to 5 (critical).",
+    description="Set task priority — integer 0 (none) to 5 (critical). Pass integer task_id.",
 )
 async def set_priority(ctx, params: SetPriorityParams) -> ActionResult:
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, priority=params.priority))
@@ -195,7 +211,10 @@ async def set_priority(ctx, params: SetPriorityParams) -> ActionResult:
     chain_callable=True,
     effects=["update:task"],
     event="task.moved",
-    description="Move a task to another project.",
+    description=(
+        "Move a task to another project. Pass integer task_id and integer project_id "
+        "(from list_projects response — never project name)."
+    ),
 )
 async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, project_id=params.project_id))
@@ -207,7 +226,10 @@ async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
     chain_callable=True,
     effects=["update:task"],
     event="task.bucket_changed",
-    description="Move a task to another kanban bucket (column).",
+    description=(
+        "Move a task to another kanban bucket (column). Pass integer task_id and integer bucket_id "
+        "(from list_buckets response — never bucket name). Call list_buckets first if bucket_id is unknown."
+    ),
 )
 async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, bucket_id=params.bucket_id))

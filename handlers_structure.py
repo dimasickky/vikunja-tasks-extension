@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_get, api_post, api_delete, chat, is_no_connection_error
+from app import api_get, api_post, api_delete, chat, NoParams
 from handlers_crud import _require_user, _bridge_error_msg
 
 
@@ -40,10 +40,6 @@ class CreateLabelParams(BaseModel):
 
 class DeleteLabelParams(BaseModel):
     label_id: int
-
-
-class _NoParams(BaseModel):
-    pass
 
 
 class ListBucketsParams(BaseModel):
@@ -272,7 +268,7 @@ async def delete_label(ctx, params: DeleteLabelParams) -> ActionResult:
         "returned project_id in filter_tasks or other calls."
     ),
 )
-async def list_projects(ctx, params: _NoParams) -> ActionResult:
+async def list_projects(ctx, params: NoParams) -> ActionResult:
     return await _list_projects_impl(ctx)
 
 

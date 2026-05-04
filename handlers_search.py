@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_get, chat, is_no_connection_error
+from app import api_get, chat, NoParams
 from handlers_crud import _require_user, _bridge_error_msg
 
 
@@ -31,10 +31,6 @@ class FilterTasksParams(BaseModel):
     )
     page: int = Field(1, ge=1)
     per_page: int = Field(50, ge=1, le=200)
-
-
-class _NoParams(BaseModel):
-    pass
 
 
 def _summarise_tasks(tasks: list[dict], limit: int = 10) -> str:
@@ -98,7 +94,7 @@ async def list_my_tasks(ctx, params: ListMyTasksParams) -> ActionResult:
     action_type="read",
     description="List all overdue tasks (done=false AND due_date in the past).",
 )
-async def list_overdue(ctx, params: _NoParams) -> ActionResult:
+async def list_overdue(ctx, params: NoParams) -> ActionResult:
     return await _list_my_tasks_impl(
         ctx, ListMyTasksParams(filter="done = false && due_date < now", sort_by="due_date"),
     )
@@ -109,7 +105,7 @@ async def list_overdue(ctx, params: _NoParams) -> ActionResult:
     action_type="read",
     description="List tasks due today (done=false AND due_date between start-of-day and end-of-day).",
 )
-async def list_today(ctx, params: _NoParams) -> ActionResult:
+async def list_today(ctx, params: NoParams) -> ActionResult:
     return await _list_my_tasks_impl(
         ctx, ListMyTasksParams(
             filter="done = false && due_date >= now/d && due_date < now/d+1d",

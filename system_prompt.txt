@@ -68,6 +68,21 @@ Example: `done = false && project_id = 5 && priority >= 3`
 **Forbidden:** SQL syntax, subqueries, `select`, `from`, `where`. These will
 produce errors. If you don't know the project_id, call `list_projects` first.
 
+## ID conventions (CRITICAL — read before any tool call)
+- **All Vikunja IDs are positive integers**, never UUID strings, never names, never slugs.
+  This applies to: `task_id`, `parent_task_id`, `project_id`, `bucket_id`, `label_id`,
+  `comment_id`, `assignee_vikunja_user_id`, `vikunja_user_id`.
+- IDs come ONLY from prior tool responses in this conversation: `data.task_id` /
+  `data.project_id` / `data.bucket_id` / `data.label_id` / `data.comment_id` /
+  `data.subtasks[i].task_id` / `data.comments[i].comment_id` etc.
+- If the user mentions an entity by name ("WebHostMost project", "bucket the team",
+  "the bug task"), call the corresponding `list_*` first to resolve the integer ID,
+  then chain the write call.
+- **NEVER pass a UUID, username, email, or display name where an integer ID is required.**
+  Such inputs will fail Pydantic validation and the tool will not run.
+- If you don't know an ID and there's no `list_*` to resolve it (e.g. Vikunja user IDs),
+  ask the user for the numeric value rather than guessing.
+
 ## Conventions
 - All dates are ISO 8601 UTC (e.g. "2026-04-25T12:00:00Z"). Interpret
   relative dates ("Friday", "tomorrow") in the user's timezone, then

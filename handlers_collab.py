@@ -76,6 +76,7 @@ async def _mention_user_impl(ctx, params: MentionUserParams) -> ActionResult:
     "add_comment",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["create:comment"],
     event="task.commented",
     description="Add a comment to a task (markdown supported).",
@@ -88,6 +89,7 @@ async def add_comment(ctx, params: AddCommentParams) -> ActionResult:
     "mention_user",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["create:comment"],
     event="task.mentioned",
     description=(

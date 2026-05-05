@@ -206,6 +206,7 @@ async def _delete_task_impl(ctx, params: DeleteTaskParams) -> ActionResult:
     "create_task",
     action_type="write",
     chain_callable=True,
+    id_projection="project_id",
     effects=["create:task"],
     event="task.created",
     description="Create a new task in a project. Returns task_id + full task details.",
@@ -266,6 +267,7 @@ async def delete_task(ctx, params: DeleteTaskParams) -> ActionResult:
     "create_subtask",
     action_type="write",
     chain_callable=True,
+    id_projection="parent_task_id",
     effects=["create:task"],
     event="task.created",
     description="Create a subtask under a parent task. Returns the new subtask's task_id.",
@@ -326,6 +328,7 @@ async def list_subtasks(ctx, params: ListSubtasksParams) -> ActionResult:
     "toggle_checklist_item",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["update:task"],
     event="task.updated",
     description=(

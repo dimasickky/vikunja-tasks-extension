@@ -1,7 +1,7 @@
 {
   "manifest_schema_version": 3,
   "app_id": "tasks",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -57,6 +57,7 @@
       "effects": [
         "create:connection"
       ],
+      "id_projection": "",
       "params_schema": {
         "description": "Connect via username + password (default flow).",
         "properties": {
@@ -95,6 +96,7 @@
       "effects": [
         "create:connection"
       ],
+      "id_projection": "",
       "params_schema": {
         "description": "Advanced: user pastes a pre-existing PAT minted in their Vikunja UI.",
         "properties": {
@@ -126,6 +128,7 @@
       "effects": [
         "delete:connection"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {},
         "title": "NoParams",
@@ -142,6 +145,7 @@
       "action_type": "read",
       "chain_callable": false,
       "effects": [],
+      "id_projection": "",
       "params_schema": {
         "properties": {},
         "title": "NoParams",
@@ -160,6 +164,7 @@
       "effects": [
         "create:task"
       ],
+      "id_projection": "project_id",
       "params_schema": {
         "properties": {
           "project_id": {
@@ -242,6 +247,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -393,6 +399,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -419,6 +426,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -446,6 +454,7 @@
       "effects": [
         "delete:task"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -472,6 +481,7 @@
       "effects": [
         "create:task"
       ],
+      "id_projection": "parent_task_id",
       "params_schema": {
         "properties": {
           "parent_task_id": {
@@ -511,6 +521,7 @@
       "action_type": "read",
       "chain_callable": false,
       "effects": [],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -538,6 +549,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -578,6 +590,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -611,6 +624,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -644,6 +658,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -677,6 +692,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -710,6 +726,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -743,6 +760,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -778,6 +796,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -811,6 +830,7 @@
       "effects": [
         "update:task"
       ],
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -844,6 +864,7 @@
       "effects": [
         "create:project"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "title": {
@@ -902,6 +923,7 @@
       "effects": [
         "update:project"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "project_id": {
@@ -964,6 +986,7 @@
       "effects": [
         "update:project"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "project_id": {
@@ -990,6 +1013,7 @@
       "effects": [
         "delete:project"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "project_id": {
@@ -1016,6 +1040,7 @@
       "effects": [
         "create:label"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "title": {
@@ -1061,6 +1086,7 @@
       "effects": [
         "delete:label"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "label_id": {
@@ -1085,6 +1111,7 @@
       "action_type": "read",
       "chain_callable": false,
       "effects": [],
+      "id_projection": "",
       "params_schema": {
         "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
         "properties": {},
@@ -1102,6 +1129,7 @@
       "action_type": "read",
       "chain_callable": false,
       "effects": [],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "project_id": {
@@ -1127,6 +1155,7 @@
       "action_type": "read",
       "chain_callable": false,
       "effects": [],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "filter": {
@@ -1196,6 +1225,7 @@
       "action_type": "read",
       "chain_callable": false,
       "effects": [],
+      "id_projection": "",
       "params_schema": {
         "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
         "properties": {},
@@ -1213,6 +1243,7 @@
       "action_type": "read",
       "chain_callable": false,
       "effects": [],
+      "id_projection": "",
       "params_schema": {
         "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
         "properties": {},
@@ -1230,6 +1261,7 @@
       "action_type": "read",
       "chain_callable": false,
       "effects": [],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "query": {
@@ -1256,6 +1288,7 @@
       "action_type": "read",
       "chain_callable": false,
       "effects": [],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "filter": {
@@ -1301,6 +1334,7 @@
       "effects": [
         "create:comment"
       ],
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -1334,6 +1368,7 @@
       "effects": [
         "create:comment"
       ],
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -1370,6 +1405,7 @@
       "action_type": "read",
       "chain_callable": false,
       "effects": [],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -1396,6 +1432,7 @@
       "effects": [
         "update:comment"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -1434,6 +1471,7 @@
       "effects": [
         "delete:comment"
       ],
+      "id_projection": "",
       "params_schema": {
         "properties": {
           "task_id": {

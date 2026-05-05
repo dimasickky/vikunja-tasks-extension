@@ -154,6 +154,7 @@ async def unassign_task(ctx, params: UnassignTaskParams) -> ActionResult:
     "add_label",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["update:task"],
     event="task.labeled",
     description=(
@@ -170,6 +171,7 @@ async def add_label(ctx, params: AddLabelParams) -> ActionResult:
     "remove_label",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["update:task"],
     event="task.unlabeled",
     description="Detach a label (by integer label_id) from a task (by integer task_id).",
@@ -182,6 +184,7 @@ async def remove_label(ctx, params: DetachLabelParams) -> ActionResult:
     "set_due_date",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["update:task"],
     event="task.due_changed",
     description=(
@@ -197,6 +200,7 @@ async def set_due_date(ctx, params: SetDueDateParams) -> ActionResult:
     "set_priority",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["update:task"],
     event="task.priority_changed",
     description="Set task priority — integer 0 (none) to 5 (critical). Pass integer task_id.",
@@ -209,6 +213,7 @@ async def set_priority(ctx, params: SetPriorityParams) -> ActionResult:
     "move_to_project",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["update:task"],
     event="task.moved",
     description=(
@@ -224,6 +229,7 @@ async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
     "move_to_bucket",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["update:task"],
     event="task.bucket_changed",
     description=(

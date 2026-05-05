@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.5.0] — 2026-05-05
+
+### Changed
+
+- **SDK upgraded to `imperal-sdk==4.1.2`** — picks up Pydantic feedback-loop (4.1.0), narration schema tightening (4.1.1), and `id_projection` chain dispatch (4.1.2).
+- **`id_projection` added to all compound-named chain functions** — fixes kernel chain-step target projection:
+  - `handlers_organize.py`: `add_label`, `remove_label`, `set_due_date`, `set_priority`, `move_to_project`, `move_to_bucket` → all `id_projection="task_id"`
+  - `handlers_crud.py`: `create_task` → `id_projection="project_id"` (chains from create_project); `create_subtask` → `id_projection="parent_task_id"`; `toggle_checklist_item` → `id_projection="task_id"`
+  - `handlers_collab.py`: `add_comment`, `mention_user` → `id_projection="task_id"`
+
+---
+
 ## [3.4.0] — 2026-05-04
 
 ### Changed — task description editor

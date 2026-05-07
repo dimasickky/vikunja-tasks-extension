@@ -16,11 +16,11 @@ from handlers_crud import (
 
 class AssignTaskParams(BaseModel):
     task_id: int = Field(..., description="Integer task ID from a prior list_my_tasks/filter_tasks/create_task response. Never UUID.")
-    assignee_vikunja_user_id: int = Field(
+    assignee_query: str = Field(
         ...,
         description=(
-            "Integer Vikunja user ID (from Vikunja's users table). NOT imperal_id, NOT username, NOT email. "
-            "Obtain via list_comments (author objects) or by asking the user for their numeric Vikunja user id."
+            "Name or email of the person to assign (e.g. 'Val', 'val@webhostmost.com'). "
+            "The bridge resolves it to a Vikunja user ID automatically."
         ),
     )
 
@@ -67,13 +67,15 @@ async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
     if isinstance(imperal_id, ActionResult):
         return imperal_id
     resp = await api_post(ctx, f"/v1/tasks/{params.task_id}/assign",
-                          {"imperal_id": imperal_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id})
+                          {"imperal_id": imperal_id, "assignee_query": params.assignee_query})
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't assign user"))
+    resolved_id = resp.get("_resolved_user_id")
+    resolved_name = resp.get("_resolved_username", params.assignee_query)
     return ActionResult.success(
-        summary=f"Assigned user {params.assignee_vikunja_user_id} to task #{params.task_id}.",
-        data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id,
-              "refresh_panels": ["sidebar", "editor"]},
+        summary=f"Assigned {resolved_name} to task #{params.task_id}.",
+        data={"task_id": params.task_id, "assignee_vikunja_user_id": resolved_id,
+              "assignee_name": resolved_name, "refresh_panels": ["sidebar", "editor"]},
     )
 
 
@@ -129,9 +131,8 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
     effects=["update:task"],
     event="task.assigned",
     description=(
-        "Assign a Vikunja user (by integer Vikunja user ID) to a task. "
-        "If the user gave a username or email, ask them for their numeric Vikunja user ID first — "
-        "we don't have a list_users endpoint."
+        "Assign a person to a task by their name or email address (e.g. 'Val' or 'val@webhostmost.com'). "
+        "The bridge resolves the name/email to a Vikunja user ID automatically — never ask for a numeric ID."
     ),
 )
 async def assign_task(ctx, params: AssignTaskParams) -> ActionResult:

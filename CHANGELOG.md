@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.6.0] — 2026-05-07
+
+### Changed
+
+- **`assign_task` now accepts name or email** — `assignee_query: str` replaces `assignee_vikunja_user_id: int`. The bridge resolves the name/email to a Vikunja user ID via `/api/v1/users?s=query`. No more asking the user for a numeric ID.
+- Bridge `POST /v1/tasks/{id}/assign` extended with `assignee_query` field; response includes `_resolved_user_id` and `_resolved_username` for subsequent unassign calls.
+- Bridge `GET /v1/users` endpoint added for user lookup.
+
+---
+
 ## [3.5.0] — 2026-05-05
 
 ### Changed

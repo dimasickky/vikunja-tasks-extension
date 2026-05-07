@@ -1,11 +1,13 @@
 """tasks · Organize operations (assign, label, due, priority, move)."""
 from __future__ import annotations
 
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_delete, chat
+from app import api_post, api_get, api_delete, chat
 from handlers_crud import (
     _require_user,
     _update_task_impl,
@@ -15,7 +17,20 @@ from handlers_crud import (
 
 
 class AssignTaskParams(BaseModel):
-    task_id: int = Field(..., description="Integer task ID from a prior list_my_tasks/filter_tasks/create_task response. Never UUID.")
+    task_id: int = Field(
+        0,
+        description=(
+            "Integer task ID. Pass 0 if you only know the task by name — "
+            "task_name will be used to auto-resolve it."
+        ),
+    )
+    task_name: Optional[str] = Field(
+        None,
+        description=(
+            "Task title to search for when task_id is unknown. "
+            "The first matching task is used — prefer find_task first for disambiguation."
+        ),
+    )
     assignee_query: str = Field(
         ...,
         description=(
@@ -66,15 +81,34 @@ async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
-    resp = await api_post(ctx, f"/v1/tasks/{params.task_id}/assign",
+
+    task_id = params.task_id
+    if task_id == 0 and params.task_name:
+        search_resp = await api_get(ctx, "/v1/tasks/all", {
+            "imperal_id": imperal_id, "s": params.task_name, "per_page": 5,
+        })
+        tasks = search_resp if isinstance(search_resp, list) else []
+        if not tasks:
+            return ActionResult.error(
+                f"Task '{params.task_name}' not found. "
+                "Call find_task(query=...) to search and get the integer task_id first."
+            )
+        task_id = tasks[0]["id"]
+
+    if not task_id:
+        return ActionResult.error(
+            "task_id is required. Call find_task(query=...) first to resolve the task name to an integer task_id."
+        )
+
+    resp = await api_post(ctx, f"/v1/tasks/{task_id}/assign",
                           {"imperal_id": imperal_id, "assignee_query": params.assignee_query})
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't assign user"))
     resolved_id = resp.get("_resolved_user_id")
     resolved_name = resp.get("_resolved_username", params.assignee_query)
     return ActionResult.success(
-        summary=f"Assigned {resolved_name} to task #{params.task_id}.",
-        data={"task_id": params.task_id, "assignee_vikunja_user_id": resolved_id,
+        summary=f"Assigned {resolved_name} to task #{task_id}.",
+        data={"task_id": task_id, "assignee_vikunja_user_id": resolved_id,
               "assignee_name": resolved_name, "refresh_panels": ["sidebar", "editor"]},
     )
 
@@ -128,6 +162,7 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
     "assign_task",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["update:task"],
     event="task.assigned",
     description=(
@@ -143,6 +178,7 @@ async def assign_task(ctx, params: AssignTaskParams) -> ActionResult:
     "unassign_task",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["update:task"],
     event="task.unassigned",
     description="Remove a Vikunja user (by integer user ID) from a task's assignee list.",

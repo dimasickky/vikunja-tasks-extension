@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.7.0] — 2026-05-07
+
+### Fixed
+
+- **[P0] `assign_task` — task_name auto-resolve + id_projection** — Added `task_name: Optional[str]` to `AssignTaskParams`. When `task_id=0` and `task_name` is provided, the extension searches for the task automatically instead of failing with Pydantic validation error. Previously, LLM passed `task_name` (non-existent field) causing "missing required field task_id". Added `id_projection="task_id"` so kernel chain dispatch can inject task_id from prior steps.
+- **[P1] `unassign_task` — added `id_projection="task_id"`** — same missing projection fixed.
+- **[P1] Bridge `_resolve_vikunja_user_id` — tenant isolation** — user lookup now scoped to same `base_url` as requester. Previously searched all vikunja_connections globally — could return users from different Vikunja instances in multi-tenant deployments.
+- **[P1] Bridge `connect` / `connect_with_pat` — old PAT revoked on reconnect** — `_revoke_existing_connection()` now called before `save_connection()`. Previously, the old PAT became an orphan in the user's Vikunja on every reconnect.
+
+### Changed
+
+- **`skeleton_refresh_tasks` — parallel API calls via `asyncio.gather`** — 5 sequential API calls (today/overdue/upcoming/recent/projects) replaced with a single `asyncio.gather`. Skeleton refresh is ~5x faster.
+- **`panels_task.py` split** — 501-line god file split into 3 modules: `_task_checklist.py` (TipTap checklist parser + toggle helpers), `_task_create_form.py` (create form renderer), `panels_task.py` (task detail + edit form, now ~200 lines).
+- **SDK bumped `4.1.2 → 4.1.3`** — pure refactor release, no API changes.
+
+---
+
 ## [3.6.0] — 2026-05-07
 
 ### Changed

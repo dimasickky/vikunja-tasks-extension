@@ -1,6 +1,7 @@
 """tasks · Skeleton tools — background refresh + alert."""
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from app import ext, api_get, imperal_id_of, is_no_connection_error
@@ -50,19 +51,37 @@ async def skeleton_refresh_tasks(ctx) -> dict:
         return len(resp) if isinstance(resp, list) else 0
 
     try:
-        today_count = await _count_filter(
-            "done = false && due_date >= now/d && due_date < now/d+1d"
-        )
-        overdue_count = await _count_filter(
-            "done = false && due_date < now && due_date > 1970-01-01"
-        )
-        upcoming_7d_count = await _count_filter(
-            "done = false && due_date >= now && due_date < now+7d"
+        today_raw, overdue_raw, upcoming_raw, recent_raw, projects_raw = await asyncio.gather(
+            api_get(ctx, "/v1/tasks/all", {
+                "imperal_id": imperal_id,
+                "filter": "done = false && due_date >= now/d && due_date < now/d+1d",
+                "per_page": 200,
+            }),
+            api_get(ctx, "/v1/tasks/all", {
+                "imperal_id": imperal_id,
+                "filter": "done = false && due_date < now && due_date > 1970-01-01",
+                "per_page": 200,
+            }),
+            api_get(ctx, "/v1/tasks/all", {
+                "imperal_id": imperal_id,
+                "filter": "done = false && due_date >= now && due_date < now+7d",
+                "per_page": 200,
+            }),
+            api_get(ctx, "/v1/tasks/all", {
+                "imperal_id": imperal_id, "sort_by": "-updated", "per_page": 5,
+            }),
+            api_get(ctx, "/v1/projects", {"imperal_id": imperal_id}),
         )
 
-        recent_raw = await api_get(ctx, "/v1/tasks/all", {
-            "imperal_id": imperal_id, "sort_by": "-updated", "per_page": 5,
-        })
+        def _count(resp) -> int:
+            if isinstance(resp, dict) and is_no_connection_error(resp):
+                return 0
+            return len(resp) if isinstance(resp, list) else 0
+
+        today_count     = _count(today_raw)
+        overdue_count   = _count(overdue_raw)
+        upcoming_7d_count = _count(upcoming_raw)
+
         recent = recent_raw if isinstance(recent_raw, list) else []
         recent_tasks = [
             {
@@ -75,7 +94,6 @@ async def skeleton_refresh_tasks(ctx) -> dict:
             for t in recent
         ]
 
-        projects_raw = await api_get(ctx, "/v1/projects", {"imperal_id": imperal_id})
         projects = projects_raw if isinstance(projects_raw, list) else []
         active_projects = [p for p in projects if not p.get("is_archived", False)]
         favorites = [p for p in active_projects if p.get("is_favorite", False)]

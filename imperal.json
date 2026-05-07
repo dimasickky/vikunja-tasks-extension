@@ -1,7 +1,7 @@
 {
   "manifest_schema_version": 3,
   "app_id": "tasks",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -590,13 +590,27 @@
       "effects": [
         "update:task"
       ],
-      "id_projection": "",
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
-            "description": "Integer task ID from a prior list_my_tasks/filter_tasks/create_task response. Never UUID.",
+            "default": 0,
+            "description": "Integer task ID. Pass 0 if you only know the task by name — task_name will be used to auto-resolve it.",
             "title": "Task Id",
             "type": "integer"
+          },
+          "task_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Task title to search for when task_id is unknown. The first matching task is used — prefer find_task first for disambiguation.",
+            "title": "Task Name"
           },
           "assignee_query": {
             "description": "Name or email of the person to assign (e.g. 'Val', 'val@webhostmost.com'). The bridge resolves it to a Vikunja user ID automatically.",
@@ -605,7 +619,6 @@
           }
         },
         "required": [
-          "task_id",
           "assignee_query"
         ],
         "title": "AssignTaskParams",
@@ -624,7 +637,7 @@
       "effects": [
         "update:task"
       ],
-      "id_projection": "",
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {

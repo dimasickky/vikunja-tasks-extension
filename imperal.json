@@ -1,7 +1,7 @@
 {
   "manifest_schema_version": 3,
   "app_id": "tasks",
-  "version": "3.7.0",
+  "version": "3.8.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -866,6 +866,30 @@
       },
       "return_schema": {},
       "event": "task.bucket_changed",
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "search_vikunja_users",
+      "description": "Search for Vikunja users by name or email fragment — use this before assign_task to discover who is available, or when the user asks who they can assign tasks to. Pass empty query to list all known users on the Vikunja instance.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "query": {
+            "default": "",
+            "description": "Name or email fragment to search for (e.g. 'val', 'ignat', 'denis@'). Pass empty string to list all known users on this Vikunja instance.",
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "title": "SearchUsersParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
       "scopes": [],
       "owner_chat_tool": "tool_tasks_chat"
     },

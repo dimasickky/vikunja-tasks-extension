@@ -16,6 +16,16 @@ from handlers_crud import (
 )
 
 
+class SearchUsersParams(BaseModel):
+    query: str = Field(
+        "",
+        description=(
+            "Name or email fragment to search for (e.g. 'val', 'ignat', 'denis@'). "
+            "Pass empty string to list all known users on this Vikunja instance."
+        ),
+    )
+
+
 class AssignTaskParams(BaseModel):
     task_id: int = Field(
         0,
@@ -76,6 +86,32 @@ class MoveToBucketParams(BaseModel):
 
 
 # ─── Impl ─────────────────────────────────────────────────────────────────── #
+
+async def _search_users_impl(ctx, params: SearchUsersParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    resp = await api_get(ctx, "/v1/users", {"imperal_id": imperal_id, "s": params.query})
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't search users"))
+
+    users = resp if isinstance(resp, list) else []
+    if not users:
+        msg = f"No users found matching '{params.query}'." if params.query else "No other users found on this Vikunja instance."
+        return ActionResult.success(summary=msg, data={"users": []})
+
+    lines = []
+    for u in users:
+        tag = " ✓" if u.get("connected") else ""
+        lines.append(f"• {u['username']} (ID: {u['id']}){tag}")
+
+    label = f"matching '{params.query}'" if params.query else "on this Vikunja instance"
+    return ActionResult.success(
+        summary=f"Found {len(users)} user(s) {label}:\n" + "\n".join(lines),
+        data={"users": users},
+    )
+
 
 async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
     imperal_id = _require_user(ctx)
@@ -276,3 +312,18 @@ async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
 )
 async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, bucket_id=params.bucket_id))
+
+
+@chat.function(
+    "search_vikunja_users",
+    action_type="read",
+    chain_callable=False,
+    effects=[],
+    description=(
+        "Search for Vikunja users by name or email fragment — use this before assign_task "
+        "to discover who is available, or when the user asks who they can assign tasks to. "
+        "Pass empty query to list all known users on the Vikunja instance."
+    ),
+)
+async def search_vikunja_users(ctx, params: SearchUsersParams) -> ActionResult:
+    return await _search_users_impl(ctx, params)

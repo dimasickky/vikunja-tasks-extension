@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.8.0] — 2026-05-08
+
+### Added
+
+- **`search_vikunja_users` chat.function** — LLM can now discover who is assignable before calling `assign_task`. Returns username, Vikunja ID, and connected status for each user. Empty query lists all known users on the instance.
+
+### Fixed
+
+- **`assign_task` — two-tier user resolution** — Bridge `_resolve_vikunja_user_id` now falls back to Vikunja API (`GET /api/v1/users?s=`) when the assignee is not found in `vikunja_connections`. Users with a Vikunja account who haven't connected their Imperal account (e.g. Ignat) can now be assigned tasks.
+- **`GET /v1/users` bridge endpoint** — same two-tier logic; empty `s` lists all connected users on the same Vikunja instance. Results include `connected: bool` field.
+
+---
+
 ## [3.7.0] — 2026-05-07
 
 ### Fixed

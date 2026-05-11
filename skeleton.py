@@ -116,35 +116,6 @@ async def skeleton_refresh_tasks(ctx) -> dict:
         }}
     except Exception as e:
         log.error("skeleton_refresh_tasks failed: %s", e)
-        return {"response": {"error": str(e)}}
+        return {"response": {}}
 
 
-@ext.tool(
-    "skeleton_alert_tasks",
-    scopes=["tasks.read"],
-    description="Alerts: overdue tasks, due-today, sudden spike in backlog.",
-)
-async def skeleton_alert_tasks(ctx, old: dict = None, new: dict = None) -> dict:
-    """Compare old/new skeleton, alert on overdue spikes and due-today changes."""
-    if not new:
-        return {"response": ""}
-
-    alerts: list[str] = []
-    overdue = new.get("overdue_count", 0)
-    today = new.get("today_count", 0)
-    old_overdue = (old or {}).get("overdue_count", 0)
-
-    if overdue > 0 and overdue > old_overdue:
-        delta = overdue - old_overdue
-        if delta == overdue:
-            alerts.append(f"⚠ {overdue} task{'s' if overdue > 1 else ''} overdue")
-        else:
-            alerts.append(f"⚠ {delta} new overdue task{'s' if delta > 1 else ''} (now {overdue} total)")
-
-    if today > 0 and today != (old or {}).get("today_count", 0):
-        alerts.append(f"📅 {today} task{'s' if today > 1 else ''} due today")
-
-    if not alerts:
-        return {"response": ""}
-
-    return {"response": " · ".join(alerts)}

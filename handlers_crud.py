@@ -74,7 +74,7 @@ def _bridge_error_msg(resp: dict, default_prefix: str) -> str:
         return "No Vikunja connected. Connect your Vikunja in the tasks panel first."
     detail = resp.get("detail")
     if isinstance(detail, dict):
-        detail = detail.get("detail") or detail.get("error") or str(detail)
+        detail = detail.get("detail") or detail.get("error") or detail.get("message") or str(detail)
     return f"{default_prefix}: {detail}"
 
 

@@ -119,3 +119,35 @@ async def skeleton_refresh_tasks(ctx) -> dict:
         return {"response": {}}
 
 
+@ext.tool(
+    "skeleton_alert_tasks",
+    description="Alert on new overdue tasks or today's task count changes.",
+)
+async def skeleton_alert_tasks(
+    ctx,
+    old: dict | None = None,
+    new: dict | None = None,
+) -> dict:
+    """Called by kernel when tasks snapshot changes between ticks."""
+    if not new:
+        return {"response": ""}
+
+    alerts: list[str] = []
+    overdue     = new.get("overdue_count", 0)
+    today       = new.get("today_count", 0)
+    old_overdue = (old or {}).get("overdue_count", 0)
+
+    if overdue > 0 and overdue > old_overdue:
+        delta = overdue - old_overdue
+        if delta == overdue:
+            alerts.append(f"{overdue} task{'s' if overdue > 1 else ''} overdue")
+        else:
+            alerts.append(f"{delta} new overdue task{'s' if delta > 1 else ''} (now {overdue} total)")
+
+    if today > 0 and today != (old or {}).get("today_count", 0):
+        alerts.append(f"{today} task{'s' if today > 1 else ''} due today")
+
+    if not alerts:
+        return {"response": ""}
+
+    return {"response": " · ".join(alerts)}

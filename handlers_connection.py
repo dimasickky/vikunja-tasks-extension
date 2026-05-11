@@ -1,5 +1,6 @@
 """tasks · BYO connection handlers (connect / disconnect / status)."""
-from __future__ import annotations
+
+import logging
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
@@ -7,6 +8,7 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_post, api_delete, api_get, chat, require_imperal_id, NoParams
 
+log = logging.getLogger("tasks")
 
 _MODEL_CONFIG = ConfigDict(populate_by_name=True)
 
@@ -45,10 +47,6 @@ class ConnectVikunjaWithPatParams(BaseModel):
         description="Vikunja Personal Access Token (Settings → API tokens).",
         validation_alias=AliasChoices("pat", "token", "api_token", "personal_access_token"),
     )
-
-
-class NoParams(BaseModel):
-    model_config = _MODEL_CONFIG
 
 
 def _format_connect_error(resp: dict, default: str) -> str:
@@ -100,7 +98,8 @@ async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
             summary=f"Connected to {resp.get('base_url')} as {resp.get('username')}.",
         )
     except Exception as e:
-        return ActionResult.error(f"Connect failed: {e}")
+        log.error("connect_vikunja: %s", e)
+        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True)
 
 
 @chat.function(
@@ -139,7 +138,8 @@ async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> 
             summary=f"Connected to {resp.get('base_url')} as {resp.get('username')}.",
         )
     except Exception as e:
-        return ActionResult.error(f"Connect failed: {e}")
+        log.error("connect_vikunja_with_pat: %s", e)
+        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True)
 
 
 @chat.function(
@@ -163,7 +163,8 @@ async def disconnect_vikunja(ctx, params: NoParams) -> ActionResult:
             summary="Disconnected from Vikunja.",
         )
     except Exception as e:
-        return ActionResult.error(f"Disconnect failed: {e}")
+        log.error("disconnect_vikunja: %s", e)
+        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True)
 
 
 @chat.function(
@@ -194,4 +195,5 @@ async def get_connection_status(ctx, params: NoParams) -> ActionResult:
             ),
         )
     except Exception as e:
-        return ActionResult.error(f"Status check failed: {e}")
+        log.error("get_connection_status: %s", e)
+        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True)

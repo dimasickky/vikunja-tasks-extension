@@ -1,5 +1,4 @@
 """tasks · Organize operations (assign, label, due, priority, move)."""
-from __future__ import annotations
 
 from typing import Optional
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.9.0] — 2026-05-11
+
+### Changed
+
+- **SDK bumped `4.1.3 → 4.2.0`** — no behavioral changes for this extension.
+
+### Fixed
+
+- **[I-MAGIC-UX] 4 raw exception leaks in `handlers_connection.py`** — `f"Connect/Disconnect/Status failed: {e}"` replaced with `log.error(...)` + safe `ActionResult.error(..., retryable=True)`.
+- **[V18] `from __future__ import annotations` removed** from all 6 handler files that define Pydantic `BaseModel` param classes (`handlers_connection.py`, `handlers_crud.py`, `handlers_organize.py`, `handlers_search.py`, `handlers_structure.py`, `handlers_collab.py`).
+- **[Cleanup] Duplicate `NoParams` class removed** from `handlers_connection.py` — was shadowing the imported `NoParams` from `app.py`.
+- **[Logging] `import logging` + `log` added** to `handlers_connection.py`.
+- **[Skeleton] `skeleton_alert_tasks` restored** using `@ext.tool` (correct per docs.imperal.io and kernel source). MANIFEST-SKELETON-1 validator bug reported to the team.
+- **[Skeleton] `"error": str(e)` removed** from degraded skeleton return (zero-values only per SDK contract).
+- **[Backend] `the backend service/routes_provision.py`** — 2 raw exception leaks in `HTTPException` 500 responses replaced with generic messages + `log.error(...)`. Service restarted.
+
+---
+
 ## [3.8.0] — 2026-05-08
 
 ### Added

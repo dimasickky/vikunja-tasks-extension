@@ -1,7 +1,7 @@
 {
   "manifest_schema_version": 3,
   "app_id": "tasks",
-  "version": "3.8.0",
+  "version": "3.9.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -34,10 +34,8 @@
     },
     {
       "name": "skeleton_alert_tasks",
-      "description": "Alerts: overdue tasks, due-today, sudden spike in backlog.",
-      "scopes": [
-        "tasks.read"
-      ],
+      "description": "Alert on new overdue tasks or today's task count changes.",
+      "scopes": [],
       "parameters": {
         "old": {
           "type": "string",
@@ -130,6 +128,7 @@
       ],
       "id_projection": "",
       "params_schema": {
+        "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
         "properties": {},
         "title": "NoParams",
         "type": "object"
@@ -147,6 +146,7 @@
       "effects": [],
       "id_projection": "",
       "params_schema": {
+        "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
         "properties": {},
         "title": "NoParams",
         "type": "object"
@@ -1535,9 +1535,7 @@
   ],
   "signals": [],
   "schedules": [],
-  "required_scopes": [
-    "tasks.read"
-  ],
+  "required_scopes": [],
   "icon_size_bytes": 329,
   "lifecycle": {
     "health_check": {

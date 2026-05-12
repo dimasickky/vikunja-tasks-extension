@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.9.1] — 2026-05-12
+
+### Changed
+
+- SDK bumped `4.2.0 → 4.2.1` — fixes MANIFEST-SKELETON-1 false positive on `@ext.tool("skeleton_alert_*")`.
+
+---
+
 ## [3.9.0] — 2026-05-11
 
 ### Changed

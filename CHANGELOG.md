@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.9.3] — 2026-05-13
+
+### Changed
+
+- SDK bumped `4.2.6 → 4.2.10` — picks up OAuth callback infrastructure + `ctx.webhook_url()` (4.2.7), `SecretDecl` in Manifest schema (4.2.8/4.2.9), and `chain_callable=True` default for read handlers (4.2.10). Read handlers (`list_my_tasks`, `find_task`, `filter_tasks`, `get_connection_status`, etc.) now dispatch typed directly.
+
+---
+
 ## [3.9.2] — 2026-05-13
 
 ### Changed

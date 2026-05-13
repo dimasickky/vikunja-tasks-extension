@@ -130,7 +130,7 @@ def _render_connect(view: str, banner: str | None = None) -> ui.Stack:
                         if use_pat else
                         [
                             ui.Input(placeholder="Username", param_name="username"),
-                            ui.Input(placeholder="Password", param_name="password"),
+                            ui.Password(placeholder="Password", param_name="password"),
                         ]
                     ),
                 ],

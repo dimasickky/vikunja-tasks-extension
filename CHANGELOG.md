@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.9.2] — 2026-05-13
+
+### Changed
+
+- SDK bumped `4.2.1 → 4.2.6` — picks up EXT-SECRETS-V1 (unconditional Secrets panel in right slot), validator synthetic-tool fix (4.2.5), and `ui.Password` primitive (4.2.6).
+- **Connect form**: password field switched from `ui.Input` to `ui.Password` — input is now masked while typing.
+
+---
+
 ## [3.9.1] — 2026-05-12
 
 ### Changed

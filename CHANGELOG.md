@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.9.4] — 2026-05-15
+
+### Fixed
+
+- **V18**: removed `from __future__ import annotations` from `app.py` — was co-located with `NoParams(BaseModel)`, risking silent Pydantic validation failures.
+- **id_projection**: added `id_projection="task_id"` to `update_comment` handler — kernel was unable to resolve the resource ID in chain steps.
+- **system_prompt**: added explicit pagination warning — `list_my_tasks`/`filter_tasks` return max 50 items per page; LLM must use `list_buckets` to count all tasks in a project.
+
+### Changed
+
+- SDK bumped `4.2.10 → 4.2.16` — picks up `ui.Link` render fix (4.2.11), long-running ops primitives `ctx.background_task` / `ctx.deliver_chat_message` (4.2.12), `@chat.function(background=True)` (4.2.13), schema.json fix (4.2.14), placeholder-args guard I-PARAMS-NO-PLACEHOLDER-VALUES (4.2.15), hallucinated tool name logging (4.2.16).
+
+---
+
 ## [3.9.3] — 2026-05-13
 
 ### Changed

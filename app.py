@@ -4,8 +4,6 @@ v3.0.0 — SDK 4.0.1 federal contract. ctx.http replaces the module-level
 httpx.AsyncClient singleton; all api_*(ctx, ...) helpers are ctx-scoped
 and per-request clean.
 """
-from __future__ import annotations
-
 import logging
 import os
 from pathlib import Path
@@ -111,7 +109,7 @@ SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.txt").read_text()
 
 ext = Extension(
     "tasks",
-    version="3.9.3",
+    version="3.9.4",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Tasks",
     description=(

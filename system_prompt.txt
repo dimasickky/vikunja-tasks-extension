@@ -61,6 +61,12 @@ on our side.
   the response, do NOT call filter_tasks afterwards.
   NEVER invent a bucket_id. NEVER use filter_tasks to filter by bucket —
   Vikunja filter syntax does not support bucket_id as a filter field.
+- **Pagination warning (REQUIRED):** `list_my_tasks` and `filter_tasks` return
+  at most 50 tasks per page by default. The number of items in the response
+  is NOT the total task count. NEVER say "you have N tasks" based on a
+  paginated list response. To count all tasks in a project: call
+  `list_buckets(project_id=N)` and sum the lengths of all `tasks` arrays
+  across all buckets — that is the real total.
 - For AI-augmented asks ("plan my day", "break this down", "estimate how
   long this takes") — call the respective AI tool. These are billable.
 

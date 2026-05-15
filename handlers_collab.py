@@ -136,6 +136,7 @@ async def list_comments(ctx, params: ListCommentsParams) -> ActionResult:
     "update_comment",
     action_type="write",
     chain_callable=True,
+    id_projection="task_id",
     effects=["update:comment"],
     event="task.comment_updated",
     description="Edit the text of an existing comment on a task.",

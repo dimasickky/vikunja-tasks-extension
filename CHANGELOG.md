@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.10.0] — 2026-05-15
+
+### Changed
+
+- **SDK 5.0.0 migration** — bumped `imperal-sdk` to `5.0.0`. Removed unused `system_prompt=` kwarg and `SYSTEM_PROMPT` variable (no-op in 5.0.0). Removed unused `pathlib.Path` import. Manifest rebuilt — `tool_tasks_chat` orchestrator-tool entry removed (V25 compliance, `I-LOADER-REJECTS-LEGACY-LLM-ROUTER`).
+
+---
+
 ## [3.9.4] — 2026-05-15
 
 ### Fixed

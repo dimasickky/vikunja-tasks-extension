@@ -6,7 +6,6 @@ and per-request clean.
 """
 import logging
 import os
-from pathlib import Path
 
 from pydantic import BaseModel
 
@@ -100,16 +99,11 @@ def is_no_connection_error(resp: dict) -> bool:
     return isinstance(resp, dict) and resp.get("http_status") == 412
 
 
-# ─── System Prompt ────────────────────────────────────────────────────────── #
-
-SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.txt").read_text()
-
-
 # ─── Extension ───────────────────────────────────────────────────────────── #
 
 ext = Extension(
     "tasks",
-    version="3.9.4",
+    version="3.10.0",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Tasks",
     description=(
@@ -126,11 +120,8 @@ chat = ChatExtension(
     description=(
         "Tasks manager — kanban boards, projects, due dates, labels, "
         "assignees, comments. Each user connects their own Vikunja "
-        "instance; data lives in the user's Vikunja, never on our side. "
-        "When invoking this tool, pass the user's request verbatim as "
-        "`message`; the extension dispatches to typed @chat.function handlers."
+        "instance; data lives in the user's Vikunja, never on our side."
     ),
-    system_prompt=SYSTEM_PROMPT,
 )
 
 

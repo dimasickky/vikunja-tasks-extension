@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.1",
   "app_id": "tasks",
-  "version": "3.14.0",
+  "version": "3.15.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -2967,6 +2967,91 @@
         "type": "object"
       },
       "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "rename_bucket",
+      "description": "Rename a kanban bucket (column) or update its WIP limit. Requires project_id and bucket_id — use list_project_buckets() first if you only know the bucket name.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:bucket"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "description": "Integer project ID.",
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "bucket_id": {
+            "description": "Integer bucket ID from list_project_buckets.",
+            "title": "Bucket Id",
+            "type": "integer"
+          },
+          "title": {
+            "description": "New bucket name.",
+            "maxLength": 250,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "WIP limit (0 = no limit). Omit to keep existing.",
+            "title": "Limit"
+          }
+        },
+        "required": [
+          "project_id",
+          "bucket_id",
+          "title"
+        ],
+        "title": "RenameBucketParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "bucket_id": {
+            "title": "Bucket Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project_id",
+          "bucket_id",
+          "title",
+          "limit"
+        ],
+        "title": "RenameBucketResult",
+        "type": "object"
+      },
+      "event": "task.bucket_changed",
       "background": false,
       "long_running": false,
       "scopes": [],

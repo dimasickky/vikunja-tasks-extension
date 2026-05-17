@@ -305,3 +305,10 @@ class GetBucketTasksResult(BaseModel):
     bucket_title: str
     task_count: int
     tasks: List[BucketTaskItem]
+
+
+class RenameBucketResult(BaseModel):
+    project_id: int
+    bucket_id: int
+    title: str
+    limit: int

@@ -22,6 +22,7 @@ from models_return import (
     BucketNavItem,
     ListProjectBucketsResult,
     GetBucketTasksResult,
+    RenameBucketResult,
 )
 
 log = logging.getLogger("tasks")
@@ -663,5 +664,57 @@ async def get_named_bucket_tasks(ctx, params: GetNamedBucketTasksParams) -> Acti
             "bucket_title": bucket.get("title", "?"),
             "task_count":   len(task_list),
             "tasks":        task_list,
+        },
+    )
+
+
+class RenameBucketParams(BaseModel):
+    project_id: int = Field(..., description="Integer project ID.")
+    bucket_id: int = Field(..., description="Integer bucket ID from list_project_buckets.")
+    title: str = Field(..., min_length=1, max_length=250, description="New bucket name.")
+    limit: Optional[int] = Field(None, ge=0, description="WIP limit (0 = no limit). Omit to keep existing.")
+
+
+@chat.function(
+    "rename_bucket",
+    action_type="write",
+    chain_callable=True,
+    effects=["update:bucket"],
+    event="task.bucket_changed",
+    description=(
+        "Rename a kanban bucket (column) or update its WIP limit. "
+        "Requires project_id and bucket_id — use list_project_buckets() first "
+        "if you only know the bucket name."
+    ),
+    data_model=RenameBucketResult,
+)
+async def rename_bucket(ctx, params: RenameBucketParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    view_id, err = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
+    if err:
+        return err
+
+    payload: dict = {"imperal_id": imperal_id, "title": params.title}
+    if params.limit is not None:
+        payload["limit"] = params.limit
+
+    resp = await api_post(
+        ctx,
+        f"/v1/projects/{params.project_id}/views/{view_id}/buckets/{params.bucket_id}",
+        payload,
+    )
+    if resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't rename bucket"))
+
+    return ActionResult.success(
+        summary=f"Bucket renamed to '{params.title}'.",
+        data={
+            "project_id": params.project_id,
+            "bucket_id":  params.bucket_id,
+            "title":      resp.get("title", params.title),
+            "limit":      resp.get("limit", 0),
         },
     )

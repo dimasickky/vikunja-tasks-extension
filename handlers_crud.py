@@ -7,6 +7,16 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_get, api_post, api_delete, chat, imperal_id_of, is_no_connection_error
 from panels_task import _toggle_checklist_item
+from models_return import (
+    CreateTaskResult,
+    UpdateTaskResult,
+    TaskStatusResult,
+    DeleteTaskResult,
+    CreateSubtaskResult,
+    ListSubtasksResult,
+    ToggleChecklistResult,
+    GetTaskResult,
+)
 
 
 class CreateTaskParams(BaseModel):
@@ -209,6 +219,7 @@ async def _delete_task_impl(ctx, params: DeleteTaskParams) -> ActionResult:
     effects=["create:task"],
     event="task.created",
     description="Create a new task in a project. Returns task_id + full task details.",
+    data_model=CreateTaskResult,
 )
 async def create_task(ctx, params: CreateTaskParams) -> ActionResult:
     return await _create_task_impl(ctx, params)
@@ -221,6 +232,7 @@ async def create_task(ctx, params: CreateTaskParams) -> ActionResult:
     effects=["update:task"],
     event="task.updated",
     description="Update any fields of a task (title, description, due_date, priority, percent_done, bucket, etc.).",
+    data_model=UpdateTaskResult,
 )
 async def update_task(ctx, params: UpdateTaskParams) -> ActionResult:
     return await _update_task_impl(ctx, params)
@@ -233,6 +245,7 @@ async def update_task(ctx, params: UpdateTaskParams) -> ActionResult:
     effects=["update:task"],
     event="task.completed",
     description="Mark a task as done (done=true, percent_done=1.0).",
+    data_model=TaskStatusResult,
 )
 async def complete_task(ctx, params: CompleteTaskParams) -> ActionResult:
     return await _complete_task_impl(ctx, params)
@@ -245,6 +258,7 @@ async def complete_task(ctx, params: CompleteTaskParams) -> ActionResult:
     effects=["update:task"],
     event="task.uncompleted",
     description="Reopen a task — mark it as not done (done=false, percent_done=0). Inverse of complete_task.",
+    data_model=TaskStatusResult,
 )
 async def uncomplete_task(ctx, params: UncompleteTaskParams) -> ActionResult:
     return await _uncomplete_task_impl(ctx, params)
@@ -257,6 +271,7 @@ async def uncomplete_task(ctx, params: UncompleteTaskParams) -> ActionResult:
     effects=["delete:task"],
     event="task.deleted",
     description="Permanently delete a task. Cannot be undone.",
+    data_model=DeleteTaskResult,
 )
 async def delete_task(ctx, params: DeleteTaskParams) -> ActionResult:
     return await _delete_task_impl(ctx, params)
@@ -270,6 +285,7 @@ async def delete_task(ctx, params: DeleteTaskParams) -> ActionResult:
     effects=["create:task"],
     event="task.created",
     description="Create a subtask under a parent task. Returns the new subtask's task_id.",
+    data_model=CreateSubtaskResult,
 )
 async def create_subtask(ctx, params: CreateSubtaskParams) -> ActionResult:
     imperal_id = _require_user(ctx)
@@ -299,6 +315,7 @@ async def create_subtask(ctx, params: CreateSubtaskParams) -> ActionResult:
     "list_subtasks",
     action_type="read",
     description="List all subtasks of a given task, including their done/pending status.",
+    data_model=ListSubtasksResult,
 )
 async def list_subtasks(ctx, params: ListSubtasksParams) -> ActionResult:
     imperal_id = _require_user(ctx)
@@ -334,6 +351,7 @@ async def list_subtasks(ctx, params: ListSubtasksParams) -> ActionResult:
         "Check or uncheck a TipTap checklist item in a task description. "
         "Use item_index (0-based) from the visible checklist order."
     ),
+    data_model=ToggleChecklistResult,
 )
 async def toggle_checklist_item(ctx, params: ToggleChecklistItemParams) -> ActionResult:
     imperal_id = _require_user(ctx)
@@ -366,5 +384,60 @@ async def toggle_checklist_item(ctx, params: ToggleChecklistItemParams) -> Actio
             "item_index": params.item_index,
             "checked":    params.checked,
             "refresh_panels": ["editor"],
+        },
+    )
+
+
+class GetTaskParams(BaseModel):
+    task_id: int = Field(..., description="Integer task ID. Never UUID.")
+
+
+@chat.function(
+    "get_task",
+    action_type="read",
+    description=(
+        "Get full details of a single task by ID: title, description, done status, "
+        "due date, priority, assignees, labels, and project. "
+        "Use this to verify task state before updating, or when user asks about a specific task."
+    ),
+    data_model=GetTaskResult,
+)
+async def get_task(ctx, params: GetTaskParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    resp = await api_get(ctx, f"/v1/tasks/{params.task_id}", {"imperal_id": imperal_id})
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch task"))
+
+    t = resp
+    assignees = [
+        {"vikunja_user_id": a.get("id"), "username": a.get("username", "")}
+        for a in (t.get("assignees") or [])
+    ]
+    labels = [
+        {"label_id": l.get("id"), "title": l.get("title", ""), "hex_color": l.get("hex_color")}
+        for l in (t.get("labels") or [])
+    ]
+    return ActionResult.success(
+        summary=f"Task #{params.task_id}: {t.get('title', '?')} ({'done' if t.get('done') else 'open'})",
+        data={
+            "task_id":      t.get("id"),
+            "title":        t.get("title", ""),
+            "description":  t.get("description", ""),
+            "done":         t.get("done", False),
+            "due_date":     (t.get("due_date") or "")[:10] or None,
+            "start_date":   (t.get("start_date") or "")[:10] or None,
+            "priority":     t.get("priority", 0),
+            "percent_done": t.get("percent_done", 0.0),
+            "project_id":   t.get("project_id"),
+            "bucket_id":    t.get("bucket_id") or None,
+            "hex_color":    t.get("hex_color"),
+            "is_favorite":  t.get("is_favorite", False),
+            "assignees":    assignees,
+            "labels":       labels,
+            "created":      t.get("created"),
+            "updated":      t.get("updated"),
         },
     )

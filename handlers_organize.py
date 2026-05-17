@@ -13,6 +13,13 @@ from handlers_crud import (
     _bridge_error_msg,
     UpdateTaskParams,
 )
+from models_return import (
+    SearchUsersResult,
+    AssignResult,
+    UnassignResult,
+    TaskLabelResult,
+    UpdateTaskResult,
+)
 
 
 class SearchUsersParams(BaseModel):
@@ -128,6 +135,12 @@ async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
                 f"Task '{params.task_name}' not found. "
                 "Call find_task(query=...) to search and get the integer task_id first."
             )
+        if len(tasks) > 1:
+            matches = ", ".join(f"#{t['id']} '{t.get('title', '?')}'" for t in tasks[:3])
+            return ActionResult.error(
+                f"Multiple tasks match '{params.task_name}': {matches}. "
+                "Pass task_id directly to avoid assigning the wrong task."
+            )
         task_id = tasks[0]["id"]
 
     if not task_id:
@@ -204,6 +217,7 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
         "Assign a person to a task by their name or email address (e.g. 'Val' or 'val@webhostmost.com'). "
         "The bridge resolves the name/email to a Vikunja user ID automatically — never ask for a numeric ID."
     ),
+    data_model=AssignResult,
 )
 async def assign_task(ctx, params: AssignTaskParams) -> ActionResult:
     return await _assign_task_impl(ctx, params)
@@ -217,6 +231,7 @@ async def assign_task(ctx, params: AssignTaskParams) -> ActionResult:
     effects=["update:task"],
     event="task.unassigned",
     description="Remove a Vikunja user (by integer user ID) from a task's assignee list.",
+    data_model=UnassignResult,
 )
 async def unassign_task(ctx, params: UnassignTaskParams) -> ActionResult:
     return await _unassign_task_impl(ctx, params)
@@ -234,6 +249,7 @@ async def unassign_task(ctx, params: UnassignTaskParams) -> ActionResult:
         "If you only know the label name, call create_label or ask the user for the numeric label_id — "
         "Vikunja addresses labels by ID, never by name."
     ),
+    data_model=TaskLabelResult,
 )
 async def add_label(ctx, params: AddLabelParams) -> ActionResult:
     return await _add_label_impl(ctx, params)
@@ -247,6 +263,7 @@ async def add_label(ctx, params: AddLabelParams) -> ActionResult:
     effects=["update:task"],
     event="task.unlabeled",
     description="Detach a label (by integer label_id) from a task (by integer task_id).",
+    data_model=TaskLabelResult,
 )
 async def remove_label(ctx, params: DetachLabelParams) -> ActionResult:
     return await _detach_label_impl(ctx, params)
@@ -263,6 +280,7 @@ async def remove_label(ctx, params: DetachLabelParams) -> ActionResult:
         "Set or change due date of a task. Pass integer task_id and due_date as ISO 8601 UTC string "
         "(e.g. '2026-04-25T12:00:00Z'). Convert relative dates ('Friday', 'tomorrow') in user's timezone first."
     ),
+    data_model=UpdateTaskResult,
 )
 async def set_due_date(ctx, params: SetDueDateParams) -> ActionResult:
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, due_date=params.due_date))
@@ -276,6 +294,7 @@ async def set_due_date(ctx, params: SetDueDateParams) -> ActionResult:
     effects=["update:task"],
     event="task.priority_changed",
     description="Set task priority — integer 0 (none) to 5 (critical). Pass integer task_id.",
+    data_model=UpdateTaskResult,
 )
 async def set_priority(ctx, params: SetPriorityParams) -> ActionResult:
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, priority=params.priority))
@@ -292,6 +311,7 @@ async def set_priority(ctx, params: SetPriorityParams) -> ActionResult:
         "Move a task to another project. Pass integer task_id and integer project_id "
         "(from list_projects response — never project name)."
     ),
+    data_model=UpdateTaskResult,
 )
 async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, project_id=params.project_id))
@@ -308,6 +328,7 @@ async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
         "Move a task to another kanban bucket (column). Pass integer task_id and integer bucket_id "
         "(from list_buckets response — never bucket name). Call list_buckets first if bucket_id is unknown."
     ),
+    data_model=UpdateTaskResult,
 )
 async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, bucket_id=params.bucket_id))
@@ -323,6 +344,7 @@ async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
         "to discover who is available, or when the user asks who they can assign tasks to. "
         "Pass empty query to list all known users on the Vikunja instance."
     ),
+    data_model=SearchUsersResult,
 )
 async def search_vikunja_users(ctx, params: SearchUsersParams) -> ActionResult:
     return await _search_users_impl(ctx, params)

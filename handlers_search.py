@@ -7,6 +7,7 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_get, chat, NoParams
 from handlers_crud import _require_user, _bridge_error_msg
+from models_return import TaskListResult, FindTaskResult
 
 
 class ListMyTasksParams(BaseModel):
@@ -26,7 +27,11 @@ class ListMyTasksParams(BaseModel):
 class FilterTasksParams(BaseModel):
     filter: Optional[str] = Field(
         None,
-        description="Vikunja filter expression. If omitted, defaults to 'done = false'.",
+        description=(
+            "Vikunja filter expression, e.g. 'done = false && project_id = 5'. "
+            "If omitted, returns ALL tasks (no filter applied). "
+            "NOTE: bucket_id is not a valid filter field — use list_buckets instead."
+        ),
     )
     page: int = Field(1, ge=1)
     per_page: int = Field(50, ge=1, le=200)
@@ -83,6 +88,7 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
         "List tasks with optional Vikunja filter syntax. "
         "Examples: `done = false`, `priority >= 3 && due_date < now + 7d`."
     ),
+    data_model=TaskListResult,
 )
 async def list_my_tasks(ctx, params: ListMyTasksParams) -> ActionResult:
     return await _list_my_tasks_impl(ctx, params)
@@ -92,6 +98,7 @@ async def list_my_tasks(ctx, params: ListMyTasksParams) -> ActionResult:
     "list_overdue",
     action_type="read",
     description="List all overdue tasks (done=false AND due_date in the past).",
+    data_model=TaskListResult,
 )
 async def list_overdue(ctx, params: NoParams) -> ActionResult:
     return await _list_my_tasks_impl(
@@ -103,6 +110,7 @@ async def list_overdue(ctx, params: NoParams) -> ActionResult:
     "list_today",
     action_type="read",
     description="List tasks due today (done=false AND due_date between start-of-day and end-of-day).",
+    data_model=TaskListResult,
 )
 async def list_today(ctx, params: NoParams) -> ActionResult:
     return await _list_my_tasks_impl(
@@ -132,6 +140,7 @@ class FindTaskParams(BaseModel):
         "integer task_id and project_id. Call this first when the user mentions "
         "a task by name and you don't have its integer ID — never invent task_id."
     ),
+    data_model=FindTaskResult,
 )
 async def find_task(ctx, params: FindTaskParams) -> ActionResult:
     result = await _list_my_tasks_impl(
@@ -165,11 +174,12 @@ async def find_task(ctx, params: FindTaskParams) -> ActionResult:
         "Logical: && ||. Time helpers: now, now/d, now+7d, now-3d. "
         "Fields: title, description, done, due_date, start_date, end_date, priority, project_id, percent_done."
     ),
+    data_model=TaskListResult,
 )
 async def filter_tasks(ctx, params: FilterTasksParams) -> ActionResult:
     return await _list_my_tasks_impl(
         ctx, ListMyTasksParams(
-            filter=params.filter or "done = false",
+            filter=params.filter,  # None = no filter = all tasks
             page=params.page,
             per_page=params.per_page,
         ),

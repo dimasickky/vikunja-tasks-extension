@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.1",
   "app_id": "tasks",
-  "version": "3.11.0",
+  "version": "3.12.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -407,9 +407,16 @@
             "type": "integer"
           },
           "bucket_id": {
-            "default": 0,
-            "title": "Bucket Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Bucket Id"
           },
           "refresh_panels": {
             "items": {
@@ -600,6 +607,7 @@
             "title": "Title"
           },
           "done": {
+            "default": false,
             "title": "Done",
             "type": "boolean"
           },
@@ -616,10 +624,12 @@
             "title": "Due Date"
           },
           "priority": {
+            "default": 0,
             "title": "Priority",
             "type": "integer"
           },
           "percent_done": {
+            "default": 0.0,
             "title": "Percent Done",
             "type": "number"
           },
@@ -633,9 +643,6 @@
         },
         "required": [
           "task_id",
-          "done",
-          "priority",
-          "percent_done",
           "refresh_panels"
         ],
         "title": "UpdateTaskResult",
@@ -1031,6 +1038,219 @@
       "owner_chat_tool": "tool_tasks_chat"
     },
     {
+      "name": "get_task",
+      "description": "Get full details of a single task by ID: title, description, done status, due date, priority, assignees, labels, and project. Use this to verify task state before updating, or when user asks about a specific task.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Integer task ID. Never UUID.",
+            "title": "Task Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "GetTaskParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "TaskAssignee": {
+            "properties": {
+              "vikunja_user_id": {
+                "title": "Vikunja User Id",
+                "type": "integer"
+              },
+              "username": {
+                "title": "Username",
+                "type": "string"
+              }
+            },
+            "required": [
+              "vikunja_user_id",
+              "username"
+            ],
+            "title": "TaskAssignee",
+            "type": "object"
+          },
+          "TaskLabelItem": {
+            "properties": {
+              "label_id": {
+                "title": "Label Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "label_id",
+              "title"
+            ],
+            "title": "TaskLabelItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Date"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "percent_done": {
+            "title": "Percent Done",
+            "type": "number"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "bucket_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Bucket Id"
+          },
+          "hex_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hex Color"
+          },
+          "is_favorite": {
+            "default": false,
+            "title": "Is Favorite",
+            "type": "boolean"
+          },
+          "assignees": {
+            "items": {
+              "$ref": "#/$defs/TaskAssignee"
+            },
+            "title": "Assignees",
+            "type": "array"
+          },
+          "labels": {
+            "items": {
+              "$ref": "#/$defs/TaskLabelItem"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created"
+          },
+          "updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updated"
+          }
+        },
+        "required": [
+          "task_id",
+          "title",
+          "description",
+          "done",
+          "priority",
+          "percent_done",
+          "project_id",
+          "assignees",
+          "labels"
+        ],
+        "title": "GetTaskResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
       "name": "assign_task",
       "description": "Assign a person to a task by their name or email address (e.g. 'Val' or 'val@webhostmost.com'). The bridge resolves the name/email to a Vikunja user ID automatically — never ask for a numeric ID.",
       "action_type": "write",
@@ -1079,6 +1299,15 @@
             "type": "integer"
           },
           "assignee_vikunja_user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
             "title": "Assignee Vikunja User Id"
           },
           "assignee_name": {
@@ -1096,7 +1325,6 @@
         },
         "required": [
           "task_id",
-          "assignee_vikunja_user_id",
           "refresh_panels"
         ],
         "title": "AssignResult",
@@ -1339,6 +1567,7 @@
             "title": "Title"
           },
           "done": {
+            "default": false,
             "title": "Done",
             "type": "boolean"
           },
@@ -1355,10 +1584,12 @@
             "title": "Due Date"
           },
           "priority": {
+            "default": 0,
             "title": "Priority",
             "type": "integer"
           },
           "percent_done": {
+            "default": 0.0,
             "title": "Percent Done",
             "type": "number"
           },
@@ -1372,9 +1603,6 @@
         },
         "required": [
           "task_id",
-          "done",
-          "priority",
-          "percent_done",
           "refresh_panels"
         ],
         "title": "UpdateTaskResult",
@@ -1436,6 +1664,7 @@
             "title": "Title"
           },
           "done": {
+            "default": false,
             "title": "Done",
             "type": "boolean"
           },
@@ -1452,10 +1681,12 @@
             "title": "Due Date"
           },
           "priority": {
+            "default": 0,
             "title": "Priority",
             "type": "integer"
           },
           "percent_done": {
+            "default": 0.0,
             "title": "Percent Done",
             "type": "number"
           },
@@ -1469,9 +1700,6 @@
         },
         "required": [
           "task_id",
-          "done",
-          "priority",
-          "percent_done",
           "refresh_panels"
         ],
         "title": "UpdateTaskResult",
@@ -1531,6 +1759,7 @@
             "title": "Title"
           },
           "done": {
+            "default": false,
             "title": "Done",
             "type": "boolean"
           },
@@ -1547,10 +1776,12 @@
             "title": "Due Date"
           },
           "priority": {
+            "default": 0,
             "title": "Priority",
             "type": "integer"
           },
           "percent_done": {
+            "default": 0.0,
             "title": "Percent Done",
             "type": "number"
           },
@@ -1564,9 +1795,6 @@
         },
         "required": [
           "task_id",
-          "done",
-          "priority",
-          "percent_done",
           "refresh_panels"
         ],
         "title": "UpdateTaskResult",
@@ -1626,6 +1854,7 @@
             "title": "Title"
           },
           "done": {
+            "default": false,
             "title": "Done",
             "type": "boolean"
           },
@@ -1642,10 +1871,12 @@
             "title": "Due Date"
           },
           "priority": {
+            "default": 0,
             "title": "Priority",
             "type": "integer"
           },
           "percent_done": {
+            "default": 0.0,
             "title": "Percent Done",
             "type": "number"
           },
@@ -1659,9 +1890,6 @@
         },
         "required": [
           "task_id",
-          "done",
-          "priority",
-          "percent_done",
           "refresh_panels"
         ],
         "title": "UpdateTaskResult",
@@ -2021,8 +2249,80 @@
       "owner_chat_tool": "tool_tasks_chat"
     },
     {
+      "name": "list_labels",
+      "description": "List all labels on this Vikunja instance. Returns label_id and title. Call this first when the user refers to a label by name — then use the returned label_id in add_label.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
+        "properties": {},
+        "title": "NoParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "LabelItem": {
+            "properties": {
+              "label_id": {
+                "title": "Label Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "label_id",
+              "title"
+            ],
+            "title": "LabelItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "labels": {
+            "items": {
+              "$ref": "#/$defs/LabelItem"
+            },
+            "title": "Labels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "labels"
+        ],
+        "title": "ListLabelsResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
       "name": "create_label",
-      "description": "Create a new label with title and optional color.",
+      "description": "Create a new label with title and optional hex color. Returns label_id.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -2107,7 +2407,7 @@
     },
     {
       "name": "delete_label",
-      "description": "Permanently delete a label — removes from all tasks.",
+      "description": "Permanently delete a label — removes it from all tasks.",
       "action_type": "destructive",
       "chain_callable": true,
       "effects": [
@@ -2117,6 +2417,7 @@
       "params_schema": {
         "properties": {
           "label_id": {
+            "description": "Integer label ID from list_labels response. Never a name.",
             "title": "Label Id",
             "type": "integer"
           }
@@ -2161,7 +2462,7 @@
     },
     {
       "name": "list_projects",
-      "description": "List all active (non-archived) projects. Returns project_id and title. Call this first when the user refers to a project by name — then use the returned project_id in filter_tasks or other calls.",
+      "description": "List all active (non-archived) projects. Returns project_id and title. ALWAYS call this first when the user refers to a project by name — then use the returned project_id in list_buckets, filter_tasks, or create_task.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -2233,7 +2534,7 @@
     },
     {
       "name": "list_buckets",
-      "description": "List kanban buckets (columns) for a project WITH their tasks. Returns bucket_id, title, task_count, and the full task list per bucket. Use this to: (1) look up bucket_id by name before create_task/move_to_bucket, (2) answer 'what tasks are in column X' — read directly from the tasks array, no further API call needed.",
+      "description": "List kanban buckets (columns) for a project WITH their tasks embedded. REQUIRES project_id — call list_projects() first if you only know the project name. Returns bucket_id, title, task_count, and full task list per bucket. Use for: (1) get tasks from a named bucket — read from the tasks array directly; (2) resolve bucket name → bucket_id before move_to_bucket or create_task; (3) count total tasks in a project (sum all task_count values). NOTE: filter_tasks cannot filter by bucket — this is the only way to get bucket tasks.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -2241,7 +2542,7 @@
       "params_schema": {
         "properties": {
           "project_id": {
-            "description": "Project whose kanban buckets to list.",
+            "description": "Integer project ID. REQUIRED — call list_projects() first if you only know the project name.",
             "title": "Project Id",
             "type": "integer"
           }
@@ -2818,7 +3119,7 @@
               }
             ],
             "default": null,
-            "description": "Vikunja filter expression. If omitted, defaults to 'done = false'.",
+            "description": "Vikunja filter expression, e.g. 'done = false && project_id = 5'. If omitted, returns ALL tasks (no filter applied). NOTE: bucket_id is not a valid filter field — use list_buckets instead.",
             "title": "Filter"
           },
           "page": {

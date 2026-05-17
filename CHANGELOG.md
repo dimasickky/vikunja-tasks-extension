@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.12.0] — 2026-05-17
+
+### Added
+- **`get_task(task_id)`** — fetch full task details (title, description, done, due date, priority, assignees, labels). Bridge endpoint was always there, now exposed.
+- **`list_labels()`** — list all labels with label_id and title. Enables label resolution by name before `add_label`. Bridge endpoint was always there, now exposed.
+
+### Fixed
+- **`view_kind` comparison** — `list_buckets` now handles both string `"kanban"` (older Vikunja) and integer `4` (Vikunja v0.21+). Previously always returned "No kanban view found" on newer Vikunja versions.
+- **`list_buckets` error message** — actionable: shows available view types and tells user to add a Board view in Vikunja.
+- **`list_buckets` description** — now explicitly states "REQUIRES project_id — call list_projects() first".
+- **`filter_tasks` default filter** — removed silent `"done = false"` default. No filter now returns all tasks. Documented that `bucket_id` is not a valid filter field.
+- **`assign_task` auto-resolve** — when resolving task by name, now returns error if multiple tasks match instead of silently taking the first.
+- **`UpdateTaskResult` fields** — `done`, `priority`, `percent_done` are now Optional with defaults (were required).
+- **`CreateTaskResult.bucket_id`** — changed from `int = 0` to `Optional[int] = None` (0 was ambiguous).
+- **`AssignResult.assignee_vikunja_user_id`** — changed from `Any` to `Optional[int] = None`.
+
+### Changed
+- **`system_prompt.txt`** — full rewrite: added anti-hallucination rule, explicit 2-step bucket chain pattern, label lookup pattern, assign guidance with `search_vikunja_users`, `get_task` and `list_labels` documented.
+- **`list_projects` description** — now says "ALWAYS call this first when user refers to a project by name".
+- **`DeleteLabelParams.label_id`** description — "Integer label ID from list_labels response. Never a name."
+
+---
+
 ## [3.11.0] — 2026-05-17
 
 ### Changed

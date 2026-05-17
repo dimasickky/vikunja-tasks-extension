@@ -1,5 +1,6 @@
-"""tasks · Structure operations — projects and labels CRUD."""
+"""tasks · Structure operations — projects, labels, and kanban buckets."""
 
+import logging
 from typing import Optional
 from pydantic import BaseModel, Field
 
@@ -7,6 +8,24 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_get, api_post, api_delete, chat, NoParams
 from handlers_crud import _require_user, _bridge_error_msg
+from models_return import (
+    CreateProjectResult,
+    UpdateProjectResult,
+    ArchiveProjectResult,
+    DeleteProjectResult,
+    LabelItem,
+    ListLabelsResult,
+    CreateLabelResult,
+    DeleteLabelResult,
+    ListProjectsResult,
+    ListBucketsResult,
+)
+
+log = logging.getLogger("tasks")
+
+# Vikunja returns view_kind as string in older versions, integer in v0.21+.
+# 4 (int) == "kanban" (str) — support both to be version-agnostic.
+_KANBAN_VIEW_KINDS = {"kanban", 4}
 
 
 class CreateProjectParams(BaseModel):
@@ -38,11 +57,17 @@ class CreateLabelParams(BaseModel):
 
 
 class DeleteLabelParams(BaseModel):
-    label_id: int
+    label_id: int = Field(..., description="Integer label ID from list_labels response. Never a name.")
 
 
 class ListBucketsParams(BaseModel):
-    project_id: int = Field(..., description="Project whose kanban buckets to list.")
+    project_id: int = Field(
+        ...,
+        description=(
+            "Integer project ID. REQUIRED — call list_projects() first if you only "
+            "know the project name."
+        ),
+    )
 
 
 # ─── Impl ─────────────────────────────────────────────────────────────────── #
@@ -126,6 +151,32 @@ async def _delete_project_impl(ctx, params: DeleteProjectParams) -> ActionResult
     )
 
 
+async def _list_labels_impl(ctx) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    resp = await api_get(ctx, "/v1/labels", {"imperal_id": imperal_id})
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch labels"))
+
+    labels = resp if isinstance(resp, list) else []
+    return ActionResult.success(
+        summary=f"{len(labels)} label(s): {', '.join(l.get('title', '?') for l in labels[:10])}.",
+        data={
+            "count": len(labels),
+            "labels": [
+                {
+                    "label_id":  l["id"],
+                    "title":     l.get("title", "?"),
+                    "hex_color": l.get("hex_color"),
+                }
+                for l in labels
+            ],
+        },
+    )
+
+
 async def _create_label_impl(ctx, params: CreateLabelParams) -> ActionResult:
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
@@ -193,6 +244,7 @@ async def _list_projects_impl(ctx) -> ActionResult:
     effects=["create:project"],
     event="project.created",
     description="Create a new project (kanban board). Returns project_id.",
+    data_model=CreateProjectResult,
 )
 async def create_project(ctx, params: CreateProjectParams) -> ActionResult:
     return await _create_project_impl(ctx, params)
@@ -205,6 +257,7 @@ async def create_project(ctx, params: CreateProjectParams) -> ActionResult:
     effects=["update:project"],
     event="project.updated",
     description="Update project title, description, or color.",
+    data_model=UpdateProjectResult,
 )
 async def update_project(ctx, params: UpdateProjectParams) -> ActionResult:
     return await _update_project_impl(ctx, params)
@@ -217,6 +270,7 @@ async def update_project(ctx, params: UpdateProjectParams) -> ActionResult:
     effects=["update:project"],
     event="project.archived",
     description="Archive a project (is_archived=true) — hide from active views but keep data.",
+    data_model=ArchiveProjectResult,
 )
 async def archive_project(ctx, params: ArchiveProjectParams) -> ActionResult:
     return await _archive_project_impl(ctx, params)
@@ -229,9 +283,24 @@ async def archive_project(ctx, params: ArchiveProjectParams) -> ActionResult:
     effects=["delete:project"],
     event="project.deleted",
     description="Permanently delete a project with all its tasks. Cannot be undone.",
+    data_model=DeleteProjectResult,
 )
 async def delete_project(ctx, params: DeleteProjectParams) -> ActionResult:
     return await _delete_project_impl(ctx, params)
+
+
+@chat.function(
+    "list_labels",
+    action_type="read",
+    description=(
+        "List all labels on this Vikunja instance. Returns label_id and title. "
+        "Call this first when the user refers to a label by name — "
+        "then use the returned label_id in add_label."
+    ),
+    data_model=ListLabelsResult,
+)
+async def list_labels(ctx, params: NoParams) -> ActionResult:
+    return await _list_labels_impl(ctx)
 
 
 @chat.function(
@@ -240,7 +309,8 @@ async def delete_project(ctx, params: DeleteProjectParams) -> ActionResult:
     chain_callable=True,
     effects=["create:label"],
     event="label.created",
-    description="Create a new label with title and optional color.",
+    description="Create a new label with title and optional hex color. Returns label_id.",
+    data_model=CreateLabelResult,
 )
 async def create_label(ctx, params: CreateLabelParams) -> ActionResult:
     return await _create_label_impl(ctx, params)
@@ -252,7 +322,8 @@ async def create_label(ctx, params: CreateLabelParams) -> ActionResult:
     chain_callable=True,
     effects=["delete:label"],
     event="label.deleted",
-    description="Permanently delete a label — removes from all tasks.",
+    description="Permanently delete a label — removes it from all tasks.",
+    data_model=DeleteLabelResult,
 )
 async def delete_label(ctx, params: DeleteLabelParams) -> ActionResult:
     return await _delete_label_impl(ctx, params)
@@ -263,9 +334,10 @@ async def delete_label(ctx, params: DeleteLabelParams) -> ActionResult:
     action_type="read",
     description=(
         "List all active (non-archived) projects. Returns project_id and title. "
-        "Call this first when the user refers to a project by name — then use the "
-        "returned project_id in filter_tasks or other calls."
+        "ALWAYS call this first when the user refers to a project by name — "
+        "then use the returned project_id in list_buckets, filter_tasks, or create_task."
     ),
+    data_model=ListProjectsResult,
 )
 async def list_projects(ctx, params: NoParams) -> ActionResult:
     return await _list_projects_impl(ctx)
@@ -275,12 +347,15 @@ async def list_projects(ctx, params: NoParams) -> ActionResult:
     "list_buckets",
     action_type="read",
     description=(
-        "List kanban buckets (columns) for a project WITH their tasks. "
-        "Returns bucket_id, title, task_count, and the full task list per bucket. "
-        "Use this to: (1) look up bucket_id by name before create_task/move_to_bucket, "
-        "(2) answer 'what tasks are in column X' — read directly from the tasks array, "
-        "no further API call needed."
+        "List kanban buckets (columns) for a project WITH their tasks embedded. "
+        "REQUIRES project_id — call list_projects() first if you only know the project name. "
+        "Returns bucket_id, title, task_count, and full task list per bucket. "
+        "Use for: (1) get tasks from a named bucket — read from the tasks array directly; "
+        "(2) resolve bucket name → bucket_id before move_to_bucket or create_task; "
+        "(3) count total tasks in a project (sum all task_count values). "
+        "NOTE: filter_tasks cannot filter by bucket — this is the only way to get bucket tasks."
     ),
+    data_model=ListBucketsResult,
 )
 async def list_buckets(ctx, params: ListBucketsParams) -> ActionResult:
     imperal_id = _require_user(ctx)
@@ -293,9 +368,14 @@ async def list_buckets(ctx, params: ListBucketsParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(views_resp, "Couldn't fetch project views"))
 
     views = views_resp if isinstance(views_resp, list) else []
-    kanban = next((v for v in views if v.get("view_kind") == "kanban"), None)
+    kanban = next((v for v in views if v.get("view_kind") in _KANBAN_VIEW_KINDS), None)
     if kanban is None:
-        return ActionResult.error(f"No kanban view found for project #{params.project_id}.")
+        view_names = [str(v.get("view_kind", "?")) for v in views]
+        return ActionResult.error(
+            f"Project #{params.project_id} has no kanban (board) view. "
+            f"Available view types: {', '.join(view_names) or 'none'}. "
+            "Open Vikunja and add a Board view to this project, then try again."
+        )
 
     buckets_resp = await api_get(
         ctx,

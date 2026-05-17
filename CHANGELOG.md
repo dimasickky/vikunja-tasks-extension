@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.15.0] — 2026-05-18
+
+### Added
+- **`rename_bucket(project_id, bucket_id, title, limit?)`** — rename a kanban column or update its WIP limit. New bridge endpoint `POST /v1/projects/{id}/views/{view_id}/buckets/{bucket_id}` added to the backend service to proxy Vikunja's `PUT /api/v1/projects/{id}/views/{vid}/buckets/{bid}`.
+
+---
+
 ## [3.14.0] — 2026-05-18
 
 ### Added

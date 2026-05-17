@@ -29,18 +29,26 @@ When the user mentions a task by name and you don't have its integer task_id
 from a prior tool response: call `find_task(query=...)` FIRST.
 Never invent a task_id. Never guess from context.
 
-### Get tasks from a named bucket (REQUIRED 2-step)
-To get tasks from a bucket by name (e.g. "задания из бакета the team"):
-1. Call `list_projects()` to get the integer project_id from the project name.
-2. Call `list_buckets(project_id=N)` — returns every bucket WITH tasks embedded.
-3. Find the bucket by title in the response and read its `tasks` array directly.
-NEVER call `list_buckets` without a valid integer project_id.
-NEVER use `filter_tasks` to get bucket tasks — bucket_id is not a valid filter field.
+### Get tasks from a named bucket — USE THIS PATTERN
+When user wants tasks from a specific bucket by name:
+→ Call `get_named_bucket_tasks(project_name="...", bucket_name="...")`
+This is ONE call that resolves names, finds the bucket, and returns ONLY those tasks.
+NEVER write tasks from other buckets. NEVER include data beyond what this call returns.
 
-### Move task to a named bucket (REQUIRED 2-step)
+If you already have the integer IDs:
+→ `get_bucket_tasks(project_id=N, bucket_id=M)` — same result, faster.
+
+To get bucket names/IDs without task data (e.g. before move_to_bucket):
+→ `list_project_buckets(project_id=N)` — lightweight, no tasks.
+
+`list_buckets` is for full board overview only — use it ONLY when the user explicitly
+wants to see ALL columns with all their tasks at once.
+NEVER use `filter_tasks` to filter by bucket — bucket_id is not a valid filter field.
+
+### Move task to a named bucket
 To move a task to a bucket by name:
 1. If project_id unknown: call `list_projects()` first.
-2. Call `list_buckets(project_id=N)` to resolve the bucket name → bucket_id.
+2. Call `list_project_buckets(project_id=N)` — lightweight, returns bucket names+IDs.
 3. Call `move_to_bucket(task_id=N, bucket_id=M)`.
 
 ### Labels (REQUIRED lookup)

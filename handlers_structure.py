@@ -19,6 +19,9 @@ from models_return import (
     DeleteLabelResult,
     ListProjectsResult,
     ListBucketsResult,
+    BucketNavItem,
+    ListProjectBucketsResult,
+    GetBucketTasksResult,
 )
 
 log = logging.getLogger("tasks")
@@ -411,4 +414,254 @@ async def list_buckets(ctx, params: ListBucketsParams) -> ActionResult:
     return ActionResult.success(
         summary=f"{len(buckets)} bucket(s): {', '.join(summary_parts)}.",
         data={"project_id": params.project_id, "buckets": bucket_list},
+    )
+
+
+# ─── Tier-2: focused bucket endpoints ─────────────────────────────────────── #
+
+class ListProjectBucketsParams(BaseModel):
+    project_id: int = Field(
+        ...,
+        description="Integer project ID from list_projects. Call list_projects() first if you only know the project name.",
+    )
+
+
+class GetBucketTasksParams(BaseModel):
+    project_id: int = Field(..., description="Integer project ID.")
+    bucket_id: int = Field(..., description="Integer bucket ID from list_project_buckets.")
+
+
+class GetNamedBucketTasksParams(BaseModel):
+    project_name: str = Field(
+        ...,
+        description="Project name as the user said it (e.g. 'WebHostMost Tasks'). Case-insensitive, prefix match.",
+    )
+    bucket_name: str = Field(
+        ...,
+        description="Bucket/column name as the user said it (e.g. 'the team'). Case-insensitive, prefix match.",
+    )
+
+
+async def _get_kanban_view_id(ctx, imperal_id: str, project_id: int) -> tuple[int | None, ActionResult | None]:
+    """Return (view_id, None) or (None, error ActionResult)."""
+    views_resp = await api_get(ctx, f"/v1/projects/{project_id}/views", {"imperal_id": imperal_id})
+    if isinstance(views_resp, dict) and views_resp.get("status") == "error":
+        return None, ActionResult.error(_bridge_error_msg(views_resp, "Couldn't fetch project views"))
+    views = views_resp if isinstance(views_resp, list) else []
+    kanban = next((v for v in views if v.get("view_kind") in _KANBAN_VIEW_KINDS), None)
+    if kanban is None:
+        kinds = [str(v.get("view_kind", "?")) for v in views]
+        return None, ActionResult.error(
+            f"Project #{project_id} has no kanban (board) view. "
+            f"Available view types: {', '.join(kinds) or 'none'}. "
+            "Open Vikunja and add a Board view to this project first."
+        )
+    return kanban["id"], None
+
+
+def _match_by_name(items: list[dict], name: str, title_key: str = "title") -> dict | None:
+    """Case-insensitive: exact → prefix → contains."""
+    target = name.strip().lower()
+    exact   = next((i for i in items if i.get(title_key, "").strip().lower() == target), None)
+    if exact:   return exact
+    prefix  = next((i for i in items if i.get(title_key, "").strip().lower().startswith(target)), None)
+    if prefix:  return prefix
+    return next((i for i in items if target in i.get(title_key, "").strip().lower()), None)
+
+
+@chat.function(
+    "list_project_buckets",
+    action_type="read",
+    description=(
+        "List kanban columns (buckets) for a project — names and IDs only, NO task data. "
+        "Fast and lightweight. Use this to resolve a bucket name → bucket_id before "
+        "calling get_bucket_tasks, move_to_bucket, or create_task with a specific bucket."
+    ),
+    data_model=ListProjectBucketsResult,
+)
+async def list_project_buckets(ctx, params: ListProjectBucketsParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    view_id, err = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
+    if err:
+        return err
+
+    buckets_resp = await api_get(
+        ctx,
+        f"/v1/projects/{params.project_id}/views/{view_id}/buckets",
+        {"imperal_id": imperal_id},
+    )
+    if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(buckets_resp, "Couldn't fetch buckets"))
+
+    buckets = buckets_resp if isinstance(buckets_resp, list) else []
+
+    # Fetch project title for context
+    proj_resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
+    proj_title = proj_resp.get("title", f"#{params.project_id}") if isinstance(proj_resp, dict) else f"#{params.project_id}"
+
+    bucket_list = [
+        {
+            "bucket_id":      b["id"],
+            "title":          b.get("title", "?"),
+            "limit":          b.get("limit", 0),
+            "is_done_bucket": b.get("is_done_bucket", False),
+        }
+        for b in buckets
+    ]
+    names = ", ".join(b["title"] for b in bucket_list)
+    return ActionResult.success(
+        summary=f"Project '{proj_title}' has {len(bucket_list)} bucket(s): {names}.",
+        data={
+            "project_id":    params.project_id,
+            "project_title": proj_title,
+            "bucket_count":  len(bucket_list),
+            "buckets":       bucket_list,
+        },
+    )
+
+
+@chat.function(
+    "get_bucket_tasks",
+    action_type="read",
+    description=(
+        "Get tasks from a specific bucket (column) by integer bucket_id. "
+        "Returns ONLY tasks from that bucket — nothing else. "
+        "Use list_project_buckets() first to resolve a bucket name to bucket_id. "
+        "Prefer get_named_bucket_tasks() when you only know the name."
+    ),
+    data_model=GetBucketTasksResult,
+)
+async def get_bucket_tasks(ctx, params: GetBucketTasksParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    view_id, err = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
+    if err:
+        return err
+
+    buckets_resp = await api_get(
+        ctx,
+        f"/v1/projects/{params.project_id}/views/{view_id}/tasks",
+        {"imperal_id": imperal_id},
+    )
+    if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(buckets_resp, "Couldn't fetch bucket tasks"))
+
+    buckets = buckets_resp if isinstance(buckets_resp, list) else []
+    target = next((b for b in buckets if b.get("id") == params.bucket_id), None)
+    if target is None:
+        available = [f"#{b['id']} '{b.get('title','?')}'" for b in buckets]
+        return ActionResult.error(
+            f"Bucket #{params.bucket_id} not found in project #{params.project_id}. "
+            f"Available: {', '.join(available) or 'none'}."
+        )
+
+    def _task_entry(t: dict) -> dict:
+        due = (t.get("due_date") or "")[:10]
+        return {
+            "task_id":  t["id"],
+            "title":    t.get("title", "?"),
+            "done":     t.get("done", False),
+            "priority": t.get("priority", 0),
+            "due_date": due or None,
+        }
+
+    task_list = [_task_entry(t) for t in (target.get("tasks") or [])]
+    return ActionResult.success(
+        summary=f"Bucket '{target.get('title','?')}': {len(task_list)} task(s).",
+        data={
+            "project_id":    params.project_id,
+            "bucket_id":     params.bucket_id,
+            "bucket_title":  target.get("title", "?"),
+            "task_count":    len(task_list),
+            "tasks":         task_list,
+        },
+    )
+
+
+@chat.function(
+    "get_named_bucket_tasks",
+    action_type="read",
+    description=(
+        "Get tasks from a bucket by project name + bucket name. "
+        "Resolves names to IDs automatically and returns ONLY those tasks. "
+        "USE THIS as the primary way to get tasks from a named bucket — "
+        "one call does everything: project lookup, bucket lookup, task retrieval. "
+        "Names are case-insensitive and support prefix matching."
+    ),
+    data_model=GetBucketTasksResult,
+)
+async def get_named_bucket_tasks(ctx, params: GetNamedBucketTasksParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    # Step 1: resolve project name → project_id
+    projects_resp = await api_get(ctx, "/v1/projects", {"imperal_id": imperal_id})
+    if isinstance(projects_resp, dict) and projects_resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(projects_resp, "Couldn't fetch projects"))
+
+    projects = [p for p in (projects_resp if isinstance(projects_resp, list) else [])
+                if not p.get("is_archived", False)]
+    project = _match_by_name(projects, params.project_name, title_key="title")
+    if project is None:
+        available = [p.get("title", "?") for p in projects[:10]]
+        return ActionResult.error(
+            f"Project '{params.project_name}' not found. "
+            f"Available projects: {', '.join(available) or 'none'}. "
+            "Check the spelling or call list_projects() to see all projects."
+        )
+    project_id = project["id"]
+    project_title = project.get("title", f"#{project_id}")
+
+    # Step 2: find kanban view
+    view_id, err = await _get_kanban_view_id(ctx, imperal_id, project_id)
+    if err:
+        return err
+
+    # Step 3: get buckets WITH tasks in one call, filter to target bucket
+    buckets_resp = await api_get(
+        ctx,
+        f"/v1/projects/{project_id}/views/{view_id}/tasks",
+        {"imperal_id": imperal_id},
+    )
+    if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(buckets_resp, "Couldn't fetch bucket tasks"))
+
+    buckets = buckets_resp if isinstance(buckets_resp, list) else []
+    bucket = _match_by_name(buckets, params.bucket_name, title_key="title")
+    if bucket is None:
+        available = [b.get("title", "?") for b in buckets]
+        return ActionResult.error(
+            f"Bucket '{params.bucket_name}' not found in project '{project_title}'. "
+            f"Available buckets: {', '.join(available) or 'none'}."
+        )
+
+    def _task_entry(t: dict) -> dict:
+        due = (t.get("due_date") or "")[:10]
+        return {
+            "task_id":  t["id"],
+            "title":    t.get("title", "?"),
+            "done":     t.get("done", False),
+            "priority": t.get("priority", 0),
+            "due_date": due or None,
+        }
+
+    task_list = [_task_entry(t) for t in (bucket.get("tasks") or [])]
+    return ActionResult.success(
+        summary=(
+            f"Bucket '{bucket.get('title','?')}' in '{project_title}': "
+            f"{len(task_list)} task(s)."
+        ),
+        data={
+            "project_id":   project_id,
+            "bucket_id":    bucket["id"],
+            "bucket_title": bucket.get("title", "?"),
+            "task_count":   len(task_list),
+            "tasks":        task_list,
+        },
     )

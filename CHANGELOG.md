@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.14.0] — 2026-05-18
+
+### Added
+- **`get_named_bucket_tasks(project_name, bucket_name)`** — compound single-call handler: resolves project name and bucket name to IDs, returns ONLY the tasks of that specific bucket. Eliminates the "LLM writes all buckets to a note" class of bugs.
+- **`get_bucket_tasks(project_id, bucket_id)`** — targeted retrieval by integer IDs. Returns tasks from one bucket only.
+- **`list_project_buckets(project_id)`** — lightweight bucket navigation: names and IDs, no task data. Use before `move_to_bucket` or `create_task` when bucket_id is unknown.
+- **`_get_kanban_view_id()`** — shared helper to find kanban view, deduplicates logic across all bucket handlers.
+- **`_match_by_name()`** — shared case-insensitive name matcher (exact → prefix → contains) used by compound handlers.
+
+### Fixed
+- **`on_event` format** — both `panels.py` and `panels_editor.py` now use correct `tasks.task.created` format (app_id prefix required per SDK docs: "kernel prepends app_id automatically"). Confirmed via SDK source `extensions/client.py:145`.
+- **`system_prompt.txt`** — `get_named_bucket_tasks` is now the primary bucket lookup pattern. `list_buckets` relegated to "full board overview only" use case.
+
+---
+
 ## [3.13.0] — 2026-05-17
 
 ### Fixed

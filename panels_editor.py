@@ -127,7 +127,8 @@ async def _find_kanban_view(ctx, imperal_id: str, project_id: int) -> dict | Non
         "tasks.task.priority_changed,tasks.task.commented,tasks.task.mentioned,"
         "tasks.task.labeled,tasks.task.unlabeled,"
         "tasks.task.assigned,tasks.task.unassigned,"
-        "tasks.project.created,tasks.project.updated,tasks.project.archived"
+        "tasks.project.created,tasks.project.updated,"
+        "tasks.project.archived,tasks.project.deleted"
     ),
 )
 async def tasks_board(

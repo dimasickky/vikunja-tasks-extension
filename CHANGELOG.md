@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.16.0] — 2026-05-18
+
+### Fixed
+- **`id_projection` on compound-name write handlers** — added `id_projection="task_id"` to `update_task`, `complete_task`, `uncomplete_task`, `delete_task`. Per SDK docs, compound-name write/destructive handlers must declare `id_projection` so the kernel can build proper $REF chain context and audit records. These handlers had `task_id` in params but no projection declared.
+
+---
+
 ## [3.15.0] — 2026-05-18
 
 ### Added

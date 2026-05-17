@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.1",
   "app_id": "tasks",
-  "version": "3.15.0",
+  "version": "3.16.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -449,7 +449,7 @@
       "effects": [
         "update:task"
       ],
-      "id_projection": "",
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -662,7 +662,7 @@
       "effects": [
         "update:task"
       ],
-      "id_projection": "",
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -716,7 +716,7 @@
       "effects": [
         "update:task"
       ],
-      "id_projection": "",
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {
@@ -771,7 +771,7 @@
       "effects": [
         "delete:task"
       ],
-      "id_projection": "",
+      "id_projection": "task_id",
       "params_schema": {
         "properties": {
           "task_id": {

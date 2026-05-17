@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.11.0] — 2026-05-17
+
+### Changed
+
+- **SDK 5.0.1** — bumped `imperal-sdk` to `5.0.1` (Federal Typed Return Contract, additive).
+- **`data_model=` migration** — all 39 `@chat.function` handlers now declare typed return DTOs via `data_model=` (handlers_crud, handlers_search, handlers_connection, handlers_structure, handlers_collab, handlers_organize). Enables `$REF` path validation and classifier envelope `return_fields`.
+- **`tool_name=`** remains in `ChatExtension(...)` — still a required positional arg in SDK 5.0.1 (slated for removal in 5.1.0).
+
+---
+
 ## [3.10.0] — 2026-05-15
 
 ### Changed

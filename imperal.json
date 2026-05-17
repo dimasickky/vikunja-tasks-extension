@@ -1,8 +1,8 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.0.0",
+  "sdk_version": "5.0.1",
   "app_id": "tasks",
-  "version": "3.10.0",
+  "version": "3.11.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -68,7 +68,50 @@
         "title": "ConnectVikunjaParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Base Url"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Username"
+          },
+          "vikunja_user_id": {
+            "default": null,
+            "title": "Vikunja User Id"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "refresh_panels"
+        ],
+        "title": "VikunjaConnectionResult",
+        "type": "object"
+      },
       "event": "connection.created",
       "background": false,
       "long_running": false,
@@ -102,7 +145,50 @@
         "title": "ConnectVikunjaWithPatParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Base Url"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Username"
+          },
+          "vikunja_user_id": {
+            "default": null,
+            "title": "Vikunja User Id"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "refresh_panels"
+        ],
+        "title": "VikunjaConnectionResult",
+        "type": "object"
+      },
       "event": "connection.created",
       "background": false,
       "long_running": false,
@@ -124,7 +210,27 @@
         "title": "NoParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "deleted",
+          "refresh_panels"
+        ],
+        "title": "DisconnectResult",
+        "type": "object"
+      },
       "event": "connection.deleted",
       "background": false,
       "long_running": false,
@@ -144,7 +250,47 @@
         "title": "NoParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Base Url"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Username"
+          },
+          "vikunja_user_id": {
+            "default": null,
+            "title": "Vikunja User Id"
+          }
+        },
+        "required": [
+          "connected"
+        ],
+        "title": "ConnectionStatusResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -229,7 +375,59 @@
         "title": "CreateTaskParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "priority": {
+            "default": 0,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "bucket_id": {
+            "default": 0,
+            "title": "Bucket Id",
+            "type": "integer"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "title",
+          "project_id",
+          "refresh_panels"
+        ],
+        "title": "CreateTaskResult",
+        "type": "object"
+      },
       "event": "task.created",
       "background": false,
       "long_running": false,
@@ -383,7 +581,66 @@
         "title": "UpdateTaskParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "percent_done": {
+            "title": "Percent Done",
+            "type": "number"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "done",
+          "priority",
+          "percent_done",
+          "refresh_panels"
+        ],
+        "title": "UpdateTaskResult",
+        "type": "object"
+      },
       "event": "task.updated",
       "background": false,
       "long_running": false,
@@ -412,7 +669,32 @@
         "title": "CompleteTaskParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "done",
+          "refresh_panels"
+        ],
+        "title": "TaskStatusResult",
+        "type": "object"
+      },
       "event": "task.completed",
       "background": false,
       "long_running": false,
@@ -442,7 +724,32 @@
         "title": "UncompleteTaskParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "done",
+          "refresh_panels"
+        ],
+        "title": "TaskStatusResult",
+        "type": "object"
+      },
       "event": "task.uncompleted",
       "background": false,
       "long_running": false,
@@ -471,7 +778,32 @@
         "title": "DeleteTaskParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "deleted",
+          "refresh_panels"
+        ],
+        "title": "DeleteTaskResult",
+        "type": "object"
+      },
       "event": "task.deleted",
       "background": false,
       "long_running": false,
@@ -515,7 +847,37 @@
         "title": "CreateSubtaskParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "subtask_id": {
+            "title": "Subtask Id",
+            "type": "integer"
+          },
+          "parent_task_id": {
+            "title": "Parent Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "subtask_id",
+          "parent_task_id",
+          "title",
+          "refresh_panels"
+        ],
+        "title": "CreateSubtaskResult",
+        "type": "object"
+      },
       "event": "task.created",
       "background": false,
       "long_running": false,
@@ -543,7 +905,52 @@
         "title": "ListSubtasksParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "SubtaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "done"
+            ],
+            "title": "SubtaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "subtasks": {
+            "items": {
+              "$ref": "#/$defs/SubtaskItem"
+            },
+            "title": "Subtasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "subtasks"
+        ],
+        "title": "ListSubtasksResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -586,7 +993,37 @@
         "title": "ToggleChecklistItemParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "item_index": {
+            "title": "Item Index",
+            "type": "integer"
+          },
+          "checked": {
+            "title": "Checked",
+            "type": "boolean"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "item_index",
+          "checked",
+          "refresh_panels"
+        ],
+        "title": "ToggleChecklistResult",
+        "type": "object"
+      },
       "event": "task.updated",
       "background": false,
       "long_running": false,
@@ -635,7 +1072,36 @@
         "title": "AssignTaskParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "assignee_vikunja_user_id": {
+            "title": "Assignee Vikunja User Id"
+          },
+          "assignee_name": {
+            "default": "",
+            "title": "Assignee Name",
+            "type": "string"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "assignee_vikunja_user_id",
+          "refresh_panels"
+        ],
+        "title": "AssignResult",
+        "type": "object"
+      },
       "event": "task.assigned",
       "background": false,
       "long_running": false,
@@ -671,7 +1137,32 @@
         "title": "UnassignTaskParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "assignee_vikunja_user_id": {
+            "title": "Assignee Vikunja User Id",
+            "type": "integer"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "assignee_vikunja_user_id",
+          "refresh_panels"
+        ],
+        "title": "UnassignResult",
+        "type": "object"
+      },
       "event": "task.unassigned",
       "background": false,
       "long_running": false,
@@ -707,7 +1198,32 @@
         "title": "AddLabelParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "label_id": {
+            "title": "Label Id",
+            "type": "integer"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "label_id",
+          "refresh_panels"
+        ],
+        "title": "TaskLabelResult",
+        "type": "object"
+      },
       "event": "task.labeled",
       "background": false,
       "long_running": false,
@@ -743,7 +1259,32 @@
         "title": "DetachLabelParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "label_id": {
+            "title": "Label Id",
+            "type": "integer"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "label_id",
+          "refresh_panels"
+        ],
+        "title": "TaskLabelResult",
+        "type": "object"
+      },
       "event": "task.unlabeled",
       "background": false,
       "long_running": false,
@@ -779,7 +1320,66 @@
         "title": "SetDueDateParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "percent_done": {
+            "title": "Percent Done",
+            "type": "number"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "done",
+          "priority",
+          "percent_done",
+          "refresh_panels"
+        ],
+        "title": "UpdateTaskResult",
+        "type": "object"
+      },
       "event": "task.due_changed",
       "background": false,
       "long_running": false,
@@ -817,7 +1417,66 @@
         "title": "SetPriorityParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "percent_done": {
+            "title": "Percent Done",
+            "type": "number"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "done",
+          "priority",
+          "percent_done",
+          "refresh_panels"
+        ],
+        "title": "UpdateTaskResult",
+        "type": "object"
+      },
       "event": "task.priority_changed",
       "background": false,
       "long_running": false,
@@ -853,7 +1512,66 @@
         "title": "MoveToProjectParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "percent_done": {
+            "title": "Percent Done",
+            "type": "number"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "done",
+          "priority",
+          "percent_done",
+          "refresh_panels"
+        ],
+        "title": "UpdateTaskResult",
+        "type": "object"
+      },
       "event": "task.moved",
       "background": false,
       "long_running": false,
@@ -889,7 +1607,66 @@
         "title": "MoveToBucketParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "integer"
+          },
+          "percent_done": {
+            "title": "Percent Done",
+            "type": "number"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "done",
+          "priority",
+          "percent_done",
+          "refresh_panels"
+        ],
+        "title": "UpdateTaskResult",
+        "type": "object"
+      },
       "event": "task.bucket_changed",
       "background": false,
       "long_running": false,
@@ -915,7 +1692,20 @@
         "title": "SearchUsersParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "users": {
+            "items": {},
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "users"
+        ],
+        "title": "SearchUsersResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -976,7 +1766,49 @@
         "title": "CreateProjectParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "hex_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hex Color"
+          },
+          "parent_project_id": {
+            "title": "Parent Project Id",
+            "type": "integer"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "title",
+          "parent_project_id",
+          "refresh_panels"
+        ],
+        "title": "CreateProjectResult",
+        "type": "object"
+      },
       "event": "project.created",
       "background": false,
       "long_running": false,
@@ -1041,7 +1873,39 @@
         "title": "UpdateProjectParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "refresh_panels"
+        ],
+        "title": "UpdateProjectResult",
+        "type": "object"
+      },
       "event": "project.updated",
       "background": false,
       "long_running": false,
@@ -1070,7 +1934,32 @@
         "title": "ArchiveProjectParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "is_archived": {
+            "title": "Is Archived",
+            "type": "boolean"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "is_archived",
+          "refresh_panels"
+        ],
+        "title": "ArchiveProjectResult",
+        "type": "object"
+      },
       "event": "project.archived",
       "background": false,
       "long_running": false,
@@ -1099,7 +1988,32 @@
         "title": "DeleteProjectParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "deleted",
+          "refresh_panels"
+        ],
+        "title": "DeleteProjectResult",
+        "type": "object"
+      },
       "event": "project.deleted",
       "background": false,
       "long_running": false,
@@ -1147,7 +2061,44 @@
         "title": "CreateLabelParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "label_id": {
+            "title": "Label Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "hex_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hex Color"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "label_id",
+          "title",
+          "refresh_panels"
+        ],
+        "title": "CreateLabelResult",
+        "type": "object"
+      },
       "event": "label.created",
       "background": false,
       "long_running": false,
@@ -1176,7 +2127,32 @@
         "title": "DeleteLabelParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "label_id": {
+            "title": "Label Id",
+            "type": "integer"
+          },
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "label_id",
+          "deleted",
+          "refresh_panels"
+        ],
+        "title": "DeleteLabelResult",
+        "type": "object"
+      },
       "event": "label.deleted",
       "background": false,
       "long_running": false,
@@ -1196,7 +2172,59 @@
         "title": "NoParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "ProjectItem": {
+            "properties": {
+              "project_id": {
+                "title": "Project Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "project_id",
+              "title",
+              "hex_color"
+            ],
+            "title": "ProjectItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/$defs/ProjectItem"
+            },
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "projects"
+        ],
+        "title": "ListProjectsResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -1224,7 +2252,105 @@
         "title": "ListBucketsParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "BucketItem": {
+            "properties": {
+              "bucket_id": {
+                "title": "Bucket Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "limit": {
+                "title": "Limit",
+                "type": "integer"
+              },
+              "task_count": {
+                "title": "Task Count",
+                "type": "integer"
+              },
+              "tasks": {
+                "items": {
+                  "$ref": "#/$defs/BucketTaskItem"
+                },
+                "title": "Tasks",
+                "type": "array"
+              }
+            },
+            "required": [
+              "bucket_id",
+              "title",
+              "limit",
+              "task_count",
+              "tasks"
+            ],
+            "title": "BucketItem",
+            "type": "object"
+          },
+          "BucketTaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "done",
+              "priority",
+              "due_date"
+            ],
+            "title": "BucketTaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/$defs/BucketItem"
+            },
+            "title": "Buckets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "buckets"
+        ],
+        "title": "ListBucketsResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -1296,7 +2422,81 @@
         "title": "ListMyTasksParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "tasks"
+        ],
+        "title": "TaskListResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -1316,7 +2516,81 @@
         "title": "NoParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "tasks"
+        ],
+        "title": "TaskListResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -1336,7 +2610,81 @@
         "title": "NoParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "tasks"
+        ],
+        "title": "TaskListResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -1365,7 +2713,86 @@
         "title": "FindTaskParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "query",
+          "tasks"
+        ],
+        "title": "FindTaskResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -1411,7 +2838,81 @@
         "title": "FilterTasksParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "tasks"
+        ],
+        "title": "TaskListResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -1447,7 +2948,28 @@
         "title": "AddCommentParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "comment_id": {
+            "default": null,
+            "title": "Comment Id"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "comment": {
+            "title": "Comment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "comment"
+        ],
+        "title": "CommentResult",
+        "type": "object"
+      },
       "event": "task.commented",
       "background": false,
       "long_running": false,
@@ -1488,7 +3010,40 @@
         "title": "MentionUserParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "comment_id": {
+            "default": null,
+            "title": "Comment Id"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "comment": {
+            "default": "",
+            "title": "Comment",
+            "type": "string"
+          },
+          "mentioned_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mentioned Username"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "MentionCommentResult",
+        "type": "object"
+      },
       "event": "task.mentioned",
       "background": false,
       "long_running": false,
@@ -1515,7 +3070,51 @@
         "title": "ListCommentsParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "CommentItem": {
+            "properties": {
+              "comment_id": {
+                "title": "Comment Id"
+              },
+              "comment": {
+                "title": "Comment",
+                "type": "string"
+              },
+              "author": {
+                "title": "Author",
+                "type": "string"
+              }
+            },
+            "required": [
+              "comment_id",
+              "comment",
+              "author"
+            ],
+            "title": "CommentItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "comments": {
+            "items": {
+              "$ref": "#/$defs/CommentItem"
+            },
+            "title": "Comments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "comments"
+        ],
+        "title": "ListCommentsResult",
+        "type": "object"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -1556,7 +3155,24 @@
         "title": "UpdateCommentParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "comment_id": {
+            "title": "Comment Id",
+            "type": "integer"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "comment_id",
+          "task_id"
+        ],
+        "title": "CommentRefResult",
+        "type": "object"
+      },
       "event": "task.comment_updated",
       "background": false,
       "long_running": false,
@@ -1590,7 +3206,24 @@
         "title": "DeleteCommentParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "properties": {
+          "comment_id": {
+            "title": "Comment Id",
+            "type": "integer"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "comment_id",
+          "task_id"
+        ],
+        "title": "CommentRefResult",
+        "type": "object"
+      },
       "event": "task.comment_deleted",
       "background": false,
       "long_running": false,

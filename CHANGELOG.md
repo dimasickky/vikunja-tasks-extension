@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.13.0] — 2026-05-17
+
+### Fixed
+- **`panels_editor.py` `_find_kanban_view`** — same `view_kind == "kanban"` string comparison bug now also fixed in the board panel (supports both `"kanban"` and `4`). Board panel was silently showing "No kanban view found" on Vikunja v0.21+.
+- **`on_event` refresh strings** — both `panels.py` and `panels_editor.py` now use the correct `tasks.` app-id prefix (e.g. `tasks.task.created` instead of `task.created`). Without the prefix SSE-based panel auto-refresh never fired.
+- **Sidebar on_event** — added `tasks.task.uncompleted` event so reopening a task refreshes the sidebar.
+- **Board on_event** — added `tasks.task.uncompleted`, `tasks.task.mentioned`, `tasks.project.archived` events.
+- **`CommentItem` DTO** — added `created: Optional[str]` field that `list_comments` was already returning but DTO wasn't declaring.
+- **`handlers_connection.py` trailing slash** — `base_url` now stripped with `.rstrip("/")` in both `connect_vikunja` and `connect_vikunja_with_pat`. Previously `https://vikunja.example.com/` would produce double-slash paths like `/v1//tasks`.
+- **`main.py` purge list** — added `_task_checklist` and `_task_create_form` to hot-reload purge list. Previously editing these sub-modules required a full worker restart for changes to take effect.
+
+---
+
 ## [3.12.0] — 2026-05-17
 
 ### Added

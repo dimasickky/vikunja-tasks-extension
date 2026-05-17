@@ -34,9 +34,11 @@ log = logging.getLogger("tasks.panels")
     min_width=240,
     max_width=420,
     refresh=(
-        "on_event:connection.created,connection.deleted,"
-        "task.created,task.updated,task.completed,task.deleted,"
-        "project.created,project.updated,project.archived,project.deleted"
+        "on_event:tasks.connection.created,tasks.connection.deleted,"
+        "tasks.task.created,tasks.task.updated,tasks.task.completed,"
+        "tasks.task.uncompleted,tasks.task.deleted,"
+        "tasks.project.created,tasks.project.updated,"
+        "tasks.project.archived,tasks.project.deleted"
     ),
 )
 async def tasks_sidebar(ctx, view: str = "main", active_project_id: str = "", **kwargs):

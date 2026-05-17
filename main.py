@@ -11,6 +11,7 @@ for _m in [k for k in sys.modules if k in (
     "handlers_search", "handlers_collab",
     "skeleton",
     "panels", "panels_editor", "panels_task",
+    "_task_checklist", "_task_create_form",
 )]:
     del sys.modules[_m]
 

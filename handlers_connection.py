@@ -7,6 +7,7 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from imperal_sdk.chat import ActionResult
 
 from app import api_post, api_delete, api_get, chat, require_imperal_id, NoParams
+from models_return import VikunjaConnectionResult, DisconnectResult, ConnectionStatusResult
 
 log = logging.getLogger("tasks")
 
@@ -70,6 +71,7 @@ def _format_connect_error(resp: dict, default: str) -> str:
         "long-lived Personal Access Token, and discarded. Only the encrypted "
         "PAT is stored. Returns base_url + username on success."
     ),
+    data_model=VikunjaConnectionResult,
 )
 async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
     try:
@@ -82,7 +84,7 @@ async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
 
         resp = await api_post(ctx, "/v1/connect", {
             "imperal_id": require_imperal_id(ctx),
-            "base_url":   params.base_url.strip(),
+            "base_url":   params.base_url.strip().rstrip("/"),
             "username":   params.username.strip(),
             "password":   params.password,
         })
@@ -113,6 +115,7 @@ async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
         "Access Token (Settings → API tokens in their Vikunja UI). The "
         "PAT is encrypted on bridge and stored at rest."
     ),
+    data_model=VikunjaConnectionResult,
 )
 async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> ActionResult:
     try:
@@ -123,7 +126,7 @@ async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> 
 
         resp = await api_post(ctx, "/v1/connect/with-pat", {
             "imperal_id": require_imperal_id(ctx),
-            "base_url":   params.base_url.strip(),
+            "base_url":   params.base_url.strip().rstrip("/"),
             "pat":        params.pat.strip(),
         })
         if resp.get("status") == "error":
@@ -152,6 +155,7 @@ async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> 
         "Disconnect from the user's Vikunja: revoke the stored API token "
         "in their instance and delete the local connection record."
     ),
+    data_model=DisconnectResult,
 )
 async def disconnect_vikunja(ctx, params: NoParams) -> ActionResult:
     try:
@@ -175,6 +179,7 @@ async def disconnect_vikunja(ctx, params: NoParams) -> ActionResult:
         "echoes the API token). Returns connected: bool plus base_url and "
         "username when connected."
     ),
+    data_model=ConnectionStatusResult,
 )
 async def get_connection_status(ctx, params: NoParams) -> ActionResult:
     try:

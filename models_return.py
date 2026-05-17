@@ -158,6 +158,7 @@ class CommentItem(BaseModel):
     comment_id: Any
     comment: str
     author: str
+    created: Optional[str] = None
 
 
 class ListCommentsResult(BaseModel):

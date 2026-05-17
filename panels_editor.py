@@ -106,8 +106,9 @@ async def _find_kanban_view(ctx, imperal_id: str, project_id: int) -> dict | Non
     views = await api_get(ctx, f"/v1/projects/{project_id}/views", {"imperal_id": imperal_id})
     if not isinstance(views, list):
         return None
+    # Vikunja returns view_kind as string in older versions, integer (4) in v0.21+.
     for v in views:
-        if v.get("view_kind") == "kanban":
+        if v.get("view_kind") in {"kanban", 4}:
             return v
     return None
 
@@ -120,10 +121,13 @@ async def _find_kanban_view(ctx, imperal_id: str, project_id: int) -> dict | Non
     title="Board",
     icon="Kanban",
     refresh=(
-        "on_event:task.created,task.updated,task.completed,task.deleted,"
-        "task.moved,task.bucket_changed,task.due_changed,task.priority_changed,"
-        "task.commented,task.labeled,task.unlabeled,task.assigned,task.unassigned,"
-        "project.created,project.updated"
+        "on_event:tasks.task.created,tasks.task.updated,tasks.task.completed,"
+        "tasks.task.uncompleted,tasks.task.deleted,"
+        "tasks.task.moved,tasks.task.bucket_changed,tasks.task.due_changed,"
+        "tasks.task.priority_changed,tasks.task.commented,tasks.task.mentioned,"
+        "tasks.task.labeled,tasks.task.unlabeled,"
+        "tasks.task.assigned,tasks.task.unassigned,"
+        "tasks.project.created,tasks.project.updated,tasks.project.archived"
     ),
 )
 async def tasks_board(

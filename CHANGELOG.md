@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.17.0] — 2026-05-18
+
+### Fixed
+- **`system_prompt.txt` — create_task bucket resolution** — `create_task` section now instructs LLM to call `list_project_buckets` (lightweight, names+IDs only) instead of `list_buckets` (full board with all tasks). `list_buckets` with 13+ buckets produces a huge payload that causes LLM to lose track of bucket IDs, resulting in `bucket_id` validation errors on create.
+
+---
+
 ## [3.16.0] — 2026-05-18
 
 ### Fixed

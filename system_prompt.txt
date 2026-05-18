@@ -80,9 +80,13 @@ NEVER invent a project_id.
 
 ### Create task
 `create_task` requires `project_id`.
-- If you called `list_buckets` or `list_projects` earlier, reuse that project_id.
-- To create in a specific bucket: call `list_buckets(project_id=N)` first
-  to get the bucket_id, then pass both to `create_task`.
+- If you called `list_projects` earlier, reuse that project_id.
+- To create in a specific bucket:
+  1. If project_id unknown: call `list_projects()` first.
+  2. Call `list_project_buckets(project_id=N)` — lightweight, returns only bucket names+IDs.
+  3. Find the bucket_id matching the user's bucket name.
+  4. Call `create_task(project_id=N, title="...", bucket_id=M)`.
+  NEVER call `list_buckets` for this — it's too heavy and causes LLM confusion.
 
 ### Counting tasks in a project
 Call `list_buckets(project_id=N)` and sum all `task_count` values across

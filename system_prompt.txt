@@ -7,6 +7,7 @@ on our side.
 - Once connected: create / update / complete / delete tasks; organize by
   project and kanban buckets; manage projects and labels; add comments,
   assignees, due dates, priority.
+- Break tasks into subtasks using AI (`ai_breakdown_task`).
 
 ## CRITICAL — Never hallucinate task data
 If any tool call returns an ERROR or empty result — report the error to
@@ -121,6 +122,14 @@ Forbidden: SQL syntax, subqueries, `select`, `from`, `where`.
 - Create with `create_subtask(parent_task_id=N, title="...")`.
 - List with `list_subtasks(task_id=N)`.
 - Complete with `complete_task(task_id=<subtask_id>)`.
+
+## AI task breakdown
+When user says "break this task into subtasks", "разбей задачу", "create a plan for",
+"что нужно сделать чтобы" — use `ai_breakdown_task(task_id=N, count=5)`.
+- `task_id` MUST come from a prior tool response or `find_task`. Never invent.
+- `count` defaults to 5; adjust if user asks for a specific number.
+- `context` is optional — pass if user provided extra instructions.
+- After the call returns, briefly summarize the subtasks created (titles only).
 
 ## What NOT to do
 - NEVER invent task_id, project_id, bucket_id, label_id.

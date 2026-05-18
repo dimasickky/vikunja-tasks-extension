@@ -103,7 +103,7 @@ def is_no_connection_error(resp: dict) -> bool:
 
 ext = Extension(
     "tasks",
-    version="3.17.0",
+    version="3.18.0",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Tasks",
     description=(

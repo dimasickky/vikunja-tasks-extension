@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.18.0] — 2026-05-18
+
+### Added
+- **`ai_breakdown_task(task_id, count=5, context?)` — AI task breakdown** — new `handlers_ai.py`. Fetches parent task title + description, calls `ctx.ai.complete()` with a structured planning prompt, parses the numbered list response, and creates each title as a real Vikunja subtask via `POST /v1/tasks/{id}/subtasks`. Returns `AiBreakdownResult` with list of `{task_id, title}` created subtasks. Partial success supported — reports how many failed without aborting the whole call. `system_prompt.txt` rule added: triggers on "break this task", "разбей задачу", "create a plan for", "что нужно сделать чтобы".
+
+---
+
 ## [3.17.0] — 2026-05-18
 
 ### Fixed

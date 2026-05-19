@@ -97,7 +97,8 @@ def _task_card(task: dict) -> Any:
         subtitle=" · ".join(meta_parts) if meta_parts else None,
         icon="CheckCircle2" if done else "Circle",
         badge=badge,
-        on_click=ui.Call("__panel__editor", note_id=str(tid), task_id=str(tid)),
+        on_click=ui.Call("__panel__editor", note_id=str(tid), task_id=str(tid),
+                         mode="", bucket_id="", view=""),
     )
 
 
@@ -381,7 +382,8 @@ def _header(title: str, imperal_id: str, project_id: int | None = None, count: i
             icon="ArrowLeft",
             variant="ghost",
             size="sm",
-            on_click=ui.Call("__panel__editor", note_id="board"),
+            on_click=ui.Call("__panel__editor", note_id="board",
+                             task_id="", mode="", project_id="", bucket_id="", view=""),
         )
     )
 
@@ -405,6 +407,8 @@ def _bucket_form_header(title: str, project_id: int) -> Any:
                 "__panel__editor",
                 note_id=str(project_id),
                 project_id=str(project_id),
+                mode="",
+                bucket_id="",
             ),
         ),
     ], direction="h", sticky=True)

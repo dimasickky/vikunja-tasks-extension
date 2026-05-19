@@ -85,7 +85,8 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
 
     actions = [
         ui.Button("Back", icon="ArrowLeft", variant="ghost", size="sm",
-                  on_click=ui.Call("__panel__editor", note_id=str(project_id), project_id=str(project_id))),
+                  on_click=ui.Call("__panel__editor", note_id=str(project_id), project_id=str(project_id),
+                                   task_id="", mode="", bucket_id="")),
     ]
     if not done:
         actions.append(ui.Button("Complete", icon="Check", variant="primary", size="sm",
@@ -178,7 +179,8 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
             id=f"sub_{s['id']}",
             title=("✓ " if s.get("done") else "") + s.get("title", "?"),
             icon="CheckCircle2" if s.get("done") else "Circle",
-            on_click=ui.Call("__panel__editor", note_id=str(s["id"]), task_id=str(s["id"])),
+            on_click=ui.Call("__panel__editor", note_id=str(s["id"]), task_id=str(s["id"]),
+                             mode="", bucket_id="", view=""),
             actions=(
                 [{"icon": "RotateCcw", "label": "Reopen",
                   "on_click": ui.Call("uncomplete_task", task_id=s["id"])},

@@ -422,8 +422,9 @@ def _render_new_bucket_form(project_id: int) -> Any:
                 children=[
                     ui.Input(placeholder="Column name", param_name="title"),
                     ui.Input(
-                        placeholder="WIP limit — max tasks (0 or empty = no limit)",
+                        placeholder="WIP limit — max tasks (0 = no limit)",
                         param_name="limit",
+                        type="number",
                     ),
                 ],
             ),
@@ -447,8 +448,9 @@ def _render_edit_bucket_form(project_id: int, bucket_id: str, bucket_title: str)
                 children=[
                     ui.Input(placeholder="New column name", param_name="title"),
                     ui.Input(
-                        placeholder="WIP limit — max tasks (0 or empty = no limit)",
+                        placeholder="WIP limit — max tasks (0 = no limit)",
                         param_name="limit",
+                        type="number",
                     ),
                 ],
             ),

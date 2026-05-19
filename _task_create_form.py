@@ -61,7 +61,7 @@ async def render_create_form(ctx, project_id: str, bucket_id: str = "") -> Any:
     bucket_options: list = []
     views_resp = await api_get(ctx, f"/v1/projects/{pid}/views", {"imperal_id": imperal_id})
     if isinstance(views_resp, list):
-        kanban = next((v for v in views_resp if v.get("view_kind") == "kanban"), None)
+        kanban = next((v for v in views_resp if v.get("view_kind") in {"kanban", 4}), None)
         if kanban:
             buckets_resp = await api_get(
                 ctx,
@@ -83,10 +83,12 @@ async def render_create_form(ctx, project_id: str, bucket_id: str = "") -> Any:
     if bucket_options:
         form_children.append(ui.Select(param_name="bucket_id", options=bucket_options))
 
-    defaults: dict = {"project_id": pid}
+    # "priority" default ensures Select has a pre-selected value even if user doesn't touch it.
+    # "bucket_id" must be a string to match Select option values (which are str(b["id"])).
+    defaults: dict = {"project_id": pid, "priority": "0"}
     if bucket_id:
         try:
-            defaults["bucket_id"] = int(bucket_id)
+            defaults["bucket_id"] = str(int(bucket_id))
         except (ValueError, TypeError):
             pass
 

@@ -23,6 +23,8 @@ from models_return import (
     ListProjectBucketsResult,
     GetBucketTasksResult,
     RenameBucketResult,
+    CreateBucketResult,
+    DeleteBucketResult,
 )
 
 log = logging.getLogger("tasks")
@@ -668,6 +670,17 @@ async def get_named_bucket_tasks(ctx, params: GetNamedBucketTasksParams) -> Acti
     )
 
 
+class CreateBucketParams(BaseModel):
+    project_id: int = Field(..., description="Integer project ID from list_projects.")
+    title: str = Field(..., min_length=1, max_length=250, description="Column name.")
+    limit: Optional[int] = Field(None, ge=0, description="WIP limit (0 = no limit). Omit for unlimited.")
+
+
+class DeleteBucketParams(BaseModel):
+    project_id: int = Field(..., description="Integer project ID.")
+    bucket_id: int = Field(..., description="Integer bucket ID from list_project_buckets.")
+
+
 class RenameBucketParams(BaseModel):
     project_id: int = Field(..., description="Integer project ID.")
     bucket_id: int = Field(..., description="Integer bucket ID from list_project_buckets.")
@@ -716,5 +729,92 @@ async def rename_bucket(ctx, params: RenameBucketParams) -> ActionResult:
             "bucket_id":  params.bucket_id,
             "title":      resp.get("title", params.title),
             "limit":      resp.get("limit", 0),
+        },
+    )
+
+
+@chat.function(
+    "create_bucket",
+    action_type="write",
+    chain_callable=True,
+    effects=["create:bucket"],
+    event="task.bucket_changed",
+    description=(
+        "Create a new kanban column (bucket) in a project. "
+        "Requires project_id — use list_projects() first if you only know the project name. "
+        "Optional WIP limit: 0 means no limit."
+    ),
+    data_model=CreateBucketResult,
+)
+async def create_bucket(ctx, params: CreateBucketParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    view_id, err = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
+    if err:
+        return err
+
+    payload: dict = {"imperal_id": imperal_id, "title": params.title}
+    if params.limit is not None:
+        payload["limit"] = params.limit
+
+    resp = await api_post(
+        ctx,
+        f"/v1/projects/{params.project_id}/views/{view_id}/buckets",
+        payload,
+    )
+    if resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create bucket"))
+
+    return ActionResult.success(
+        summary=f"Created bucket '{params.title}' in project #{params.project_id}.",
+        data={
+            "project_id":     params.project_id,
+            "bucket_id":      resp.get("id"),
+            "title":          resp.get("title", params.title),
+            "limit":          resp.get("limit", 0),
+            "refresh_panels": ["editor"],
+        },
+    )
+
+
+@chat.function(
+    "delete_bucket",
+    action_type="destructive",
+    chain_callable=True,
+    effects=["delete:bucket"],
+    event="task.bucket_changed",
+    description=(
+        "Delete a kanban column (bucket) from a project. Irreversible — "
+        "tasks in the deleted column are moved to the project's default column, not deleted. "
+        "Requires project_id and bucket_id — call list_project_buckets() first if you only know the name."
+    ),
+    data_model=DeleteBucketResult,
+)
+async def delete_bucket(ctx, params: DeleteBucketParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    view_id, err = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
+    if err:
+        return err
+
+    resp = await api_delete(
+        ctx,
+        f"/v1/projects/{params.project_id}/views/{view_id}/buckets/{params.bucket_id}",
+        {"imperal_id": imperal_id},
+    )
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete bucket"))
+
+    return ActionResult.success(
+        summary=f"Deleted bucket #{params.bucket_id} from project #{params.project_id}.",
+        data={
+            "project_id":     params.project_id,
+            "bucket_id":      params.bucket_id,
+            "deleted":        True,
+            "refresh_panels": ["editor"],
         },
     )

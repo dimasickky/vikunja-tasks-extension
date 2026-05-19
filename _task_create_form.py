@@ -26,7 +26,7 @@ def _header_bar(title: str, actions: list | None = None) -> Any:
     return ui.Stack(row, direction="h", sticky=True)
 
 
-async def render_create_form(ctx, project_id: str) -> Any:
+async def render_create_form(ctx, project_id: str, bucket_id: str = "") -> Any:
     imperal_id = imperal_id_of(ctx)
 
     if not project_id:
@@ -83,6 +83,13 @@ async def render_create_form(ctx, project_id: str) -> Any:
     if bucket_options:
         form_children.append(ui.Select(param_name="bucket_id", options=bucket_options))
 
+    defaults: dict = {"project_id": pid}
+    if bucket_id:
+        try:
+            defaults["bucket_id"] = int(bucket_id)
+        except (ValueError, TypeError):
+            pass
+
     return ui.Stack([
         _header_bar("New Task"),
         ui.Card(
@@ -91,7 +98,7 @@ async def render_create_form(ctx, project_id: str) -> Any:
                 ui.Form(
                     action="create_task",
                     submit_label="Create",
-                    defaults={"project_id": pid},
+                    defaults=defaults,
                     children=form_children,
                 ),
                 ui.Button(

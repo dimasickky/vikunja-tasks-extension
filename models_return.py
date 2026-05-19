@@ -314,6 +314,21 @@ class RenameBucketResult(BaseModel):
     limit: int
 
 
+class CreateBucketResult(BaseModel):
+    project_id: int
+    bucket_id: int
+    title: str
+    limit: int
+    refresh_panels: List[str]
+
+
+class DeleteBucketResult(BaseModel):
+    project_id: int
+    bucket_id: int
+    deleted: bool
+    refresh_panels: List[str]
+
+
 # ─── handlers_ai ──────────────────────────────────────────────────────────── #
 
 class AiSubtaskCreated(BaseModel):

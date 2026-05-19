@@ -137,9 +137,10 @@ async def tasks_board(
     view: str = "",
     task_id: str = "",
     mode: str = "",
+    bucket_id: str = "",
     **kwargs,
 ):
-    """Single center panel: board, smart view, task detail, or create form."""
+    """Single center panel: board, smart view, task detail, create form, or bucket management."""
     imperal_id = imperal_id_of(ctx)
 
     if not imperal_id:
@@ -147,7 +148,9 @@ async def tasks_board(
 
     # ── Task detail / create form ─────────────────────────────────────
     if task_id or mode == "new":
-        return await render_task_detail(ctx, task_id=task_id, mode=mode, project_id=project_id)
+        return await render_task_detail(
+            ctx, task_id=task_id, mode=mode, project_id=project_id, bucket_id=bucket_id,
+        )
 
     # ── Smart views ───────────────────────────────────────────────────
     if view in ("today", "upcoming", "overdue"):
@@ -164,6 +167,14 @@ async def tasks_board(
         pid = int(project_id)
     except ValueError:
         return ui.Empty(message=f"Invalid project_id: {project_id}", icon="AlertCircle")
+
+    # ── Bucket management forms ───────────────────────────────────────
+    if mode == "new_bucket":
+        return _render_new_bucket_form(pid)
+    if mode == "edit_bucket":
+        return _render_edit_bucket_form(pid, bucket_id, kwargs.get("bucket_title", ""))
+    if mode == "confirm_delete_bucket":
+        return _render_confirm_delete_bucket(pid, bucket_id, kwargs.get("bucket_title", ""))
 
     return await _render_project_board(ctx, imperal_id, pid)
 
@@ -263,7 +274,49 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
         tasks = b.get("tasks") or []
         top, children = _split_top_and_children(tasks, child_ids)
 
-        bucket_body: list[Any] = []
+        action_row = ui.Stack([
+            ui.Button(
+                "✎",
+                size="sm",
+                variant="ghost",
+                on_click=ui.Call(
+                    "__panel__editor",
+                    note_id=str(project_id),
+                    project_id=str(project_id),
+                    mode="edit_bucket",
+                    bucket_id=str(bid),
+                    bucket_title=btitle,
+                ),
+            ),
+            ui.Button(
+                "✕",
+                size="sm",
+                variant="ghost",
+                on_click=ui.Call(
+                    "__panel__editor",
+                    note_id=str(project_id),
+                    project_id=str(project_id),
+                    mode="confirm_delete_bucket",
+                    bucket_id=str(bid),
+                    bucket_title=btitle,
+                ),
+            ),
+            ui.Button(
+                "+ Task",
+                icon="Plus",
+                size="sm",
+                variant="ghost",
+                on_click=ui.Call(
+                    "__panel__editor",
+                    note_id="new",
+                    mode="new",
+                    project_id=str(project_id),
+                    bucket_id=str(bid),
+                ),
+            ),
+        ], direction="h", gap=1, wrap=True)
+
+        bucket_body: list[Any] = [action_row]
         if top:
             bucket_body.append(ui.List(items=[_task_card(t) for t in top]))
         elif not children:
@@ -274,8 +327,7 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
         columns.append(
             ui.Card(
                 title=f"{btitle} ({len(top)})",
-                content=ui.Stack(children=bucket_body, gap=1) if len(bucket_body) > 1
-                        else bucket_body[0],
+                content=ui.Stack(children=bucket_body, gap=1),
             )
         )
 
@@ -309,6 +361,20 @@ def _header(title: str, imperal_id: str, project_id: int | None = None, count: i
                 on_click=ui.Call("__panel__editor", note_id="new", mode="new", project_id=str(project_id)),
             )
         )
+        actions.append(
+            ui.Button(
+                "+ Column",
+                icon="Columns",
+                variant="ghost",
+                size="sm",
+                on_click=ui.Call(
+                    "__panel__editor",
+                    note_id=str(project_id),
+                    project_id=str(project_id),
+                    mode="new_bucket",
+                ),
+            )
+        )
     actions.append(
         ui.Button(
             "Back",
@@ -321,5 +387,96 @@ def _header(title: str, imperal_id: str, project_id: int | None = None, count: i
 
     return ui.Stack([
         ui.Text(label, variant="h3"),
-        ui.Stack(actions, direction="h", gap=1),
+        ui.Stack(actions, direction="h", gap=1, wrap=True),
     ], direction="h", sticky=True)
+
+
+# ─── Bucket management forms ───────────────────────────────────────────── #
+
+def _bucket_form_header(title: str, project_id: int) -> Any:
+    return ui.Stack([
+        ui.Text(title, variant="h3"),
+        ui.Button(
+            "Cancel",
+            icon="ArrowLeft",
+            variant="ghost",
+            size="sm",
+            on_click=ui.Call(
+                "__panel__editor",
+                note_id=str(project_id),
+                project_id=str(project_id),
+            ),
+        ),
+    ], direction="h", sticky=True)
+
+
+def _render_new_bucket_form(project_id: int) -> Any:
+    return ui.Stack([
+        _bucket_form_header("New Column", project_id),
+        ui.Card(
+            title="Create Column",
+            content=ui.Form(
+                action="create_bucket",
+                submit_label="Create",
+                defaults={"project_id": project_id},
+                children=[
+                    ui.Input(placeholder="Column name", param_name="title"),
+                    ui.Input(
+                        placeholder="WIP limit — max tasks (0 or empty = no limit)",
+                        param_name="limit",
+                    ),
+                ],
+            ),
+        ),
+    ], gap=2)
+
+
+def _render_edit_bucket_form(project_id: int, bucket_id: str, bucket_title: str) -> Any:
+    try:
+        bid = int(bucket_id)
+    except (ValueError, TypeError):
+        return ui.Empty(message="Invalid bucket ID.", icon="AlertCircle")
+    return ui.Stack([
+        _bucket_form_header(f"Rename Column", project_id),
+        ui.Card(
+            title=f"Rename \"{bucket_title}\"",
+            content=ui.Form(
+                action="rename_bucket",
+                submit_label="Rename",
+                defaults={"project_id": project_id, "bucket_id": bid, "title": bucket_title},
+                children=[
+                    ui.Input(placeholder="New column name", param_name="title"),
+                    ui.Input(
+                        placeholder="WIP limit — max tasks (0 or empty = no limit)",
+                        param_name="limit",
+                    ),
+                ],
+            ),
+        ),
+    ], gap=2)
+
+
+def _render_confirm_delete_bucket(project_id: int, bucket_id: str, bucket_title: str) -> Any:
+    try:
+        bid = int(bucket_id)
+    except (ValueError, TypeError):
+        return ui.Empty(message="Invalid bucket ID.", icon="AlertCircle")
+    return ui.Stack([
+        _bucket_form_header("Delete Column", project_id),
+        ui.Card(
+            title=f"Delete \"{bucket_title}\"?",
+            content=ui.Stack([
+                ui.Text(
+                    f"Tasks in \"{bucket_title}\" will be moved to the default column. "
+                    "This cannot be undone.",
+                    variant="caption",
+                ),
+                ui.Form(
+                    action="delete_bucket",
+                    submit_label="Yes, delete column",
+                    defaults={"project_id": project_id, "bucket_id": bid},
+                    children=[],
+                ),
+            ], gap=2),
+        ),
+    ], gap=2)

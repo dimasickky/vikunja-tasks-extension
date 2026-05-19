@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.19.0] — 2026-05-19
+
+### Added
+- **`create_bucket`** — chat function to create a new kanban column in a project
+  (`action_type=write`, `chain_callable=True`, optional WIP limit).
+- **`delete_bucket`** — chat function to delete a kanban column; tasks are moved
+  to the project default column (`action_type=destructive`, `chain_callable=True`).
+- **Board UI — `+ Column` button** in project board header; opens inline create-column form.
+- **Board UI — per-column actions**: ✎ Rename and ✕ Delete buttons on every column header.
+- **Board UI — `+ Task` per column**: quick-add button at the top of each column
+  that pre-selects the column in the task creation form.
+- **Task create form — bucket pre-selection**: column selector now pre-fills
+  when `bucket_id` is passed via panel navigation.
+
+### Backend (the backend service)
+- Added `DELETE /v1/projects/{project_id}/views/{view_id}/buckets/{bucket_id}` route.
+
 ## [3.18.0] — 2026-05-18
 
 ### Added

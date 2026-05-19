@@ -30,6 +30,7 @@ async def render_task_detail(
     task_id: str = "",
     mode: str = "",
     project_id: str = "",
+    bucket_id: str = "",
     **kwargs,
 ):
     imperal_id = imperal_id_of(ctx)
@@ -37,7 +38,7 @@ async def render_task_detail(
         return ui.Empty(message="Sign in to use tasks.", icon="UserX")
 
     if mode == "new":
-        return await render_create_form(ctx, project_id)
+        return await render_create_form(ctx, project_id, bucket_id)
 
     if not task_id:
         return ui.Empty(

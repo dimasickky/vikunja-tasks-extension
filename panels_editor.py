@@ -424,7 +424,6 @@ def _render_new_bucket_form(project_id: int) -> Any:
                     ui.Input(
                         placeholder="WIP limit — max tasks (0 = no limit)",
                         param_name="limit",
-                        type="number",
                     ),
                 ],
             ),
@@ -450,7 +449,6 @@ def _render_edit_bucket_form(project_id: int, bucket_id: str, bucket_title: str)
                     ui.Input(
                         placeholder="WIP limit — max tasks (0 = no limit)",
                         param_name="limit",
-                        type="number",
                     ),
                 ],
             ),

@@ -725,10 +725,11 @@ async def rename_bucket(ctx, params: RenameBucketParams) -> ActionResult:
     return ActionResult.success(
         summary=f"Bucket renamed to '{params.title}'.",
         data={
-            "project_id": params.project_id,
-            "bucket_id":  params.bucket_id,
-            "title":      resp.get("title", params.title),
-            "limit":      resp.get("limit", 0),
+            "project_id":     params.project_id,
+            "bucket_id":      params.bucket_id,
+            "title":          resp.get("title", params.title),
+            "limit":          resp.get("limit", 0),
+            "refresh_panels": ["editor"],
         },
     )
 

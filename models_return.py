@@ -312,6 +312,7 @@ class RenameBucketResult(BaseModel):
     bucket_id: int
     title: str
     limit: int
+    refresh_panels: List[str]
 
 
 class CreateBucketResult(BaseModel):

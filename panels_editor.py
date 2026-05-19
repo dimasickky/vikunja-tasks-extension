@@ -281,7 +281,7 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
                 variant="ghost",
                 on_click=ui.Call(
                     "__panel__editor",
-                    note_id=str(project_id),
+                    note_id="bucket_manage",
                     project_id=str(project_id),
                     mode="edit_bucket",
                     bucket_id=str(bid),
@@ -294,7 +294,7 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
                 variant="ghost",
                 on_click=ui.Call(
                     "__panel__editor",
-                    note_id=str(project_id),
+                    note_id="bucket_manage",
                     project_id=str(project_id),
                     mode="confirm_delete_bucket",
                     bucket_id=str(bid),
@@ -369,7 +369,7 @@ def _header(title: str, imperal_id: str, project_id: int | None = None, count: i
                 size="sm",
                 on_click=ui.Call(
                     "__panel__editor",
-                    note_id=str(project_id),
+                    note_id="bucket_manage",
                     project_id=str(project_id),
                     mode="new_bucket",
                 ),
@@ -465,18 +465,17 @@ def _render_confirm_delete_bucket(project_id: int, bucket_id: str, bucket_title:
         _bucket_form_header("Delete Column", project_id),
         ui.Card(
             title=f"Delete \"{bucket_title}\"?",
-            content=ui.Stack([
-                ui.Text(
-                    f"Tasks in \"{bucket_title}\" will be moved to the default column. "
-                    "This cannot be undone.",
-                    variant="caption",
-                ),
-                ui.Form(
-                    action="delete_bucket",
-                    submit_label="Yes, delete column",
-                    defaults={"project_id": project_id, "bucket_id": bid},
-                    children=[],
-                ),
-            ], gap=2),
+            content=ui.Form(
+                action="delete_bucket",
+                submit_label="Yes, delete column",
+                defaults={"project_id": project_id, "bucket_id": bid},
+                children=[
+                    ui.Text(
+                        f"Tasks in \"{bucket_title}\" will be moved to the default column. "
+                        "This cannot be undone.",
+                        variant="caption",
+                    ),
+                ],
+            ),
         ),
     ], gap=2)

@@ -3040,13 +3040,21 @@
           "limit": {
             "title": "Limit",
             "type": "integer"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
           }
         },
         "required": [
           "project_id",
           "bucket_id",
           "title",
-          "limit"
+          "limit",
+          "refresh_panels"
         ],
         "title": "RenameBucketResult",
         "type": "object"

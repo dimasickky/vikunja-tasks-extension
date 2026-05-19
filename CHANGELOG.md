@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.20.0] — 2026-05-19
+
+### Fixed
+- **`assign_task` loop bug** — removed "prefer find_task first" from description that
+  taught the AI to search instead of assigning. Now explicitly instructs: call
+  `assign_task` directly with `task_name`, no pre-search needed.
+- **`assign_task` — new `bucket_name` param** for disambiguation when multiple tasks
+  share the same title. When provided, the handler resolves the bucket via the
+  project's kanban view and filters candidate tasks to that column before assigning.
+
 ## [3.19.0] — 2026-05-19
 
 ### Added

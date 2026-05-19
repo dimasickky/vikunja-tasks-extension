@@ -36,21 +36,29 @@ class AssignTaskParams(BaseModel):
     task_id: int = Field(
         0,
         description=(
-            "Integer task ID. Pass 0 if you only know the task by name — "
-            "task_name will be used to auto-resolve it."
+            "Integer task ID. Pass 0 when you only know the task by name — "
+            "task_name will be used to auto-resolve it. Do NOT call find_task first."
         ),
     )
     task_name: Optional[str] = Field(
         None,
         description=(
             "Task title to search for when task_id is unknown. "
-            "The first matching task is used — prefer find_task first for disambiguation."
+            "Call assign_task directly with task_name — do NOT pre-search with find_task. "
+            "If multiple tasks share the same name, also pass bucket_name to disambiguate."
+        ),
+    )
+    bucket_name: Optional[str] = Field(
+        None,
+        description=(
+            "Bucket/column name to disambiguate when multiple tasks share the same title "
+            "(e.g. 'the team'). Case-insensitive. Used only when task_name is set."
         ),
     )
     assignee_query: str = Field(
         ...,
         description=(
-            "Name or email of the person to assign (e.g. 'Val', 'val@webhostmost.com'). "
+            "Name or email of the person to assign (e.g. 'ignat', 'ignat@webhostmost.com'). "
             "The bridge resolves it to a Vikunja user ID automatically."
         ),
     )
@@ -119,6 +127,39 @@ async def _search_users_impl(ctx, params: SearchUsersParams) -> ActionResult:
     )
 
 
+_KANBAN_VIEW_KINDS = (4, "kanban")
+
+
+async def _filter_tasks_by_bucket(
+    ctx, imperal_id: str, tasks: list, bucket_name: str
+) -> list:
+    """Narrow a list of tasks to those that live in a named bucket."""
+    bn_lower = bucket_name.lower()
+    project_ids = list({t.get("project_id") for t in tasks if t.get("project_id")})
+    bucket_task_ids: set = set()
+    for pid in project_ids:
+        views_resp = await api_get(ctx, f"/v1/projects/{pid}/views", {"imperal_id": imperal_id})
+        if not isinstance(views_resp, list):
+            continue
+        kanban = next((v for v in views_resp if v.get("view_kind") in _KANBAN_VIEW_KINDS), None)
+        if not kanban:
+            continue
+        buckets_resp = await api_get(
+            ctx, f"/v1/projects/{pid}/views/{kanban['id']}/tasks",
+            {"imperal_id": imperal_id},
+        )
+        if not isinstance(buckets_resp, list):
+            continue
+        for b in buckets_resp:
+            if bn_lower in (b.get("title") or "").lower():
+                for t in (b.get("tasks") or []):
+                    bucket_task_ids.add(t["id"])
+    if bucket_task_ids:
+        filtered = [t for t in tasks if t["id"] in bucket_task_ids]
+        return filtered if filtered else tasks
+    return tasks
+
+
 async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
@@ -127,25 +168,26 @@ async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
     task_id = params.task_id
     if task_id == 0 and params.task_name:
         search_resp = await api_get(ctx, "/v1/tasks/all", {
-            "imperal_id": imperal_id, "s": params.task_name, "per_page": 5,
+            "imperal_id": imperal_id, "s": params.task_name, "per_page": 20,
         })
         tasks = search_resp if isinstance(search_resp, list) else []
         if not tasks:
             return ActionResult.error(
-                f"Task '{params.task_name}' not found. "
-                "Call find_task(query=...) to search and get the integer task_id first."
+                f"Task '{params.task_name}' not found. Check the spelling or call list_my_tasks() to browse."
             )
+        if len(tasks) > 1 and params.bucket_name:
+            tasks = await _filter_tasks_by_bucket(ctx, imperal_id, tasks, params.bucket_name)
         if len(tasks) > 1:
-            matches = ", ".join(f"#{t['id']} '{t.get('title', '?')}'" for t in tasks[:3])
+            matches = ", ".join(f"#{t['id']} '{t.get('title', '?')}'" for t in tasks[:5])
             return ActionResult.error(
                 f"Multiple tasks match '{params.task_name}': {matches}. "
-                "Pass task_id directly to avoid assigning the wrong task."
+                "Pass bucket_name to narrow down, or pass task_id directly."
             )
         task_id = tasks[0]["id"]
 
     if not task_id:
         return ActionResult.error(
-            "task_id is required. Call find_task(query=...) first to resolve the task name to an integer task_id."
+            "task_id is required. Pass task_name to let assign_task auto-resolve by title."
         )
 
     resp = await api_post(ctx, f"/v1/tasks/{task_id}/assign",
@@ -214,8 +256,10 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
     effects=["update:task"],
     event="task.assigned",
     description=(
-        "Assign a person to a task by their name or email address (e.g. 'Val' or 'val@webhostmost.com'). "
-        "The bridge resolves the name/email to a Vikunja user ID automatically — never ask for a numeric ID."
+        "Assign a person to a task. Pass task_name + assignee_query directly — "
+        "do NOT call find_task or get_named_bucket_tasks first. "
+        "If multiple tasks share the same name, also pass bucket_name to pick the right one. "
+        "The bridge resolves assignee_query (name or email) to a Vikunja user ID automatically."
     ),
     data_model=AssignResult,
 )

@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.1",
   "app_id": "tasks",
-  "version": "3.19.0",
+  "version": "3.20.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -1252,7 +1252,7 @@
     },
     {
       "name": "assign_task",
-      "description": "Assign a person to a task by their name or email address (e.g. 'Val' or 'val@webhostmost.com'). The bridge resolves the name/email to a Vikunja user ID automatically — never ask for a numeric ID.",
+      "description": "Assign a person to a task. Pass task_name + assignee_query directly — do NOT call find_task or get_named_bucket_tasks first. If multiple tasks share the same name, also pass bucket_name to pick the right one. The bridge resolves assignee_query (name or email) to a Vikunja user ID automatically.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -1263,7 +1263,7 @@
         "properties": {
           "task_id": {
             "default": 0,
-            "description": "Integer task ID. Pass 0 if you only know the task by name — task_name will be used to auto-resolve it.",
+            "description": "Integer task ID. Pass 0 when you only know the task by name — task_name will be used to auto-resolve it. Do NOT call find_task first.",
             "title": "Task Id",
             "type": "integer"
           },
@@ -1277,11 +1277,24 @@
               }
             ],
             "default": null,
-            "description": "Task title to search for when task_id is unknown. The first matching task is used — prefer find_task first for disambiguation.",
+            "description": "Task title to search for when task_id is unknown. Call assign_task directly with task_name — do NOT pre-search with find_task. If multiple tasks share the same name, also pass bucket_name to disambiguate.",
             "title": "Task Name"
           },
+          "bucket_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bucket/column name to disambiguate when multiple tasks share the same title (e.g. 'the team'). Case-insensitive. Used only when task_name is set.",
+            "title": "Bucket Name"
+          },
           "assignee_query": {
-            "description": "Name or email of the person to assign (e.g. 'Val', 'val@webhostmost.com'). The bridge resolves it to a Vikunja user ID automatically.",
+            "description": "Name or email of the person to assign (e.g. 'ignat', 'ignat@webhostmost.com'). The bridge resolves it to a Vikunja user ID automatically.",
             "title": "Assignee Query",
             "type": "string"
           }

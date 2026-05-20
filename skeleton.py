@@ -51,7 +51,7 @@ async def skeleton_refresh_tasks(ctx) -> dict:
         return len(resp) if isinstance(resp, list) else 0
 
     try:
-        today_raw, overdue_raw, upcoming_raw, recent_raw, projects_raw = await asyncio.gather(
+        _results = await asyncio.gather(
             api_get(ctx, "/v1/tasks/all", {
                 "imperal_id": imperal_id,
                 "filter": "done = false && due_date >= now/d && due_date < now/d+1d",
@@ -71,6 +71,10 @@ async def skeleton_refresh_tasks(ctx) -> dict:
                 "imperal_id": imperal_id, "sort_by": "-updated", "per_page": 5,
             }),
             api_get(ctx, "/v1/projects", {"imperal_id": imperal_id}),
+            return_exceptions=True,
+        )
+        today_raw, overdue_raw, upcoming_raw, recent_raw, projects_raw = (
+            r if not isinstance(r, Exception) else [] for r in _results
         )
 
         def _count(resp) -> int:

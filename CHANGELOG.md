@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.21.0] — 2026-05-20
+
+### Fixed
+- **Skeleton — buckets per project** — kanban buckets now fetched and included for up to 5 active projects on every skeleton tick. Classifier previously had no bucket data → sent wrong `bucket_id` to bridge → Vikunja 400 errors.
+- **Skeleton — `bucket_id` + `assignees` in recent tasks** — each recent task now carries its current bucket and assignee usernames.
+- **Skeleton — team members** — `team_members` list (username + connected) now included; helps classifier resolve assignee names without guessing.
+- **Skeleton — `asyncio.gather` resilience** — added `return_exceptions=True` to all gather calls including new bucket/views fetches; a single failing project view call no longer drops the entire skeleton tick.
+
+---
+
 ## [3.20.0] — 2026-05-19
 
 ### Fixed

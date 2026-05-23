@@ -107,8 +107,7 @@ async def skeleton_refresh_tasks(ctx) -> dict:
         active_projects = [p for p in projects if not p.get("is_archived", False)]
         favorites = [p for p in active_projects if p.get("is_favorite", False)]
 
-        # Fetch kanban views for up to 5 active projects (avoid N+1 overload at 30s tick)
-        top_projects = active_projects[:5]
+        top_projects = active_projects
         if top_projects:
             views_results = await asyncio.gather(
                 *[
@@ -155,6 +154,11 @@ async def skeleton_refresh_tasks(ctx) -> dict:
             "overdue_count":          overdue_count,
             "upcoming_7d_count":      upcoming_7d_count,
             "active_projects_count":  len(active_projects),
+            "buckets": [
+                b
+                for p in active_projects[:20]
+                for b in buckets_per_project.get(p["id"], [])
+            ],
             "active_projects": [
                 {
                     "project_id": p["id"],

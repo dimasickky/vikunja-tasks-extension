@@ -82,9 +82,11 @@ def _require_user(ctx) -> str | ActionResult:
 def _bridge_error_msg(resp: dict, default_prefix: str) -> str:
     if is_no_connection_error(resp):
         return "No Vikunja connected. Connect your Vikunja in the tasks panel first."
-    detail = resp.get("detail")
+    detail = resp.get("detail") or resp.get("error") or resp.get("message")
     if isinstance(detail, dict):
-        detail = detail.get("detail") or detail.get("error") or detail.get("message") or str(detail)
+        detail = detail.get("detail") or detail.get("error") or detail.get("message")
+    if not detail:
+        return default_prefix
     return f"{default_prefix}: {detail}"
 
 

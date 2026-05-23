@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.22.0] — 2026-05-23
+
+### Fixed
+- **Skeleton — flat `buckets` list** — added top-level `buckets` key to skeleton response so kernel the platform autofill can find `bucket_id` by name. Previously buckets were only nested inside `active_projects[i]["buckets"]`, which the kernel's `section.get("buckets")` lookup never found.
+- **Skeleton — all projects** — removed `:5` cap on bucket fetch. Bridge now reads from DB (fast), so fetching all active projects is safe at 30s TTL.
+- **`_bridge_error_msg`** — no longer returns `"prefix: None"` when bridge detail is absent; returns just the prefix instead.
+
 ## [3.21.0] — 2026-05-20
 
 ### Fixed

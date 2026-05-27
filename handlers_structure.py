@@ -755,15 +755,22 @@ async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResul
     if params.project_id is None:
         return ActionResult.error("Pass project_id or project_name.")
 
-    query_params: dict = {"imperal_id": imperal_id, "page": params.page, "per_page": params.per_page}
-    if params.filter:
-        query_params["filter"] = params.filter
-
     # Fetch project title for summary
     proj_resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
     proj_title = proj_resp.get("title", f"#{params.project_id}") if isinstance(proj_resp, dict) else f"#{params.project_id}"
 
-    tasks_resp = await api_get(ctx, f"/v1/projects/{params.project_id}/tasks", query_params)
+    # Bridge has no /projects/{id}/tasks — use /tasks/all with filter instead
+    pf = f"project_id = {params.project_id}"
+    if params.filter:
+        pf = f"{pf} && {params.filter}"
+    query_params: dict = {
+        "imperal_id": imperal_id,
+        "filter": pf,
+        "page": params.page,
+        "per_page": params.per_page,
+    }
+
+    tasks_resp = await api_get(ctx, "/v1/tasks/all", query_params)
     if isinstance(tasks_resp, dict) and tasks_resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(tasks_resp, "Couldn't fetch project tasks"))
 

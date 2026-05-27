@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.2",
   "app_id": "tasks",
-  "version": "3.22.0",
+  "version": "3.23.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -299,7 +299,7 @@
     },
     {
       "name": "create_task",
-      "description": "Create a new task in a project. Returns task_id + full task details.",
+      "description": "Create a new task in a project. Pass project_name (e.g. 'webhostmost tasks') or project_id. Optional assignee field auto-resolves name/email to Vikunja user. Returns task_id + full task details.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -309,9 +309,30 @@
       "params_schema": {
         "properties": {
           "project_id": {
-            "description": "Project (board) to create task in.",
-            "title": "Project Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project (board) ID. Pass project_name instead if unknown.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name to look up (e.g. 'webhostmost tasks'). Used when project_id unknown.",
+            "title": "Project Name"
           },
           "title": {
             "description": "Task title.",
@@ -366,10 +387,22 @@
             "default": null,
             "description": "Kanban bucket; default = first bucket of project.",
             "title": "Bucket Id"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Name or email of person to assign (e.g. 'dmitrii@webhostmost.com'). Auto-resolved to Vikunja user. Optional — task is created even if resolution fails.",
+            "title": "Assignee"
           }
         },
         "required": [
-          "project_id",
           "title"
         ],
         "title": "CreateTaskParams",
@@ -417,6 +450,18 @@
             ],
             "default": null,
             "title": "Bucket Id"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Assignee"
           },
           "refresh_panels": {
             "items": {
@@ -1726,7 +1771,7 @@
     },
     {
       "name": "move_to_project",
-      "description": "Move a task to another project. Pass integer task_id and integer project_id (from list_projects response — never project name).",
+      "description": "Move a task to another project. Pass integer task_id and integer project_id, or pass project_name (e.g. 'webhostmost tasks') to resolve automatically.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -1741,14 +1786,34 @@
             "type": "integer"
           },
           "project_id": {
-            "description": "Integer project ID from list_projects response. Never project name.",
-            "title": "Project Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer project ID. Pass project_name instead if unknown.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name to look up (e.g. 'webhostmost tasks').",
+            "title": "Project Name"
           }
         },
         "required": [
-          "task_id",
-          "project_id"
+          "task_id"
         ],
         "title": "MoveToProjectParams",
         "type": "object"
@@ -1821,7 +1886,7 @@
     },
     {
       "name": "move_to_bucket",
-      "description": "Move a task to another kanban bucket (column). Pass integer task_id and integer bucket_id (from list_buckets response — never bucket name). Call list_buckets first if bucket_id is unknown.",
+      "description": "Move a task to another kanban bucket (column). Pass integer task_id and integer bucket_id, or pass bucket_name + project_name (e.g. 'To-Do', 'webhostmost tasks') to resolve automatically.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -1836,14 +1901,47 @@
             "type": "integer"
           },
           "bucket_id": {
-            "description": "Integer bucket ID from list_buckets response. Never bucket name.",
-            "title": "Bucket Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer bucket ID from list_buckets response. Pass bucket_name + project_name instead if unknown.",
+            "title": "Bucket Id"
+          },
+          "bucket_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bucket name (e.g. 'To-Do', 'In Progress'). Used when bucket_id unknown.",
+            "title": "Bucket Name"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name — needed to resolve bucket_name to bucket_id.",
+            "title": "Project Name"
           }
         },
         "required": [
-          "task_id",
-          "bucket_id"
+          "task_id"
         ],
         "title": "MoveToBucketParams",
         "type": "object"
@@ -2547,7 +2645,7 @@
     },
     {
       "name": "list_buckets",
-      "description": "List kanban buckets (columns) for a project WITH their tasks embedded. REQUIRES project_id — call list_projects() first if you only know the project name. Returns bucket_id, title, task_count, and full task list per bucket. Use for: (1) get tasks from a named bucket — read from the tasks array directly; (2) resolve bucket name → bucket_id before move_to_bucket or create_task; (3) count total tasks in a project (sum all task_count values). NOTE: filter_tasks cannot filter by bucket — this is the only way to get bucket tasks.",
+      "description": "List kanban buckets (columns) for a project WITH their tasks embedded. Pass project_id OR project_name (e.g. 'webhostmost tasks') — name is resolved automatically. Returns bucket_id, title, task_count, and full task list per bucket. Use for: (1) get tasks from a named bucket — read from the tasks array directly; (2) resolve bucket name → bucket_id before move_to_bucket or create_task; (3) count total tasks in a project (sum all task_count values). NOTE: filter_tasks cannot filter by bucket — this is the only way to get bucket tasks.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -2555,14 +2653,32 @@
       "params_schema": {
         "properties": {
           "project_id": {
-            "description": "Integer project ID. REQUIRED — call list_projects() first if you only know the project name.",
-            "title": "Project Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer project ID. Pass project_name instead if unknown.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name to look up (e.g. 'webhostmost tasks'). Used when project_id is unknown.",
+            "title": "Project Name"
           }
         },
-        "required": [
-          "project_id"
-        ],
         "title": "ListBucketsParams",
         "type": "object"
       },
@@ -2673,7 +2789,7 @@
     },
     {
       "name": "list_project_buckets",
-      "description": "List kanban columns (buckets) for a project — names and IDs only, NO task data. Fast and lightweight. Use this to resolve a bucket name → bucket_id before calling get_bucket_tasks, move_to_bucket, or create_task with a specific bucket.",
+      "description": "List kanban columns (buckets) for a project — names and IDs only, NO task data. Pass project_id OR project_name (e.g. 'webhostmost tasks') — name is resolved automatically. Use this to resolve a bucket name → bucket_id before calling get_bucket_tasks, move_to_bucket, or create_task with a specific bucket.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -2681,14 +2797,32 @@
       "params_schema": {
         "properties": {
           "project_id": {
-            "description": "Integer project ID from list_projects. Call list_projects() first if you only know the project name.",
-            "title": "Project Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer project ID. Pass project_name instead if unknown.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name to look up (e.g. 'webhostmost tasks'). Used when project_id is unknown.",
+            "title": "Project Name"
           }
         },
-        "required": [
-          "project_id"
-        ],
         "title": "ListProjectBucketsParams",
         "type": "object"
       },
@@ -3226,6 +3360,247 @@
         "type": "object"
       },
       "event": "task.bucket_changed",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_project_tasks",
+      "description": "List all tasks in a specific project. Pass project_name (e.g. 'WebHostMost Tasks') or project_id. Use when the user asks to see tasks in a named project. Returns task list with title, done status, priority, and due date per task.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer project ID.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name (e.g. 'webhostmost tasks'). Used when project_id unknown.",
+            "title": "Project Name"
+          },
+          "filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Additional Vikunja filter expression.",
+            "title": "Filter"
+          },
+          "page": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 50,
+            "maximum": 200,
+            "minimum": 1,
+            "title": "Per Page",
+            "type": "integer"
+          }
+        },
+        "title": "ListProjectTasksParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "project_title": {
+            "title": "Project Title",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "project_title",
+          "count",
+          "tasks"
+        ],
+        "title": "ListProjectTasksResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "get_project",
+      "description": "Get metadata for a single project — id, title, description, color, archived status. Pass project_id OR project_name (e.g. 'WebHostMost Tasks'). Use when user asks about a specific project or you need its ID from a name.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer project ID.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name to look up (e.g. 'webhostmost tasks').",
+            "title": "Project Name"
+          }
+        },
+        "title": "GetProjectParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "hex_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hex Color"
+          },
+          "is_archived": {
+            "default": false,
+            "title": "Is Archived",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "project_id",
+          "title",
+          "description"
+        ],
+        "title": "GetProjectResult",
+        "type": "object"
+      },
+      "event": "",
       "background": false,
       "long_running": false,
       "scopes": [],

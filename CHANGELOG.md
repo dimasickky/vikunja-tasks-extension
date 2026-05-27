@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.23.0] — 2026-05-27
+
+### Added
+- **`create_task`** — новые поля `project_name` (резолвит по имени вместо `project_id`) и `assignee` (email/имя — автоматически назначает после создания задачи одним вызовом).
+- **`list_project_tasks(project_name)`** — все задачи проекта по названию; ранее можно было только через глобальный фильтр.
+- **`get_project(project_name)`** — детали проекта (title, description, hex_color, is_archived) по имени или ID.
+- **`resolve_project_id`** — shared helper в `app.py` для case-insensitive резолва project_name → project_id (exact → startswith → contains).
+
+### Fixed
+- **`list_project_buckets` / `list_buckets`** — теперь принимают `project_name` вместо обязательного `project_id`. Фиксирует `no_orchestrator_registered:tasks` при запросах вида "какие бакеты в проекте webhostmost tasks".
+- **`move_to_bucket`** — добавлены `bucket_name` + `project_name`; больше не требует числовой `bucket_id` — резолвит по имени бакета.
+- **`move_to_project`** — добавлен `project_name` вместо обязательного `project_id`.
+
+### Changed
+- SDK бамп `imperal-sdk==5.0.1` → `5.0.2`.
+
+---
+
 ## [3.22.0] — 2026-05-23
 
 ### Fixed

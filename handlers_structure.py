@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_get, api_post, api_delete, chat, NoParams
+from app import api_get, api_post, api_delete, chat, NoParams, resolve_project_id
 from handlers_crud import _require_user, _bridge_error_msg
 from models_return import (
     CreateProjectResult,
@@ -25,6 +25,8 @@ from models_return import (
     RenameBucketResult,
     CreateBucketResult,
     DeleteBucketResult,
+    ListProjectTasksResult,
+    GetProjectResult,
 )
 
 log = logging.getLogger("tasks")
@@ -67,11 +69,16 @@ class DeleteLabelParams(BaseModel):
 
 
 class ListBucketsParams(BaseModel):
-    project_id: int = Field(
-        ...,
+    project_id: Optional[int] = Field(
+        None,
         description=(
-            "Integer project ID. REQUIRED — call list_projects() first if you only "
-            "know the project name."
+            "Integer project ID. Pass project_name instead if unknown."
+        ),
+    )
+    project_name: Optional[str] = Field(
+        None,
+        description=(
+            "Project name to look up (e.g. 'webhostmost tasks'). Used when project_id is unknown."
         ),
     )
 
@@ -354,7 +361,7 @@ async def list_projects(ctx, params: NoParams) -> ActionResult:
     action_type="read",
     description=(
         "List kanban buckets (columns) for a project WITH their tasks embedded. "
-        "REQUIRES project_id — call list_projects() first if you only know the project name. "
+        "Pass project_id OR project_name (e.g. 'webhostmost tasks') — name is resolved automatically. "
         "Returns bucket_id, title, task_count, and full task list per bucket. "
         "Use for: (1) get tasks from a named bucket — read from the tasks array directly; "
         "(2) resolve bucket name → bucket_id before move_to_bucket or create_task; "
@@ -367,6 +374,13 @@ async def list_buckets(ctx, params: ListBucketsParams) -> ActionResult:
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
+
+    if params.project_id is None and params.project_name:
+        params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+        if params.project_id is None:
+            return ActionResult.error(f"Project '{params.project_name}' not found.")
+    if params.project_id is None:
+        return ActionResult.error("Pass project_id or project_name.")
 
     views_resp = await api_get(ctx, f"/v1/projects/{params.project_id}/views",
                                {"imperal_id": imperal_id})
@@ -423,9 +437,13 @@ async def list_buckets(ctx, params: ListBucketsParams) -> ActionResult:
 # ─── Tier-2: focused bucket endpoints ─────────────────────────────────────── #
 
 class ListProjectBucketsParams(BaseModel):
-    project_id: int = Field(
-        ...,
-        description="Integer project ID from list_projects. Call list_projects() first if you only know the project name.",
+    project_id: Optional[int] = Field(
+        None,
+        description="Integer project ID. Pass project_name instead if unknown.",
+    )
+    project_name: Optional[str] = Field(
+        None,
+        description="Project name to look up (e.g. 'webhostmost tasks'). Used when project_id is unknown.",
     )
 
 
@@ -477,8 +495,9 @@ def _match_by_name(items: list[dict], name: str, title_key: str = "title") -> di
     action_type="read",
     description=(
         "List kanban columns (buckets) for a project — names and IDs only, NO task data. "
-        "Fast and lightweight. Use this to resolve a bucket name → bucket_id before "
-        "calling get_bucket_tasks, move_to_bucket, or create_task with a specific bucket."
+        "Pass project_id OR project_name (e.g. 'webhostmost tasks') — name is resolved automatically. "
+        "Use this to resolve a bucket name → bucket_id before calling get_bucket_tasks, "
+        "move_to_bucket, or create_task with a specific bucket."
     ),
     data_model=ListProjectBucketsResult,
 )
@@ -486,6 +505,13 @@ async def list_project_buckets(ctx, params: ListProjectBucketsParams) -> ActionR
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
+
+    if params.project_id is None and params.project_name:
+        params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+        if params.project_id is None:
+            return ActionResult.error(f"Project '{params.project_name}' not found.")
+    if params.project_id is None:
+        return ActionResult.error("Pass project_id or project_name.")
 
     view_id, err = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
     if err:
@@ -817,5 +843,128 @@ async def delete_bucket(ctx, params: DeleteBucketParams) -> ActionResult:
             "bucket_id":      params.bucket_id,
             "deleted":        True,
             "refresh_panels": ["editor"],
+        },
+    )
+
+
+# ─── list_project_tasks ────────────────────────────────────────────────────── #
+
+class ListProjectTasksParams(BaseModel):
+    project_id: Optional[int] = Field(None, description="Integer project ID.")
+    project_name: Optional[str] = Field(
+        None,
+        description=(
+            "Project name (e.g. 'webhostmost tasks'). Used when project_id unknown."
+        ),
+    )
+    filter: Optional[str] = Field(None, description="Additional Vikunja filter expression.")
+    page: int = Field(1, ge=1)
+    per_page: int = Field(50, ge=1, le=200)
+
+
+@chat.function(
+    "list_project_tasks",
+    action_type="read",
+    description=(
+        "List all tasks in a specific project. Pass project_name (e.g. 'WebHostMost Tasks') "
+        "or project_id. Use when the user asks to see tasks in a named project. "
+        "Returns task list with title, done status, priority, and due date per task."
+    ),
+    data_model=ListProjectTasksResult,
+)
+async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    if params.project_id is None and params.project_name:
+        params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+        if params.project_id is None:
+            return ActionResult.error(f"Project '{params.project_name}' not found.")
+    if params.project_id is None:
+        return ActionResult.error("Pass project_id or project_name.")
+
+    query_params: dict = {"imperal_id": imperal_id, "page": params.page, "per_page": params.per_page}
+    if params.filter:
+        query_params["filter"] = params.filter
+
+    # Fetch project title for summary
+    proj_resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
+    proj_title = proj_resp.get("title", f"#{params.project_id}") if isinstance(proj_resp, dict) else f"#{params.project_id}"
+
+    tasks_resp = await api_get(ctx, f"/v1/projects/{params.project_id}/tasks", query_params)
+    if isinstance(tasks_resp, dict) and tasks_resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(tasks_resp, "Couldn't fetch project tasks"))
+
+    tasks = tasks_resp if isinstance(tasks_resp, list) else []
+
+    def _task_entry(t: dict) -> dict:
+        due = (t.get("due_date") or "")[:10]
+        return {
+            "task_id":    t["id"],
+            "title":      t.get("title", "?"),
+            "project_id": t.get("project_id"),
+            "done":       t.get("done", False),
+            "due_date":   due or None,
+            "priority":   t.get("priority", 0),
+        }
+
+    task_list = [_task_entry(t) for t in tasks]
+    done_ct = sum(1 for t in tasks if t.get("done"))
+    return ActionResult.success(
+        summary=f"Project '{proj_title}': {len(task_list)} task(s), {done_ct} done.",
+        data={
+            "project_id":    params.project_id,
+            "project_title": proj_title,
+            "count":         len(task_list),
+            "tasks":         task_list,
+        },
+    )
+
+
+# ─── get_project ──────────────────────────────────────────────────────────── #
+
+class GetProjectParams(BaseModel):
+    project_id: Optional[int] = Field(None, description="Integer project ID.")
+    project_name: Optional[str] = Field(
+        None,
+        description="Project name to look up (e.g. 'webhostmost tasks').",
+    )
+
+
+@chat.function(
+    "get_project",
+    action_type="read",
+    description=(
+        "Get metadata for a single project — id, title, description, color, archived status. "
+        "Pass project_id OR project_name (e.g. 'WebHostMost Tasks'). "
+        "Use when user asks about a specific project or you need its ID from a name."
+    ),
+    data_model=GetProjectResult,
+)
+async def get_project(ctx, params: GetProjectParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    if params.project_id is None and params.project_name:
+        params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+        if params.project_id is None:
+            return ActionResult.error(f"Project '{params.project_name}' not found.")
+    if params.project_id is None:
+        return ActionResult.error("Pass project_id or project_name.")
+
+    resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch project"))
+
+    return ActionResult.success(
+        summary=f"Project #{params.project_id}: {resp.get('title', '?')}.",
+        data={
+            "project_id":   resp.get("id", params.project_id),
+            "title":        resp.get("title", ""),
+            "description":  resp.get("description", ""),
+            "hex_color":    resp.get("hex_color"),
+            "is_archived":  resp.get("is_archived", False),
         },
     )

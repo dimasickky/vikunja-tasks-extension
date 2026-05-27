@@ -5,7 +5,9 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_get, api_post, api_delete, chat, imperal_id_of, is_no_connection_error
+import logging
+
+from app import api_get, api_post, api_delete, chat, imperal_id_of, is_no_connection_error, resolve_project_id
 from panels_task import _toggle_checklist_item
 from models_return import (
     CreateTaskResult,
@@ -19,13 +21,27 @@ from models_return import (
 )
 
 
+log = logging.getLogger("tasks")
+
+
 class CreateTaskParams(BaseModel):
-    project_id: int = Field(..., description="Project (board) to create task in.")
+    project_id: Optional[int] = Field(None, description="Project (board) ID. Pass project_name instead if unknown.")
+    project_name: Optional[str] = Field(
+        None,
+        description="Project name to look up (e.g. 'webhostmost tasks'). Used when project_id unknown.",
+    )
     title: str = Field(..., min_length=1, max_length=250, description="Task title.")
     description: str = Field("", description="Optional description, markdown.")
     due_date: Optional[str] = Field(None, description="ISO 8601 due date (e.g. 2026-04-25T12:00:00Z).")
     priority: Optional[int] = Field(None, ge=0, le=5, description="0=none, 5=urgent.")
     bucket_id: Optional[int] = Field(None, description="Kanban bucket; default = first bucket of project.")
+    assignee: Optional[str] = Field(
+        None,
+        description=(
+            "Name or email of person to assign (e.g. 'dmitrii@webhostmost.com'). "
+            "Auto-resolved to Vikunja user. Optional — task is created even if resolution fails."
+        ),
+    )
 
 
 class UpdateTaskParams(BaseModel):
@@ -95,6 +111,13 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
     if isinstance(imperal_id, ActionResult):
         return imperal_id
 
+    if params.project_id is None and params.project_name:
+        params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+        if params.project_id is None:
+            return ActionResult.error(f"Project '{params.project_name}' not found.")
+    if params.project_id is None:
+        return ActionResult.error("Pass project_id or project_name.")
+
     payload = {
         "imperal_id":  imperal_id,
         "project_id":  params.project_id,
@@ -109,18 +132,38 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't create task"))
 
-    return ActionResult.success(
-        summary=f"Task created: {resp['title']} (project #{resp['project_id']}).",
-        data={
-            "task_id":    resp["id"],
-            "title":      resp["title"],
-            "project_id": resp["project_id"],
-            "due_date":   resp.get("due_date"),
-            "priority":   resp.get("priority", 0),
-            "bucket_id":  resp.get("bucket_id", 0),
-            "refresh_panels": ["sidebar", "editor"],
-        },
-    )
+    task_id = resp["id"]
+    assigned_name: Optional[str] = None
+
+    if params.assignee:
+        assign_resp = await api_post(
+            ctx,
+            f"/v1/tasks/{task_id}/assign",
+            {"imperal_id": imperal_id, "assignee_query": params.assignee},
+        )
+        if assign_resp.get("status") == "error":
+            log.error("create_task: assignee '%s' resolution failed: %s", params.assignee, assign_resp.get("detail"))
+        else:
+            assigned_name = assign_resp.get("_resolved_username", params.assignee)
+
+    result_data: dict = {
+        "task_id":    task_id,
+        "title":      resp["title"],
+        "project_id": resp["project_id"],
+        "due_date":   resp.get("due_date"),
+        "priority":   resp.get("priority", 0),
+        "bucket_id":  resp.get("bucket_id", 0),
+        "refresh_panels": ["sidebar", "editor"],
+    }
+    if assigned_name is not None:
+        result_data["assignee"] = assigned_name
+
+    summary = f"Task created: {resp['title']} (project #{resp['project_id']})"
+    if assigned_name:
+        summary += f", assigned to {assigned_name}"
+    summary += "."
+
+    return ActionResult.success(summary=summary, data=result_data)
 
 
 async def _update_task_impl(ctx, params: UpdateTaskParams) -> ActionResult:
@@ -220,7 +263,11 @@ async def _delete_task_impl(ctx, params: DeleteTaskParams) -> ActionResult:
     id_projection="project_id",
     effects=["create:task"],
     event="task.created",
-    description="Create a new task in a project. Returns task_id + full task details.",
+    description=(
+        "Create a new task in a project. Pass project_name (e.g. 'webhostmost tasks') "
+        "or project_id. Optional assignee field auto-resolves name/email to Vikunja user. "
+        "Returns task_id + full task details."
+    ),
     data_model=CreateTaskResult,
 )
 async def create_task(ctx, params: CreateTaskParams) -> ActionResult:

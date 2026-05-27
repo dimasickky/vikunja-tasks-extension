@@ -14,6 +14,7 @@ class CreateTaskResult(BaseModel):
     due_date: Optional[str] = None
     priority: int = 0
     bucket_id: Optional[int] = None   # None = default bucket; never 0 (ambiguous)
+    assignee: Optional[str] = None
     refresh_panels: List[str]
 
 
@@ -328,6 +329,23 @@ class DeleteBucketResult(BaseModel):
     bucket_id: int
     deleted: bool
     refresh_panels: List[str]
+
+
+# ─── handlers_structure (new: list_project_tasks + get_project) ──────────── #
+
+class ListProjectTasksResult(BaseModel):
+    project_id: int
+    project_title: str
+    count: int
+    tasks: List[TaskItem]
+
+
+class GetProjectResult(BaseModel):
+    project_id: int
+    title: str
+    description: str
+    hex_color: Optional[str] = None
+    is_archived: bool = False
 
 
 # ─── handlers_ai ──────────────────────────────────────────────────────────── #

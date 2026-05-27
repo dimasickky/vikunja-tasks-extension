@@ -99,11 +99,28 @@ def is_no_connection_error(resp: dict) -> bool:
     return isinstance(resp, dict) and resp.get("http_status") == 412
 
 
+async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | None:
+    """Case-insensitive project name → project_id. exact → startswith → contains."""
+    resp = await api_get(ctx, "/v1/projects", {"imperal_id": imperal_id})
+    projects = resp if isinstance(resp, list) else []
+    name_lower = project_name.strip().lower()
+    for proj in projects:
+        if (proj.get("title") or "").lower() == name_lower:
+            return proj["id"]
+    for proj in projects:
+        if (proj.get("title") or "").lower().startswith(name_lower):
+            return proj["id"]
+    for proj in projects:
+        if name_lower in (proj.get("title") or "").lower():
+            return proj["id"]
+    return None
+
+
 # ─── Extension ───────────────────────────────────────────────────────────── #
 
 ext = Extension(
     "tasks",
-    version="3.22.0",
+    version="3.23.0",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Tasks",
     description=(

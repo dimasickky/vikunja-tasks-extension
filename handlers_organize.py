@@ -6,7 +6,9 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_post, api_get, api_delete, chat
+import logging
+
+from app import api_post, api_get, api_delete, chat, resolve_project_id
 from handlers_crud import (
     _require_user,
     _update_task_impl,
@@ -89,14 +91,29 @@ class SetPriorityParams(BaseModel):
     priority: int = Field(..., ge=0, le=5, description="0=none, 1=low, 2=medium, 3=high, 4=urgent, 5=critical.")
 
 
+log = logging.getLogger("tasks")
+
+
 class MoveToProjectParams(BaseModel):
     task_id: int = Field(..., description="Integer task ID. Never UUID.")
-    project_id: int = Field(..., description="Integer project ID from list_projects response. Never project name.")
+    project_id: Optional[int] = Field(None, description="Integer project ID. Pass project_name instead if unknown.")
+    project_name: Optional[str] = Field(None, description="Project name to look up (e.g. 'webhostmost tasks').")
 
 
 class MoveToBucketParams(BaseModel):
     task_id: int = Field(..., description="Integer task ID. Never UUID.")
-    bucket_id: int = Field(..., description="Integer bucket ID from list_buckets response. Never bucket name.")
+    bucket_id: Optional[int] = Field(
+        None,
+        description="Integer bucket ID from list_buckets response. Pass bucket_name + project_name instead if unknown.",
+    )
+    bucket_name: Optional[str] = Field(
+        None,
+        description="Bucket name (e.g. 'To-Do', 'In Progress'). Used when bucket_id unknown.",
+    )
+    project_name: Optional[str] = Field(
+        None,
+        description="Project name — needed to resolve bucket_name to bucket_id.",
+    )
 
 
 # ─── Impl ─────────────────────────────────────────────────────────────────── #
@@ -128,6 +145,36 @@ async def _search_users_impl(ctx, params: SearchUsersParams) -> ActionResult:
 
 
 _KANBAN_VIEW_KINDS = (4, "kanban")
+
+
+async def _resolve_bucket_id_by_name(
+    ctx, imperal_id: str, project_id: int, bucket_name: str
+) -> int | None:
+    """Resolve bucket name → bucket_id within a project's kanban view. exact → prefix → contains."""
+    views_resp = await api_get(ctx, f"/v1/projects/{project_id}/views", {"imperal_id": imperal_id})
+    if not isinstance(views_resp, list):
+        return None
+    kanban = next((v for v in views_resp if v.get("view_kind") in _KANBAN_VIEW_KINDS), None)
+    if not kanban:
+        return None
+    buckets_resp = await api_get(
+        ctx,
+        f"/v1/projects/{project_id}/views/{kanban['id']}/buckets",
+        {"imperal_id": imperal_id},
+    )
+    if not isinstance(buckets_resp, list):
+        return None
+    name_lower = bucket_name.strip().lower()
+    for b in buckets_resp:
+        if (b.get("title") or "").lower() == name_lower:
+            return b["id"]
+    for b in buckets_resp:
+        if (b.get("title") or "").lower().startswith(name_lower):
+            return b["id"]
+    for b in buckets_resp:
+        if name_lower in (b.get("title") or "").lower():
+            return b["id"]
+    return None
 
 
 async def _filter_tasks_by_bucket(
@@ -352,12 +399,23 @@ async def set_priority(ctx, params: SetPriorityParams) -> ActionResult:
     effects=["update:task"],
     event="task.moved",
     description=(
-        "Move a task to another project. Pass integer task_id and integer project_id "
-        "(from list_projects response — never project name)."
+        "Move a task to another project. Pass integer task_id and integer project_id, "
+        "or pass project_name (e.g. 'webhostmost tasks') to resolve automatically."
     ),
     data_model=UpdateTaskResult,
 )
 async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    if params.project_id is None and params.project_name:
+        params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+        if params.project_id is None:
+            return ActionResult.error(f"Project '{params.project_name}' not found.")
+    if params.project_id is None:
+        return ActionResult.error("Pass project_id or project_name.")
+
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, project_id=params.project_id))
 
 
@@ -369,12 +427,41 @@ async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
     effects=["update:task"],
     event="task.bucket_changed",
     description=(
-        "Move a task to another kanban bucket (column). Pass integer task_id and integer bucket_id "
-        "(from list_buckets response — never bucket name). Call list_buckets first if bucket_id is unknown."
+        "Move a task to another kanban bucket (column). Pass integer task_id and integer bucket_id, "
+        "or pass bucket_name + project_name (e.g. 'To-Do', 'webhostmost tasks') to resolve automatically."
     ),
     data_model=UpdateTaskResult,
 )
 async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    if params.bucket_id is None and params.bucket_name:
+        project_id: Optional[int] = None
+        if params.project_name:
+            project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+            if project_id is None:
+                return ActionResult.error(f"Project '{params.project_name}' not found.")
+        else:
+            # Fall back: get project_id from the task itself
+            task_resp = await api_get(ctx, f"/v1/tasks/{params.task_id}", {"imperal_id": imperal_id})
+            if isinstance(task_resp, dict) and not task_resp.get("status") == "error":
+                project_id = task_resp.get("project_id")
+        if project_id is None:
+            return ActionResult.error(
+                "Pass bucket_id directly, or pass bucket_name + project_name to resolve automatically."
+            )
+        params.bucket_id = await _resolve_bucket_id_by_name(ctx, imperal_id, project_id, params.bucket_name)
+        if params.bucket_id is None:
+            return ActionResult.error(
+                f"Bucket '{params.bucket_name}' not found in project. "
+                "Call list_project_buckets() to see available buckets."
+            )
+
+    if params.bucket_id is None:
+        return ActionResult.error("Pass bucket_id or bucket_name + project_name.")
+
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, bucket_id=params.bucket_id))
 
 

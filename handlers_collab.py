@@ -6,6 +6,7 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_post, api_get, api_delete, chat
 from handlers_crud import _require_user, _bridge_error_msg
+from models_return import CommentResult, MentionCommentResult, ListCommentsResult, CommentRefResult
 
 
 class AddCommentParams(BaseModel):
@@ -79,6 +80,7 @@ async def _mention_user_impl(ctx, params: MentionUserParams) -> ActionResult:
     effects=["create:comment"],
     event="task.commented",
     description="Add a comment to a task (markdown supported).",
+    data_model=CommentResult,
 )
 async def add_comment(ctx, params: AddCommentParams) -> ActionResult:
     return await _add_comment_impl(ctx, params)
@@ -95,6 +97,7 @@ async def add_comment(ctx, params: AddCommentParams) -> ActionResult:
         "Mention a user in a task comment. Vikunja auto-links '@username' and notifies. "
         "Use when user wants to notify/loop in someone."
     ),
+    data_model=MentionCommentResult,
 )
 async def mention_user(ctx, params: MentionUserParams) -> ActionResult:
     return await _mention_user_impl(ctx, params)
@@ -104,6 +107,7 @@ async def mention_user(ctx, params: MentionUserParams) -> ActionResult:
     "list_comments",
     action_type="read",
     description="List all comments on a task.",
+    data_model=ListCommentsResult,
 )
 async def list_comments(ctx, params: ListCommentsParams) -> ActionResult:
     imperal_id = _require_user(ctx)
@@ -140,6 +144,7 @@ async def list_comments(ctx, params: ListCommentsParams) -> ActionResult:
     effects=["update:comment"],
     event="task.comment_updated",
     description="Edit the text of an existing comment on a task.",
+    data_model=CommentRefResult,
 )
 async def update_comment(ctx, params: UpdateCommentParams) -> ActionResult:
     imperal_id = _require_user(ctx)
@@ -167,6 +172,7 @@ async def update_comment(ctx, params: UpdateCommentParams) -> ActionResult:
     effects=["delete:comment"],
     event="task.comment_deleted",
     description="Permanently delete a comment from a task. Cannot be undone.",
+    data_model=CommentRefResult,
 )
 async def delete_comment(ctx, params: DeleteCommentParams) -> ActionResult:
     imperal_id = _require_user(ctx)

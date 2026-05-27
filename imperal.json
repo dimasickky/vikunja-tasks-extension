@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.2",
   "app_id": "tasks",
-  "version": "3.23.0",
+  "version": "3.24.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -2573,7 +2573,7 @@
     },
     {
       "name": "list_projects",
-      "description": "List all active (non-archived) projects. Returns project_id and title. ALWAYS call this first when the user refers to a project by name — then use the returned project_id in list_buckets, filter_tasks, or create_task.",
+      "description": "List all active (non-archived) projects. Returns project_id and title. ALWAYS call this first when the user refers to a project by name — then use the returned project_id in list_project_buckets, filter_tasks, or create_task.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -2644,152 +2644,8 @@
       "owner_chat_tool": "tool_tasks_chat"
     },
     {
-      "name": "list_buckets",
-      "description": "List kanban buckets (columns) for a project WITH their tasks embedded. Pass project_id OR project_name (e.g. 'webhostmost tasks') — name is resolved automatically. Returns bucket_id, title, task_count, and full task list per bucket. Use for: (1) get tasks from a named bucket — read from the tasks array directly; (2) resolve bucket name → bucket_id before move_to_bucket or create_task; (3) count total tasks in a project (sum all task_count values). NOTE: filter_tasks cannot filter by bucket — this is the only way to get bucket tasks.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
-          "project_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Integer project ID. Pass project_name instead if unknown.",
-            "title": "Project Id"
-          },
-          "project_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Project name to look up (e.g. 'webhostmost tasks'). Used when project_id is unknown.",
-            "title": "Project Name"
-          }
-        },
-        "title": "ListBucketsParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "BucketItem": {
-            "properties": {
-              "bucket_id": {
-                "title": "Bucket Id",
-                "type": "integer"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "limit": {
-                "title": "Limit",
-                "type": "integer"
-              },
-              "task_count": {
-                "title": "Task Count",
-                "type": "integer"
-              },
-              "tasks": {
-                "items": {
-                  "$ref": "#/$defs/BucketTaskItem"
-                },
-                "title": "Tasks",
-                "type": "array"
-              }
-            },
-            "required": [
-              "bucket_id",
-              "title",
-              "limit",
-              "task_count",
-              "tasks"
-            ],
-            "title": "BucketItem",
-            "type": "object"
-          },
-          "BucketTaskItem": {
-            "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              }
-            },
-            "required": [
-              "task_id",
-              "title",
-              "done",
-              "priority",
-              "due_date"
-            ],
-            "title": "BucketTaskItem",
-            "type": "object"
-          }
-        },
-        "properties": {
-          "project_id": {
-            "title": "Project Id",
-            "type": "integer"
-          },
-          "buckets": {
-            "items": {
-              "$ref": "#/$defs/BucketItem"
-            },
-            "title": "Buckets",
-            "type": "array"
-          }
-        },
-        "required": [
-          "project_id",
-          "buckets"
-        ],
-        "title": "ListBucketsResult",
-        "type": "object"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
       "name": "list_project_buckets",
-      "description": "List kanban columns (buckets) for a project — names and IDs only, NO task data. Pass project_id OR project_name (e.g. 'webhostmost tasks') — name is resolved automatically. Use this to resolve a bucket name → bucket_id before calling get_bucket_tasks, move_to_bucket, or create_task with a specific bucket.",
+      "description": "List kanban columns (buckets) for a project — their names, IDs, and task counts. Use ONLY when the user asks WHAT BUCKETS OR COLUMNS EXIST in a project. Does NOT return task content — use get_bucket_tasks for that. Pass project_name (e.g. 'webhostmost tasks') OR project_id.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -2897,141 +2753,67 @@
     },
     {
       "name": "get_bucket_tasks",
-      "description": "Get tasks from a specific bucket (column) by integer bucket_id. Returns ONLY tasks from that bucket — nothing else. Use list_project_buckets() first to resolve a bucket name to bucket_id. Prefer get_named_bucket_tasks() when you only know the name.",
+      "description": "Get tasks from a specific kanban bucket/column. Use when the user asks WHAT TASKS ARE IN a named bucket (e.g. 'what tasks are in the team?', 'show me the To-Do column', 'tasks in Corporate Tasks bucket'). Do NOT use to list all buckets — use list_project_buckets for that. Pass bucket_name (resolved automatically) OR bucket_id. project_name and project_id are optional — omit to search across all projects.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
       "id_projection": "",
       "params_schema": {
         "properties": {
-          "project_id": {
-            "description": "Integer project ID.",
-            "title": "Project Id",
-            "type": "integer"
-          },
-          "bucket_id": {
-            "description": "Integer bucket ID from list_project_buckets.",
-            "title": "Bucket Id",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "project_id",
-          "bucket_id"
-        ],
-        "title": "GetBucketTasksParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "BucketTaskItem": {
-            "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
-              },
-              "title": {
-                "title": "Title",
+          "bucket_name": {
+            "anyOf": [
+              {
                 "type": "string"
               },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "task_id",
-              "title",
-              "done",
-              "priority",
-              "due_date"
             ],
-            "title": "BucketTaskItem",
-            "type": "object"
-          }
-        },
-        "description": "Result of get_bucket_tasks / get_named_bucket_tasks.",
-        "properties": {
-          "project_id": {
-            "title": "Project Id",
-            "type": "integer"
+            "default": null,
+            "description": "Bucket/column name (e.g. 'the team', 'To-Do'). Case-insensitive. Use this OR bucket_id.",
+            "title": "Bucket Name"
           },
           "bucket_id": {
-            "title": "Bucket Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer bucket ID. Use this OR bucket_name.",
+            "title": "Bucket Id"
           },
-          "bucket_title": {
-            "title": "Bucket Title",
-            "type": "string"
-          },
-          "task_count": {
-            "title": "Task Count",
-            "type": "integer"
-          },
-          "tasks": {
-            "items": {
-              "$ref": "#/$defs/BucketTaskItem"
-            },
-            "title": "Tasks",
-            "type": "array"
-          }
-        },
-        "required": [
-          "project_id",
-          "bucket_id",
-          "bucket_title",
-          "task_count",
-          "tasks"
-        ],
-        "title": "GetBucketTasksResult",
-        "type": "object"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "get_named_bucket_tasks",
-      "description": "Get tasks from a bucket by project name + bucket name. Resolves names to IDs automatically and returns ONLY those tasks. USE THIS as the primary way to get tasks from a named bucket — one call does everything: project lookup, bucket lookup, task retrieval. Names are case-insensitive and support prefix matching.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
           "project_name": {
-            "description": "Project name as the user said it (e.g. 'WebHostMost Tasks'). Case-insensitive, prefix match.",
-            "title": "Project Name",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name (e.g. 'WebHostMost Tasks'). Optional — if omitted, searches across all projects. Use this OR project_id.",
+            "title": "Project Name"
           },
-          "bucket_name": {
-            "description": "Bucket/column name as the user said it (e.g. 'the team'). Case-insensitive, prefix match.",
-            "title": "Bucket Name",
-            "type": "string"
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer project ID. Use this OR project_name.",
+            "title": "Project Id"
           }
         },
-        "required": [
-          "project_name",
-          "bucket_name"
-        ],
-        "title": "GetNamedBucketTasksParams",
+        "title": "GetBucketTasksParams",
         "type": "object"
       },
       "return_schema": {

@@ -567,28 +567,6 @@ async def get_bucket_tasks(ctx, params: GetBucketTasksParams) -> ActionResult:
     )
 
 
-class GetNamedBucketTasksParams(BaseModel):
-    project_name: Optional[str] = Field(None, description="Project name (e.g. 'WebHostMost Tasks'). Optional.")
-    bucket_name: str = Field(..., description="Bucket/column name (e.g. 'the team', 'To-Do').")
-
-
-@chat.function(
-    "get_named_bucket_tasks",
-    action_type="read",
-    description=(
-        "Get tasks from a bucket by name. Pass bucket_name (e.g. 'the team', 'To-Do', 'Done') "
-        "and optionally project_name. Searches all projects if project_name is omitted. "
-        "Use when user asks what tasks are in a specific column or bucket by name."
-    ),
-    data_model=GetBucketTasksResult,
-)
-async def get_named_bucket_tasks(ctx, params: GetNamedBucketTasksParams) -> ActionResult:
-    return await get_bucket_tasks(ctx, GetBucketTasksParams(
-        bucket_name=params.bucket_name,
-        project_name=params.project_name,
-    ))
-
-
 class CreateBucketParams(BaseModel):
     project_id: int = Field(..., description="Integer project ID from list_projects.")
     title: str = Field(..., min_length=1, max_length=250, description="Column name.")

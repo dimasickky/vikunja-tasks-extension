@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.2",
   "app_id": "tasks",
-  "version": "3.24.1",
+  "version": "3.24.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -2814,125 +2814,6 @@
           }
         },
         "title": "GetBucketTasksParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "BucketTaskItem": {
-            "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              }
-            },
-            "required": [
-              "task_id",
-              "title",
-              "done",
-              "priority",
-              "due_date"
-            ],
-            "title": "BucketTaskItem",
-            "type": "object"
-          }
-        },
-        "description": "Result of get_bucket_tasks / get_named_bucket_tasks.",
-        "properties": {
-          "project_id": {
-            "title": "Project Id",
-            "type": "integer"
-          },
-          "bucket_id": {
-            "title": "Bucket Id",
-            "type": "integer"
-          },
-          "bucket_title": {
-            "title": "Bucket Title",
-            "type": "string"
-          },
-          "task_count": {
-            "title": "Task Count",
-            "type": "integer"
-          },
-          "tasks": {
-            "items": {
-              "$ref": "#/$defs/BucketTaskItem"
-            },
-            "title": "Tasks",
-            "type": "array"
-          }
-        },
-        "required": [
-          "project_id",
-          "bucket_id",
-          "bucket_title",
-          "task_count",
-          "tasks"
-        ],
-        "title": "GetBucketTasksResult",
-        "type": "object"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "get_named_bucket_tasks",
-      "description": "Get tasks from a bucket by name. Pass bucket_name (e.g. 'the team', 'To-Do', 'Done') and optionally project_name. Searches all projects if project_name is omitted. Use when user asks what tasks are in a specific column or bucket by name.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
-          "project_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Project name (e.g. 'WebHostMost Tasks'). Optional.",
-            "title": "Project Name"
-          },
-          "bucket_name": {
-            "description": "Bucket/column name (e.g. 'the team', 'To-Do').",
-            "title": "Bucket Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "bucket_name"
-        ],
-        "title": "GetNamedBucketTasksParams",
         "type": "object"
       },
       "return_schema": {

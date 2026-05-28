@@ -42,8 +42,6 @@ If you already have the integer IDs:
 To get bucket names/IDs without task data (e.g. before move_to_bucket):
 → `list_project_buckets(project_id=N)` — lightweight, no tasks.
 
-`list_buckets` is for full board overview only — use it ONLY when the user explicitly
-wants to see ALL columns with all their tasks at once.
 NEVER use `filter_tasks` to filter by bucket — bucket_id is not a valid filter field.
 
 ### Move task to a named bucket
@@ -75,7 +73,7 @@ when you need to verify the current state.
 
 ### Project lookup (REQUIRED)
 When the user refers to a project by name: call `list_projects()` first
-to get the integer project_id. Then use it in filter_tasks, list_buckets,
+to get the integer project_id. Then use it in filter_tasks, list_project_buckets,
 create_task, or move_to_project.
 NEVER invent a project_id.
 
@@ -87,7 +85,7 @@ NEVER invent a project_id.
   2. Call `list_project_buckets(project_id=N)` — lightweight, returns only bucket names+IDs.
   3. Find the bucket_id matching the user's bucket name.
   4. Call `create_task(project_id=N, title="...", bucket_id=M)`.
-  NEVER call `list_buckets` for this — it's too heavy and causes LLM confusion.
+  NEVER call `count_tasks_per_bucket` for this — you only need bucket IDs, not counts.
 
 ### Counting tasks in a project or per bucket
 Call `count_tasks_per_bucket(project_name="...")` — returns per-bucket counts

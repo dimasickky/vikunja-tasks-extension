@@ -4,23 +4,22 @@
 
 ### Added
 
-- **`count_tasks_per_bucket`** — новая функция: подсчёт задач по каждому бакету проекта.
-  Возвращает per-bucket breakdown (total/done/pending) и project-level totals в одном вызове.
-  Принимает `project_name` или `project_id`. Источник — kanban view snapshot (те же данные
-  что и `list_project_buckets`).
+- **`count_tasks_per_bucket`** — new function: count tasks in every kanban bucket for a
+  project. Returns per-bucket breakdown (total/done/pending) and project-level totals in a
+  single kanban view fetch — no N+1 calls. Accepts `project_name` or `project_id`.
 
 ### Changed
 
-- **`list_project_buckets`** — теперь возвращает `task_count` в каждом объекте бакета.
-  Summary строка обновлена: показывает количество задач рядом с названием бакета.
-- **`BucketNavItem`** (models_return.py) — добавлено поле `task_count: int = 0`.
-- **skeleton** — `buckets_per_project` теперь включает `task_count` per bucket.
-  Classifier может отвечать на aggregation-запросы из skeleton без API-вызовов
+- **`list_project_buckets`** — now returns `task_count` per bucket in the response.
+  Summary line updated to show task count alongside each bucket name.
+- **`BucketNavItem`** (models_return.py) — added `task_count: int = 0` field.
+- **skeleton** — `buckets_per_project` now includes `task_count` per bucket, enabling
+  classifier to serve aggregation queries from skeleton without extra API calls
   (kernel invariant I-CLASSIFIER-AGGREGATION-PREFERS-SKELETON).
-- **system_prompt** — исправлено misleading guidance про `list_buckets` + `task_count`.
-  Теперь направляет LLM на `count_tasks_per_bucket` для counting-запросов.
-- **`search_vikunja_users`** — исправлен `chain_callable=False` → `chain_callable=True`.
-  Функция была недоступна в цепочках (assign_task after search).
+- **system_prompt** — fixed misleading counting guidance (was pointing to non-existent
+  `list_buckets` + `task_count`). Now directs LLM to `count_tasks_per_bucket`.
+- **`search_vikunja_users`** — fixed `chain_callable=False` → `True`; function was
+  silently blocked from chain dispatch (broke assign-after-search flows).
 
 ## [3.24.0] — 2026-05-27
 

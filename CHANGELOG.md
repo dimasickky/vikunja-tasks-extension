@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.25.3] — 2026-05-29
+
+### Fixed
+
+- **`count_tasks_per_bucket`** — rewrote to use new bridge SQL endpoint
+  `GET /v1/projects/{id}/views/{vid}/bucket_counts` instead of embedded tasks
+  from the Vikunja REST API. Vikunja caps REST responses at 50 tasks per request
+  regardless of `per_page`; the SQL path queries `task_buckets` + `tasks` directly,
+  returning exact counts with no pagination limits. Confirmed 187 tasks on test
+  project vs previous capped result.
+- **Bridge** — added `GET /{project_id}/views/{view_id}/bucket_counts` endpoint
+  with SQL query and connection ownership check (412 if no connection).
+
 ## [3.25.2] — 2026-05-28
 
 ### Fixed

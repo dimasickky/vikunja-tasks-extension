@@ -598,11 +598,11 @@ class CountTasksParams(BaseModel):
     action_type="read",
     description=(
         "Count tasks in every kanban bucket for a project — returns per-bucket totals "
-        "(total, done, pending) and project-level totals. Use when the user asks "
-        "'how many tasks are in each bucket/column', 'сколько задач в каждом бакете', "
-        "'total tasks in project X', 'сколько всего задач'. "
+        "(total, done, pending) and project-level totals. "
+        "Use when the user asks 'how many tasks', 'сколько задач', "
+        "'how many tasks are in each bucket', 'total tasks in project X', 'сколько всего задач'. "
         "Pass project_name (e.g. 'WebHostMost Tasks') or project_id. "
-        "Counts come from the kanban view snapshot."
+        "Counts are exact — queried directly from the database, no pagination limits."
     ),
     data_model=CountTasksPerBucketResult,
 )
@@ -622,32 +622,29 @@ async def count_tasks_per_bucket(ctx, params: CountTasksParams) -> ActionResult:
     if err:
         return err
 
-    buckets_resp = await api_get(
+    # Use SQL-based bridge endpoint — bypasses Vikunja's 50-task-per-request cap.
+    counts_resp = await api_get(
         ctx,
-        f"/v1/projects/{params.project_id}/views/{view_id}/tasks",
+        f"/v1/projects/{params.project_id}/views/{view_id}/bucket_counts",
         {"imperal_id": imperal_id},
     )
-    if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(buckets_resp, "Couldn't fetch buckets"))
-
-    buckets = buckets_resp if isinstance(buckets_resp, list) else []
+    if isinstance(counts_resp, dict) and counts_resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(counts_resp, "Couldn't fetch bucket counts"))
 
     proj_resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
     proj_title = proj_resp.get("title", f"#{params.project_id}") if isinstance(proj_resp, dict) else f"#{params.project_id}"
 
-    bucket_counts = []
-    for b in buckets:
-        tasks = b.get("tasks") or []
-        total = len(tasks)
-        done = sum(1 for t in tasks if t.get("done"))
-        bucket_counts.append({
-            "bucket_id":      b["id"],
+    bucket_counts = [
+        {
+            "bucket_id":      b["bucket_id"],
             "title":          b.get("title", "?"),
-            "task_count":     total,
-            "done_count":     done,
-            "pending_count":  total - done,
-            "is_done_bucket": b.get("is_done_bucket", False),
-        })
+            "task_count":     b["task_count"],
+            "done_count":     b["done_count"],
+            "pending_count":  b["task_count"] - b["done_count"],
+            "is_done_bucket": False,
+        }
+        for b in (counts_resp if isinstance(counts_resp, list) else [])
+    ]
 
     total_tasks = sum(b["task_count"] for b in bucket_counts)
     total_done = sum(b["done_count"] for b in bucket_counts)

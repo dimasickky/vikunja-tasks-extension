@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.2",
   "app_id": "tasks",
-  "version": "3.25.2",
+  "version": "3.25.3",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -2908,7 +2908,7 @@
     },
     {
       "name": "count_tasks_per_bucket",
-      "description": "Count tasks in every kanban bucket for a project — returns per-bucket totals (total, done, pending) and project-level totals. Use when the user asks 'how many tasks are in each bucket/column', 'сколько задач в каждом бакете', 'total tasks in project X', 'сколько всего задач'. Pass project_name (e.g. 'WebHostMost Tasks') or project_id. Counts come from the kanban view snapshot.",
+      "description": "Count tasks in every kanban bucket for a project — returns per-bucket totals (total, done, pending) and project-level totals. Use when the user asks 'how many tasks', 'сколько задач', 'how many tasks are in each bucket', 'total tasks in project X', 'сколько всего задач'. Pass project_name (e.g. 'WebHostMost Tasks') or project_id. Counts are exact — queried directly from the database, no pagination limits.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],

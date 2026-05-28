@@ -884,11 +884,15 @@ async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResul
     task_list = [_task_entry(t) for t in tasks]
     done_ct = sum(1 for t in tasks if t.get("done"))
     return ActionResult.success(
-        summary=f"Project '{proj_title}': {len(task_list)} task(s), {done_ct} done.",
+        summary=(
+            f"Project '{proj_title}': showing {len(task_list)} task(s) on this page "
+            f"(page {params.page}, up to {params.per_page} per page). "
+            f"Use count_tasks_per_bucket for the true total."
+        ),
         data={
             "project_id":    params.project_id,
             "project_title": proj_title,
-            "count":         len(task_list),
+            "tasks_on_page": len(task_list),
             "tasks":         task_list,
         },
     )

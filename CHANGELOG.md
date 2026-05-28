@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.25.4] — 2026-05-29
+
+### Fixed
+
+- **`list_project_tasks`** — renamed response field `count` → `tasks_on_page` to prevent
+  LLM from confusing the page count with the total. Summary now explicitly says
+  "showing N on this page" and directs to `count_tasks_per_bucket` for true total.
+
 ## [3.25.3] — 2026-05-29
 
 ### Fixed

@@ -468,7 +468,7 @@ async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
 @chat.function(
     "search_vikunja_users",
     action_type="read",
-    chain_callable=False,
+    chain_callable=True,
     effects=[],
     description=(
         "Search for Vikunja users by name or email fragment — use this before assign_task "

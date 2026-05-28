@@ -432,7 +432,7 @@ async def list_project_buckets(ctx, params: ListProjectBucketsParams) -> ActionR
 
     buckets_resp = await api_get(
         ctx,
-        f"/v1/projects/{params.project_id}/views/{view_id}/buckets",
+        f"/v1/projects/{params.project_id}/views/{view_id}/tasks",
         {"imperal_id": imperal_id},
     )
     if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":
@@ -624,7 +624,7 @@ async def count_tasks_per_bucket(ctx, params: CountTasksParams) -> ActionResult:
 
     buckets_resp = await api_get(
         ctx,
-        f"/v1/projects/{params.project_id}/views/{view_id}/buckets",
+        f"/v1/projects/{params.project_id}/views/{view_id}/tasks",
         {"imperal_id": imperal_id},
     )
     if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":

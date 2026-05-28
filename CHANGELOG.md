@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.25.2] — 2026-05-28
+
+### Fixed
+
+- **`list_project_buckets`, `count_tasks_per_bucket`, skeleton** — switched bucket
+  fetch from `/views/{id}/buckets` to `/views/{id}/tasks`. The `/buckets` endpoint
+  returns `tasks=null`; only `/tasks` returns embedded task data, making `task_count`
+  always 0 before this fix.
+- **`create_bucket`** — kept on `/buckets` endpoint (write path, not affected).
+
 ## [3.25.1] — 2026-05-28
 
 ### Changed

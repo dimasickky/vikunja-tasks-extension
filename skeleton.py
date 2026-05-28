@@ -130,7 +130,7 @@ async def skeleton_refresh_tasks(ctx) -> dict:
         if kanban_view_ids:
             bucket_results = await asyncio.gather(
                 *[
-                    api_get(ctx, f"/v1/projects/{pid}/views/{vid}/buckets", {"imperal_id": imperal_id})
+                    api_get(ctx, f"/v1/projects/{pid}/views/{vid}/tasks", {"imperal_id": imperal_id})
                     for pid, vid in kanban_view_ids.items()
                 ],
                 return_exceptions=True,

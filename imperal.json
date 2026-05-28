@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.2",
   "app_id": "tasks",
-  "version": "3.24.1",
+  "version": "3.25.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -2016,7 +2016,7 @@
       "name": "search_vikunja_users",
       "description": "Search for Vikunja users by name or email fragment — use this before assign_task to discover who is available, or when the user asks who they can assign tasks to. Pass empty query to list all known users on the Vikunja instance.",
       "action_type": "read",
-      "chain_callable": false,
+      "chain_callable": true,
       "effects": [],
       "id_projection": "",
       "params_schema": {
@@ -2685,7 +2685,7 @@
       "return_schema": {
         "$defs": {
           "BucketNavItem": {
-            "description": "Lightweight bucket descriptor — no embedded tasks.",
+            "description": "Lightweight bucket descriptor with task count.",
             "properties": {
               "bucket_id": {
                 "title": "Bucket Id",
@@ -2697,6 +2697,11 @@
               },
               "limit": {
                 "title": "Limit",
+                "type": "integer"
+              },
+              "task_count": {
+                "default": 0,
+                "title": "Task Count",
                 "type": "integer"
               },
               "is_done_bucket": {
@@ -2714,7 +2719,7 @@
             "type": "object"
           }
         },
-        "description": "Result of list_project_buckets — names/IDs only, no task data.",
+        "description": "Result of list_project_buckets — bucket names, IDs, and task counts.",
         "properties": {
           "project_id": {
             "title": "Project Id",
@@ -2893,6 +2898,138 @@
           "tasks"
         ],
         "title": "GetBucketTasksResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "count_tasks_per_bucket",
+      "description": "Count tasks in every kanban bucket for a project — returns per-bucket totals (total, done, pending) and project-level totals. Use when the user asks 'how many tasks are in each bucket/column', 'сколько задач в каждом бакете', 'total tasks in project X', 'сколько всего задач'. Pass project_name (e.g. 'WebHostMost Tasks') or project_id. Counts come from the kanban view snapshot.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer project ID. Pass project_name instead if unknown.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name (e.g. 'WebHostMost Tasks'). Used when project_id is unknown.",
+            "title": "Project Name"
+          }
+        },
+        "title": "CountTasksParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "BucketCountItem": {
+            "properties": {
+              "bucket_id": {
+                "title": "Bucket Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "task_count": {
+                "title": "Task Count",
+                "type": "integer"
+              },
+              "done_count": {
+                "title": "Done Count",
+                "type": "integer"
+              },
+              "pending_count": {
+                "title": "Pending Count",
+                "type": "integer"
+              },
+              "is_done_bucket": {
+                "title": "Is Done Bucket",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "bucket_id",
+              "title",
+              "task_count",
+              "done_count",
+              "pending_count",
+              "is_done_bucket"
+            ],
+            "title": "BucketCountItem",
+            "type": "object"
+          }
+        },
+        "description": "Result of count_tasks_per_bucket — per-bucket and project-level task counts.",
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "project_title": {
+            "title": "Project Title",
+            "type": "string"
+          },
+          "bucket_count": {
+            "title": "Bucket Count",
+            "type": "integer"
+          },
+          "total_tasks": {
+            "title": "Total Tasks",
+            "type": "integer"
+          },
+          "total_done": {
+            "title": "Total Done",
+            "type": "integer"
+          },
+          "total_pending": {
+            "title": "Total Pending",
+            "type": "integer"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/$defs/BucketCountItem"
+            },
+            "title": "Buckets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "project_title",
+          "bucket_count",
+          "total_tasks",
+          "total_done",
+          "total_pending",
+          "buckets"
+        ],
+        "title": "CountTasksPerBucketResult",
         "type": "object"
       },
       "event": "",

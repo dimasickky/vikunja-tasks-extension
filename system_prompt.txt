@@ -89,10 +89,12 @@ NEVER invent a project_id.
   4. Call `create_task(project_id=N, title="...", bucket_id=M)`.
   NEVER call `list_buckets` for this — it's too heavy and causes LLM confusion.
 
-### Counting tasks in a project
-Call `list_buckets(project_id=N)` and sum all `task_count` values across
-all buckets. NEVER say "you have N tasks" from a paginated list_my_tasks
-response — that is one page, not the total.
+### Counting tasks in a project or per bucket
+Call `count_tasks_per_bucket(project_name="...")` — returns per-bucket counts
+(total, done, pending) and project-level totals in a single call.
+Use this when the user asks "how many tasks", "сколько задач", "how many per bucket".
+NEVER say "you have N tasks" from a paginated list_my_tasks response — that is one
+page, not the total.
 
 ## Vikunja filter syntax
 Operators: `=` `!=` `>` `<` `>=` `<=` `in` `like`

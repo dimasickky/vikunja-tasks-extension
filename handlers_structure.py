@@ -26,6 +26,7 @@ from models_return import (
     DeleteBucketResult,
     ListProjectTasksResult,
     GetProjectResult,
+    CountTasksPerBucketResult,
 )
 
 log = logging.getLogger("tasks")
@@ -448,11 +449,12 @@ async def list_project_buckets(ctx, params: ListProjectBucketsParams) -> ActionR
             "bucket_id":      b["id"],
             "title":          b.get("title", "?"),
             "limit":          b.get("limit", 0),
+            "task_count":     len(b.get("tasks") or []),
             "is_done_bucket": b.get("is_done_bucket", False),
         }
         for b in buckets
     ]
-    names = ", ".join(b["title"] for b in bucket_list)
+    names = ", ".join(f"{b['title']} ({b['task_count']})" for b in bucket_list)
     return ActionResult.success(
         summary=f"Project '{proj_title}' has {len(bucket_list)} bucket(s): {names}.",
         data={
@@ -576,6 +578,99 @@ class CreateBucketParams(BaseModel):
 class DeleteBucketParams(BaseModel):
     project_id: int = Field(..., description="Integer project ID.")
     bucket_id: int = Field(..., description="Integer bucket ID from list_project_buckets.")
+
+
+# ─── count_tasks_per_bucket ───────────────────────────────────────────────── #
+
+class CountTasksParams(BaseModel):
+    project_id: Optional[int] = Field(
+        None,
+        description="Integer project ID. Pass project_name instead if unknown.",
+    )
+    project_name: Optional[str] = Field(
+        None,
+        description="Project name (e.g. 'WebHostMost Tasks'). Used when project_id is unknown.",
+    )
+
+
+@chat.function(
+    "count_tasks_per_bucket",
+    action_type="read",
+    description=(
+        "Count tasks in every kanban bucket for a project — returns per-bucket totals "
+        "(total, done, pending) and project-level totals. Use when the user asks "
+        "'how many tasks are in each bucket/column', 'сколько задач в каждом бакете', "
+        "'total tasks in project X', 'сколько всего задач'. "
+        "Pass project_name (e.g. 'WebHostMost Tasks') or project_id. "
+        "Counts come from the kanban view snapshot."
+    ),
+    data_model=CountTasksPerBucketResult,
+)
+async def count_tasks_per_bucket(ctx, params: CountTasksParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    if params.project_id is None and params.project_name:
+        params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+        if params.project_id is None:
+            return ActionResult.error(f"Project '{params.project_name}' not found.")
+    if params.project_id is None:
+        return ActionResult.error("Pass project_id or project_name.")
+
+    view_id, err = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
+    if err:
+        return err
+
+    buckets_resp = await api_get(
+        ctx,
+        f"/v1/projects/{params.project_id}/views/{view_id}/buckets",
+        {"imperal_id": imperal_id},
+    )
+    if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(buckets_resp, "Couldn't fetch buckets"))
+
+    buckets = buckets_resp if isinstance(buckets_resp, list) else []
+
+    proj_resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
+    proj_title = proj_resp.get("title", f"#{params.project_id}") if isinstance(proj_resp, dict) else f"#{params.project_id}"
+
+    bucket_counts = []
+    for b in buckets:
+        tasks = b.get("tasks") or []
+        total = len(tasks)
+        done = sum(1 for t in tasks if t.get("done"))
+        bucket_counts.append({
+            "bucket_id":      b["id"],
+            "title":          b.get("title", "?"),
+            "task_count":     total,
+            "done_count":     done,
+            "pending_count":  total - done,
+            "is_done_bucket": b.get("is_done_bucket", False),
+        })
+
+    total_tasks = sum(b["task_count"] for b in bucket_counts)
+    total_done = sum(b["done_count"] for b in bucket_counts)
+    lines = [
+        f"  {b['title']}: {b['task_count']} ({b['pending_count']} pending, {b['done_count']} done)"
+        for b in bucket_counts
+    ]
+    summary = (
+        f"Project '{proj_title}': {total_tasks} task(s) total, "
+        f"{total_done} done, {total_tasks - total_done} pending.\n" + "\n".join(lines)
+    )
+    return ActionResult.success(
+        summary=summary,
+        data={
+            "project_id":    params.project_id,
+            "project_title": proj_title,
+            "bucket_count":  len(bucket_counts),
+            "total_tasks":   total_tasks,
+            "total_done":    total_done,
+            "total_pending": total_tasks - total_done,
+            "buckets":       bucket_counts,
+        },
+    )
 
 
 class RenameBucketParams(BaseModel):

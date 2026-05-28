@@ -284,19 +284,40 @@ class ListBucketsResult(BaseModel):
 # ─── Tier-2: focused bucket endpoints ────────────────────────────────────── #
 
 class BucketNavItem(BaseModel):
-    """Lightweight bucket descriptor — no embedded tasks."""
+    """Lightweight bucket descriptor with task count."""
     bucket_id: int
     title: str
     limit: int
+    task_count: int = 0
     is_done_bucket: bool
 
 
 class ListProjectBucketsResult(BaseModel):
-    """Result of list_project_buckets — names/IDs only, no task data."""
+    """Result of list_project_buckets — bucket names, IDs, and task counts."""
     project_id: int
     project_title: str
     bucket_count: int
     buckets: List[BucketNavItem]
+
+
+class BucketCountItem(BaseModel):
+    bucket_id: int
+    title: str
+    task_count: int
+    done_count: int
+    pending_count: int
+    is_done_bucket: bool
+
+
+class CountTasksPerBucketResult(BaseModel):
+    """Result of count_tasks_per_bucket — per-bucket and project-level task counts."""
+    project_id: int
+    project_title: str
+    bucket_count: int
+    total_tasks: int
+    total_done: int
+    total_pending: int
+    buckets: List[BucketCountItem]
 
 
 class GetBucketTasksResult(BaseModel):

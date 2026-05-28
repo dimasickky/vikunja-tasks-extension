@@ -142,7 +142,11 @@ async def skeleton_refresh_tasks(ctx) -> dict:
         for (pid, _), result in zip(kanban_view_ids.items(), bucket_results):
             if isinstance(result, list):
                 buckets_per_project[pid] = [
-                    {"bucket_id": b["id"], "title": b.get("title", "?")}
+                    {
+                        "bucket_id":  b["id"],
+                        "title":      b.get("title", "?"),
+                        "task_count": len(b.get("tasks") or []),
+                    }
                     for b in result
                 ]
 

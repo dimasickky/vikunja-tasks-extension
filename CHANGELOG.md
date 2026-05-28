@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.25.0] — 2026-05-28
+
+### Added
+
+- **`count_tasks_per_bucket`** — новая функция: подсчёт задач по каждому бакету проекта.
+  Возвращает per-bucket breakdown (total/done/pending) и project-level totals в одном вызове.
+  Принимает `project_name` или `project_id`. Источник — kanban view snapshot (те же данные
+  что и `list_project_buckets`).
+
+### Changed
+
+- **`list_project_buckets`** — теперь возвращает `task_count` в каждом объекте бакета.
+  Summary строка обновлена: показывает количество задач рядом с названием бакета.
+- **`BucketNavItem`** (models_return.py) — добавлено поле `task_count: int = 0`.
+- **skeleton** — `buckets_per_project` теперь включает `task_count` per bucket.
+  Classifier может отвечать на aggregation-запросы из skeleton без API-вызовов
+  (kernel invariant I-CLASSIFIER-AGGREGATION-PREFERS-SKELETON).
+- **system_prompt** — исправлено misleading guidance про `list_buckets` + `task_count`.
+  Теперь направляет LLM на `count_tasks_per_bucket` для counting-запросов.
+- **`search_vikunja_users`** — исправлен `chain_callable=False` → `chain_callable=True`.
+  Функция была недоступна в цепочках (assign_task after search).
+
 ## [3.24.0] — 2026-05-27
 
 ### Changed — фундаментальный рефакторинг bucket-функций

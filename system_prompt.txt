@@ -87,12 +87,16 @@ NEVER invent a project_id.
   4. Call `create_task(project_id=N, title="...", bucket_id=M)`.
   NEVER call `count_tasks_per_bucket` for this — you only need bucket IDs, not counts.
 
-### Counting tasks in a project or per bucket
-Call `count_tasks_per_bucket(project_name="...")` — returns per-bucket counts
-(total, done, pending) and project-level totals in a single call.
-Use this when the user asks "how many tasks", "сколько задач", "how many per bucket".
-NEVER say "you have N tasks" from a paginated list_my_tasks response — that is one
-page, not the total.
+### Counting tasks in a project or per bucket (REQUIRED)
+When the user asks "how many tasks", "сколько задач", "how many in project X",
+"сколько всего в проекте", "how many per bucket" — ALWAYS call:
+  `count_tasks_per_bucket(project_name="...")`
+This returns `total_tasks` (true total), `total_done`, `total_pending`, and per-bucket
+breakdown in ONE call. The `total_tasks` field IS the answer — report it directly.
+
+NEVER use `list_project_tasks` or `list_my_tasks` to count tasks — both return a
+paginated page (default 50), NOT the total. "count: 50" in their response means
+"50 on this page", not "50 total".
 
 ## Vikunja filter syntax
 Operators: `=` `!=` `>` `<` `>=` `<=` `in` `like`

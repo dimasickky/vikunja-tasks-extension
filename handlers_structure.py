@@ -832,9 +832,11 @@ class ListProjectTasksParams(BaseModel):
     "list_project_tasks",
     action_type="read",
     description=(
-        "List all tasks in a specific project. Pass project_name (e.g. 'WebHostMost Tasks') "
-        "or project_id. Use when the user asks to see tasks in a named project. "
-        "Returns task list with title, done status, priority, and due date per task."
+        "List tasks in a specific project (paginated — default 50/page, max 200). "
+        "Use when the user wants to SEE task titles/details, NOT to count tasks. "
+        "For counting ('how many tasks', 'сколько задач') use count_tasks_per_bucket instead — "
+        "this function returns a page, not the total. "
+        "Pass project_name (e.g. 'WebHostMost Tasks') or project_id."
     ),
     data_model=ListProjectTasksResult,
 )

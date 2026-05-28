@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.25.1] — 2026-05-28
+
+### Changed
+
+- Bump `imperal-sdk` pin: `5.0.2` → `5.0.3` (docs-only SDK release, no API changes).
+
 ## [3.25.0] — 2026-05-28
 
 ### Added

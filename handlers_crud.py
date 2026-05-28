@@ -33,7 +33,7 @@ class CreateTaskParams(BaseModel):
     title: str = Field(..., min_length=1, max_length=250, description="Task title.")
     description: str = Field("", description="Optional description, markdown.")
     due_date: Optional[str] = Field(None, description="ISO 8601 due date (e.g. 2026-04-25T12:00:00Z).")
-    priority: Optional[int] = Field(None, ge=0, le=5, description="0=none, 5=urgent.")
+    priority: Optional[int] = Field(None, ge=0, le=5, description="0=none, 1=low, 2=medium, 3=high, 4=urgent, 5=critical.")
     bucket_id: Optional[int] = Field(None, description="Kanban bucket; default = first bucket of project.")
     assignee: Optional[str] = Field(
         None,

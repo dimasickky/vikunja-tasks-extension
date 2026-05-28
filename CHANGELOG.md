@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.25.5] — 2026-05-29
+
+### Fixed
+
+- **Bridge `create_task` / `update_task`** — normalize bare date strings (`"2026-05-30"`)
+  to full ISO 8601 (`"2026-05-30T00:00:00Z"`) before sending to Vikunja. Vikunja rejects
+  date-only values with 400 "Invalid model provided". LLMs frequently omit the time part.
+- **`CreateTaskParams.priority` description** — fixed `"5=urgent"` → correct scale
+  `"0=none, 1=low, 2=medium, 3=high, 4=urgent, 5=critical"` to match system_prompt
+  and prevent LLM from passing wrong values.
+
 ## [3.25.4] — 2026-05-29
 
 ### Fixed

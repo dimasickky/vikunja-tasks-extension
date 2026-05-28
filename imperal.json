@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.2",
   "app_id": "tasks",
-  "version": "3.25.4",
+  "version": "3.25.5",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -372,7 +372,7 @@
               }
             ],
             "default": null,
-            "description": "0=none, 5=urgent.",
+            "description": "0=none, 1=low, 2=medium, 3=high, 4=urgent, 5=critical.",
             "title": "Priority"
           },
           "bucket_id": {

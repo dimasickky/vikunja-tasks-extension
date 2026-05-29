@@ -145,7 +145,6 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
 
     # Resolve bucket_name → bucket_id if caller passed a name instead of ID.
     if params.bucket_name and not params.bucket_id:
-        from handlers_structure import _get_kanban_view_id, _match_by_name
         _KANBAN_VIEW_KINDS = {"kanban", 4}
         views_resp = await api_get(ctx, f"/v1/projects/{params.project_id}/views", {"imperal_id": imperal_id})
         views = views_resp if isinstance(views_resp, list) else []
@@ -153,11 +152,16 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
         if kanban_view:
             buckets_resp = await api_get(
                 ctx,
-                f"/v1/projects/{params.project_id}/views/{kanban_view['id']}/tasks",
+                f"/v1/projects/{params.project_id}/views/{kanban_view['id']}/buckets",
                 {"imperal_id": imperal_id},
             )
             buckets = buckets_resp if isinstance(buckets_resp, list) else []
-            matched = _match_by_name(buckets, params.bucket_name, title_key="title")
+            name_lower = params.bucket_name.strip().lower()
+            matched = (
+                next((b for b in buckets if (b.get("title") or "").strip().lower() == name_lower), None)
+                or next((b for b in buckets if (b.get("title") or "").strip().lower().startswith(name_lower)), None)
+                or next((b for b in buckets if name_lower in (b.get("title") or "").strip().lower()), None)
+            )
             if matched:
                 params.bucket_id = matched["id"]
             else:

@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.25.9] — 2026-05-29
+
+### Fixed
+
+- **ImportError: cannot import name 'api_get' from 'app'** — sys.modules pollution between
+  extensions. Moved `fetch_all_pages` helper to `app.py` (loaded first, clean namespace).
+  Removed all cross-handler imports (`handlers_crud→handlers_structure`,
+  `handlers_structure→handlers_search`). Bucket name resolution in `create_task` inlined
+  without any handler imports. All handlers now only import from `app.py` and `models_return.py`.
+
 ## [3.25.8] — 2026-05-29
 
 ### Fixed

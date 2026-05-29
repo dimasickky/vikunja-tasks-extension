@@ -120,7 +120,7 @@ async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | N
 
 ext = Extension(
     "tasks",
-    version="3.25.8",
+    version="3.25.9",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Tasks",
     description=(
@@ -154,3 +154,24 @@ async def health(ctx) -> dict:
         return {"status": "ok", "version": ext.version, "bridge": body.get("status")}
     except Exception:
         return {"status": "degraded", "version": ext.version, "bridge": "unreachable"}
+
+
+# ─── Pagination helper ────────────────────────────────────────────────────── #
+
+_MAX_PAGES = 20  # 20 * 50 = 1000 tasks max
+
+
+async def fetch_all_pages(ctx, base_params: dict) -> list:
+    """Paginate /v1/tasks/all until exhausted or _MAX_PAGES reached."""
+    all_tasks: list = []
+    for page in range(1, _MAX_PAGES + 1):
+        q = {**base_params, "page": page, "per_page": 50}
+        resp = await api_get(ctx, "/v1/tasks/all", q)
+        if isinstance(resp, dict):
+            break
+        if not isinstance(resp, list) or len(resp) == 0:
+            break
+        all_tasks.extend(resp)
+        if len(resp) < 50:
+            break
+    return all_tasks

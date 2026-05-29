@@ -5,27 +5,9 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_get, chat, NoParams
+from app import api_get, chat, NoParams, fetch_all_pages
 from handlers_crud import _require_user, _bridge_error_msg
 from models_return import TaskListResult, FindTaskResult
-
-_MAX_PAGES = 20  # hard cap: 20 * 50 = 1000 tasks max
-
-
-async def _fetch_all_pages(ctx, base_params: dict) -> list:
-    """Paginate /v1/tasks/all until exhausted or _MAX_PAGES reached."""
-    all_tasks: list = []
-    for page in range(1, _MAX_PAGES + 1):
-        q = {**base_params, "page": page, "per_page": 50}
-        resp = await api_get(ctx, "/v1/tasks/all", q)
-        if isinstance(resp, dict):  # error response
-            break
-        if not isinstance(resp, list) or len(resp) == 0:
-            break
-        all_tasks.extend(resp)
-        if len(resp) < 50:  # last page
-            break
-    return all_tasks
 
 
 class ListMyTasksParams(BaseModel):
@@ -77,9 +59,8 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
 
     # Auto-paginate when using default page=1 to return all tasks, not just first 50.
     if params.page == 1:
-        tasks = await _fetch_all_pages(ctx, base)
+        tasks = await fetch_all_pages(ctx, base)
         if not tasks:
-            # Check if it was an error by doing a single call
             resp = await api_get(ctx, "/v1/tasks/all", {**base, "page": 1, "per_page": 50})
             if isinstance(resp, dict) and resp.get("status") == "error":
                 return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"))

@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.2",
   "app_id": "tasks",
-  "version": "3.25.8",
+  "version": "3.25.9",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -2065,568 +2065,6 @@
       "owner_chat_tool": "tool_tasks_chat"
     },
     {
-      "name": "list_my_tasks",
-      "description": "List tasks with optional Vikunja filter syntax. Examples: `done = false`, `priority >= 3 && due_date < now + 7d`.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
-          "filter": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Vikunja filter syntax, e.g. 'done = false && project_id = 5'.",
-            "title": "Filter"
-          },
-          "sort_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Field name; prefix with '-' for desc, e.g. 'due_date' or '-priority'.",
-            "title": "Sort By"
-          },
-          "search": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Free-text search in title/description.",
-            "title": "Search"
-          },
-          "page": {
-            "default": 1,
-            "minimum": 1,
-            "title": "Page",
-            "type": "integer"
-          },
-          "per_page": {
-            "default": 50,
-            "maximum": 200,
-            "minimum": 1,
-            "title": "Per Page",
-            "type": "integer"
-          }
-        },
-        "title": "ListMyTasksParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "TaskItem": {
-            "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "project_id": {
-                "anyOf": [
-                  {
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
-              }
-            },
-            "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
-            ],
-            "title": "TaskItem",
-            "type": "object"
-          }
-        },
-        "properties": {
-          "count": {
-            "title": "Count",
-            "type": "integer"
-          },
-          "tasks": {
-            "items": {
-              "$ref": "#/$defs/TaskItem"
-            },
-            "title": "Tasks",
-            "type": "array"
-          }
-        },
-        "required": [
-          "count",
-          "tasks"
-        ],
-        "title": "TaskListResult",
-        "type": "object"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "list_overdue",
-      "description": "List all overdue tasks (done=false AND due_date in the past).",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
-        "properties": {},
-        "title": "NoParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "TaskItem": {
-            "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "project_id": {
-                "anyOf": [
-                  {
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
-              }
-            },
-            "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
-            ],
-            "title": "TaskItem",
-            "type": "object"
-          }
-        },
-        "properties": {
-          "count": {
-            "title": "Count",
-            "type": "integer"
-          },
-          "tasks": {
-            "items": {
-              "$ref": "#/$defs/TaskItem"
-            },
-            "title": "Tasks",
-            "type": "array"
-          }
-        },
-        "required": [
-          "count",
-          "tasks"
-        ],
-        "title": "TaskListResult",
-        "type": "object"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "list_today",
-      "description": "List tasks due today (done=false AND due_date between start-of-day and end-of-day).",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
-        "properties": {},
-        "title": "NoParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "TaskItem": {
-            "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "project_id": {
-                "anyOf": [
-                  {
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
-              }
-            },
-            "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
-            ],
-            "title": "TaskItem",
-            "type": "object"
-          }
-        },
-        "properties": {
-          "count": {
-            "title": "Count",
-            "type": "integer"
-          },
-          "tasks": {
-            "items": {
-              "$ref": "#/$defs/TaskItem"
-            },
-            "title": "Tasks",
-            "type": "array"
-          }
-        },
-        "required": [
-          "count",
-          "tasks"
-        ],
-        "title": "TaskListResult",
-        "type": "object"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "find_task",
-      "description": "Search tasks by title substring. Returns matching tasks with their integer task_id and project_id. Call this first when the user mentions a task by name and you don't have its integer ID — never invent task_id.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
-          "query": {
-            "description": "Substring of task title to search for. Returns matching tasks with their integer task_id, project_id, bucket_id.",
-            "minLength": 1,
-            "title": "Query",
-            "type": "string"
-          }
-        },
-        "required": [
-          "query"
-        ],
-        "title": "FindTaskParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "TaskItem": {
-            "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "project_id": {
-                "anyOf": [
-                  {
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
-              }
-            },
-            "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
-            ],
-            "title": "TaskItem",
-            "type": "object"
-          }
-        },
-        "properties": {
-          "count": {
-            "title": "Count",
-            "type": "integer"
-          },
-          "query": {
-            "title": "Query",
-            "type": "string"
-          },
-          "tasks": {
-            "items": {
-              "$ref": "#/$defs/TaskItem"
-            },
-            "title": "Tasks",
-            "type": "array"
-          }
-        },
-        "required": [
-          "count",
-          "query",
-          "tasks"
-        ],
-        "title": "FindTaskResult",
-        "type": "object"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "filter_tasks",
-      "description": "Filter tasks with Vikunja expression. Operators: = != > < >= <= in like. Logical: && ||. Time helpers: now, now/d, now+7d, now-3d. Fields: title, description, done, due_date, start_date, end_date, priority, project_id, percent_done.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
-          "filter": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Vikunja filter expression, e.g. 'done = false && project_id = 5'. If omitted, returns ALL tasks (no filter applied). NOTE: bucket_id is not a valid filter field — use list_buckets instead.",
-            "title": "Filter"
-          },
-          "page": {
-            "default": 1,
-            "minimum": 1,
-            "title": "Page",
-            "type": "integer"
-          },
-          "per_page": {
-            "default": 50,
-            "maximum": 200,
-            "minimum": 1,
-            "title": "Per Page",
-            "type": "integer"
-          }
-        },
-        "title": "FilterTasksParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "TaskItem": {
-            "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "project_id": {
-                "anyOf": [
-                  {
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
-              }
-            },
-            "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
-            ],
-            "title": "TaskItem",
-            "type": "object"
-          }
-        },
-        "properties": {
-          "count": {
-            "title": "Count",
-            "type": "integer"
-          },
-          "tasks": {
-            "items": {
-              "$ref": "#/$defs/TaskItem"
-            },
-            "title": "Tasks",
-            "type": "array"
-          }
-        },
-        "required": [
-          "count",
-          "tasks"
-        ],
-        "title": "TaskListResult",
-        "type": "object"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
       "name": "create_project",
       "description": "Create a new project (kanban board). Returns project_id.",
       "action_type": "write",
@@ -4092,6 +3530,568 @@
           "description"
         ],
         "title": "GetProjectResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_my_tasks",
+      "description": "List tasks with optional Vikunja filter syntax. Examples: `done = false`, `priority >= 3 && due_date < now + 7d`.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vikunja filter syntax, e.g. 'done = false && project_id = 5'.",
+            "title": "Filter"
+          },
+          "sort_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Field name; prefix with '-' for desc, e.g. 'due_date' or '-priority'.",
+            "title": "Sort By"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Free-text search in title/description.",
+            "title": "Search"
+          },
+          "page": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 50,
+            "maximum": 200,
+            "minimum": 1,
+            "title": "Per Page",
+            "type": "integer"
+          }
+        },
+        "title": "ListMyTasksParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "tasks"
+        ],
+        "title": "TaskListResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_overdue",
+      "description": "List all overdue tasks (done=false AND due_date in the past).",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
+        "properties": {},
+        "title": "NoParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "tasks"
+        ],
+        "title": "TaskListResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_today",
+      "description": "List tasks due today (done=false AND due_date between start-of-day and end-of-day).",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
+        "properties": {},
+        "title": "NoParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "tasks"
+        ],
+        "title": "TaskListResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "find_task",
+      "description": "Search tasks by title substring. Returns matching tasks with their integer task_id and project_id. Call this first when the user mentions a task by name and you don't have its integer ID — never invent task_id.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "query": {
+            "description": "Substring of task title to search for. Returns matching tasks with their integer task_id, project_id, bucket_id.",
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "FindTaskParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "query",
+          "tasks"
+        ],
+        "title": "FindTaskResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "filter_tasks",
+      "description": "Filter tasks with Vikunja expression. Operators: = != > < >= <= in like. Logical: && ||. Time helpers: now, now/d, now+7d, now-3d. Fields: title, description, done, due_date, start_date, end_date, priority, project_id, percent_done.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vikunja filter expression, e.g. 'done = false && project_id = 5'. If omitted, returns ALL tasks (no filter applied). NOTE: bucket_id is not a valid filter field — use list_buckets instead.",
+            "title": "Filter"
+          },
+          "page": {
+            "default": 1,
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 50,
+            "maximum": 200,
+            "minimum": 1,
+            "title": "Per Page",
+            "type": "integer"
+          }
+        },
+        "title": "FilterTasksParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "TaskItem": {
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Project Id"
+              },
+              "done": {
+                "title": "Done",
+                "type": "boolean"
+              },
+              "due_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Due Date"
+              },
+              "priority": {
+                "title": "Priority",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "project_id",
+              "done",
+              "due_date",
+              "priority"
+            ],
+            "title": "TaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "tasks"
+        ],
+        "title": "TaskListResult",
         "type": "object"
       },
       "event": "",

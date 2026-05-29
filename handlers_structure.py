@@ -6,9 +6,8 @@ from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
-from app import api_get, api_post, api_delete, chat, NoParams, resolve_project_id
+from app import api_get, api_post, api_delete, chat, NoParams, resolve_project_id, fetch_all_pages
 from handlers_crud import _require_user, _bridge_error_msg
-from handlers_search import _fetch_all_pages
 from models_return import (
     CreateProjectResult,
     UpdateProjectResult,
@@ -861,7 +860,7 @@ async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResul
 
     # Auto-paginate on default page=1 to return all project tasks.
     if params.page == 1:
-        tasks = await _fetch_all_pages(ctx, base_params)
+        tasks = await fetch_all_pages(ctx, base_params)
         if not tasks:
             resp_check = await api_get(ctx, "/v1/tasks/all", {**base_params, "page": 1, "per_page": 50})
             if isinstance(resp_check, dict) and resp_check.get("status") == "error":

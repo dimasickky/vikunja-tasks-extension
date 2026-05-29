@@ -34,7 +34,8 @@ class CreateTaskParams(BaseModel):
     description: str = Field("", description="Optional description, markdown.")
     due_date: Optional[str] = Field(None, description="ISO 8601 due date (e.g. 2026-04-25T12:00:00Z).")
     priority: Optional[int] = Field(None, ge=0, le=5, description="0=none, 1=low, 2=medium, 3=high, 4=urgent, 5=critical.")
-    bucket_id: Optional[int] = Field(None, description="Kanban bucket; default = first bucket of project.")
+    bucket_id: Optional[int] = Field(None, description="Integer bucket ID. Use bucket_name instead if unknown.")
+    bucket_name: Optional[str] = Field(None, description="Bucket/column name (e.g. 'To-Do', 'Social Media'). Auto-resolved to bucket_id. Use this instead of bucket_id when you know the name.")
     assignee: Optional[str] = Field(
         None,
         description=(
@@ -141,6 +142,26 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
             return ActionResult.error(f"Project '{params.project_name}' not found.")
     if params.project_id is None:
         return ActionResult.error("Pass project_id or project_name.")
+
+    # Resolve bucket_name → bucket_id if caller passed a name instead of ID.
+    if params.bucket_name and not params.bucket_id:
+        from handlers_structure import _get_kanban_view_id, _match_by_name
+        _KANBAN_VIEW_KINDS = {"kanban", 4}
+        views_resp = await api_get(ctx, f"/v1/projects/{params.project_id}/views", {"imperal_id": imperal_id})
+        views = views_resp if isinstance(views_resp, list) else []
+        kanban_view = next((v for v in views if v.get("view_kind") in _KANBAN_VIEW_KINDS), None)
+        if kanban_view:
+            buckets_resp = await api_get(
+                ctx,
+                f"/v1/projects/{params.project_id}/views/{kanban_view['id']}/tasks",
+                {"imperal_id": imperal_id},
+            )
+            buckets = buckets_resp if isinstance(buckets_resp, list) else []
+            matched = _match_by_name(buckets, params.bucket_name, title_key="title")
+            if matched:
+                params.bucket_id = matched["id"]
+            else:
+                log.warning("create_task: bucket '%s' not found in project %s", params.bucket_name, params.project_id)
 
     payload = {
         "imperal_id":  imperal_id,

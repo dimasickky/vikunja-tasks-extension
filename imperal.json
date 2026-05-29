@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.2",
   "app_id": "tasks",
-  "version": "3.25.6",
+  "version": "3.25.7",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -385,8 +385,21 @@
               }
             ],
             "default": null,
-            "description": "Kanban bucket; default = first bucket of project.",
+            "description": "Integer bucket ID. Use bucket_name instead if unknown.",
             "title": "Bucket Id"
+          },
+          "bucket_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bucket/column name (e.g. 'To-Do', 'Social Media'). Auto-resolved to bucket_id. Use this instead of bucket_id when you know the name.",
+            "title": "Bucket Name"
           },
           "assignee": {
             "anyOf": [

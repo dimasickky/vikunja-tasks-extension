@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.25.7] — 2026-05-29
+
+### Fixed
+
+- **`create_task`** — added `bucket_name: Optional[str]` param. When caller passes a bucket
+  name (e.g. "Social Media"), the handler resolves it to `bucket_id` via the kanban view
+  before creating the task. Previously the kernel's chain plan passed `bucket_name` but the
+  param was silently ignored (unknown field), causing all tasks to land in the default bucket.
+  Confirmed from logs: `args_keys=['bucket_name', 'project_name', 'title']` at 16:17:38 UTC.
+- **Bridge `bucket_counts`** — added explicit `int()` cast for `task_count` and `done_count`.
+  MySQL's `COALESCE(SUM(...), 0)` returns a string `"0"` via aiomysql; caused TypeError in
+  `count_tasks_per_bucket` (`int - str`). Confirmed from logs at 16:17:05 UTC.
+
 ## [3.25.6] — 2026-05-29
 
 ### Fixed

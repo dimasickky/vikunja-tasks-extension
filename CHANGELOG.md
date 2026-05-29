@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.25.8] — 2026-05-29
+
+### Fixed
+
+- **skeleton** — switched bucket fetch from `/views/{id}/tasks` (Vikunja 50-task hardlimit)
+  to `/views/{id}/bucket_counts` (SQL-based, exact). Skeleton now contains accurate
+  `task_count` per bucket — classifier gets correct data without extra API calls.
+
 ## [3.25.7] — 2026-05-29
 
 ### Fixed

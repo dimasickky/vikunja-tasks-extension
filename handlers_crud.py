@@ -1,6 +1,6 @@
 """tasks · CRUD lifecycle functions (create / update / complete / delete)."""
 
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field, field_validator
 
 from imperal_sdk.chat import ActionResult
@@ -13,6 +13,7 @@ from models_return import (
     CreateTaskResult,
     UpdateTaskResult,
     TaskStatusResult,
+    BulkDeleteResult,
     DeleteTaskResult,
     CreateSubtaskResult,
     ListSubtasksResult,
@@ -378,6 +379,102 @@ async def uncomplete_task(ctx, params: UncompleteTaskParams) -> ActionResult:
 )
 async def delete_task(ctx, params: DeleteTaskParams) -> ActionResult:
     return await _delete_task_impl(ctx, params)
+
+
+class DeleteTasksParams(BaseModel):
+    task_ids: Optional[List[int]] = Field(
+        None,
+        description="List of integer task IDs to delete. Use this if you already have the IDs.",
+    )
+    task_titles: Optional[List[str]] = Field(
+        None,
+        description="List of task titles to find and delete (e.g. ['вафоя', 'гидроцефалище2']). Auto-resolved to task IDs.",
+    )
+    project_id: Optional[int] = Field(
+        None,
+        description="Narrow title search to a specific project. Recommended when using task_titles.",
+    )
+    project_name: Optional[str] = Field(
+        None,
+        description="Project name to narrow title search (e.g. 'WebHostMost Tasks').",
+    )
+
+
+@chat.function(
+    "delete_tasks",
+    action_type="destructive",
+    chain_callable=True,
+    effects=["delete:task"],
+    event="tasks.deleted",
+    description=(
+        "Delete multiple tasks at once. Pass task_ids (list of integers) OR task_titles (list of names). "
+        "When using task_titles, optionally pass project_name to narrow the search. "
+        "Use when user asks to delete 2+ tasks in one request."
+    ),
+    data_model=BulkDeleteResult,
+)
+async def delete_tasks(ctx, params: DeleteTasksParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    if not params.task_ids and not params.task_titles:
+        return ActionResult.error("Pass task_ids or task_titles.")
+
+    # Resolve project_name → project_id if needed
+    if params.project_name and not params.project_id:
+        params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+
+    task_ids_to_delete: List[tuple[int, str]] = []  # (task_id, title)
+
+    # Resolve titles → IDs via search
+    if params.task_titles:
+        for title in params.task_titles:
+            q: dict = {"imperal_id": imperal_id, "s": title, "per_page": 10, "page": 1}
+            if params.project_id:
+                q["filter"] = f"project_id = {params.project_id}"
+            resp = await api_get(ctx, "/v1/tasks/all", q)
+            tasks = resp if isinstance(resp, list) else []
+            title_lower = title.strip().lower()
+            match = next(
+                (t for t in tasks if t.get("title", "").strip().lower() == title_lower),
+                next((t for t in tasks if title_lower in t.get("title", "").strip().lower()), None),
+            )
+            if match:
+                task_ids_to_delete.append((match["id"], match.get("title", title)))
+            else:
+                task_ids_to_delete.append((-1, title))  # not found marker
+
+    if params.task_ids:
+        for tid in params.task_ids:
+            task_ids_to_delete.append((tid, f"#{tid}"))
+
+    results = []
+    for tid, title in task_ids_to_delete:
+        if tid == -1:
+            results.append({"task_id": -1, "title": title, "deleted": False, "error": "Task not found"})
+            continue
+        resp = await api_delete(ctx, f"/v1/tasks/{tid}", params={"imperal_id": imperal_id})
+        if resp.get("status") == "error":
+            results.append({"task_id": tid, "title": title, "deleted": False, "error": _bridge_error_msg(resp, "Delete failed")})
+        else:
+            results.append({"task_id": tid, "title": title, "deleted": True})
+
+    deleted_count = sum(1 for r in results if r["deleted"])
+    failed_count = len(results) - deleted_count
+    summary = f"Deleted {deleted_count} task(s)."
+    if failed_count:
+        summary += f" {failed_count} failed."
+
+    return ActionResult.success(
+        summary=summary,
+        data={
+            "deleted_count": deleted_count,
+            "failed_count": failed_count,
+            "results": results,
+            "refresh_panels": ["sidebar", "editor"],
+        },
+    )
 
 
 @chat.function(

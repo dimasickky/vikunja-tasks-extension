@@ -40,6 +40,20 @@ class DeleteTaskResult(BaseModel):
     refresh_panels: List[str]
 
 
+class BulkDeleteItem(BaseModel):
+    task_id: int
+    title: str
+    deleted: bool
+    error: Optional[str] = None
+
+
+class BulkDeleteResult(BaseModel):
+    deleted_count: int
+    failed_count: int
+    results: List[BulkDeleteItem]
+    refresh_panels: List[str]
+
+
 class CreateSubtaskResult(BaseModel):
     subtask_id: int
     parent_task_id: int

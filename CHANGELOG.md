@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.26.0] — 2026-05-29
+
+### Added
+
+- **`delete_tasks`** — bulk delete function. Accepts `task_titles: List[str]` (auto-resolved
+  to IDs via search) and/or `task_ids: List[int]`. Optional `project_name`/`project_id` to
+  narrow title search. Returns per-task results with deleted/failed counts.
+
+### Changed
+
+- **system_prompt** — added explicit rule: ask the user (in their language) when project,
+  task name, or bucket is missing or ambiguous. Never infer context from previous messages.
+  Added bulk delete guidance: use `delete_tasks` for 2+ tasks, not multiple `delete_task` calls.
+
 ## [3.25.9] — 2026-05-29
 
 ### Fixed

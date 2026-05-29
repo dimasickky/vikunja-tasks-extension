@@ -8,6 +8,7 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_get, api_post, api_delete, chat, NoParams, resolve_project_id
 from handlers_crud import _require_user, _bridge_error_msg
+from handlers_search import _fetch_all_pages
 from models_return import (
     CreateProjectResult,
     UpdateProjectResult,
@@ -853,22 +854,24 @@ async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResul
     proj_resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
     proj_title = proj_resp.get("title", f"#{params.project_id}") if isinstance(proj_resp, dict) else f"#{params.project_id}"
 
-    # Bridge has no /projects/{id}/tasks — use /tasks/all with filter instead
     pf = f"project_id = {params.project_id}"
     if params.filter:
         pf = f"{pf} && {params.filter}"
-    query_params: dict = {
-        "imperal_id": imperal_id,
-        "filter": pf,
-        "page": params.page,
-        "per_page": params.per_page,
-    }
+    base_params: dict = {"imperal_id": imperal_id, "filter": pf}
 
-    tasks_resp = await api_get(ctx, "/v1/tasks/all", query_params)
-    if isinstance(tasks_resp, dict) and tasks_resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(tasks_resp, "Couldn't fetch project tasks"))
-
-    tasks = tasks_resp if isinstance(tasks_resp, list) else []
+    # Auto-paginate on default page=1 to return all project tasks.
+    if params.page == 1:
+        tasks = await _fetch_all_pages(ctx, base_params)
+        if not tasks:
+            resp_check = await api_get(ctx, "/v1/tasks/all", {**base_params, "page": 1, "per_page": 50})
+            if isinstance(resp_check, dict) and resp_check.get("status") == "error":
+                return ActionResult.error(_bridge_error_msg(resp_check, "Couldn't fetch project tasks"))
+    else:
+        query_params = {**base_params, "page": params.page, "per_page": params.per_page}
+        tasks_resp = await api_get(ctx, "/v1/tasks/all", query_params)
+        if isinstance(tasks_resp, dict) and tasks_resp.get("status") == "error":
+            return ActionResult.error(_bridge_error_msg(tasks_resp, "Couldn't fetch project tasks"))
+        tasks = tasks_resp if isinstance(tasks_resp, list) else []
 
     def _task_entry(t: dict) -> dict:
         due = (t.get("due_date") or "")[:10]
@@ -884,15 +887,11 @@ async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResul
     task_list = [_task_entry(t) for t in tasks]
     done_ct = sum(1 for t in tasks if t.get("done"))
     return ActionResult.success(
-        summary=(
-            f"Project '{proj_title}': showing {len(task_list)} task(s) on this page "
-            f"(page {params.page}, up to {params.per_page} per page). "
-            f"Use count_tasks_per_bucket for the true total."
-        ),
+        summary=f"Project '{proj_title}': {len(task_list)} task(s) total, {done_ct} done.",
         data={
             "project_id":    params.project_id,
             "project_title": proj_title,
-            "tasks_on_page": len(task_list),
+            "total_count":   len(task_list),
             "tasks":         task_list,
         },
     )

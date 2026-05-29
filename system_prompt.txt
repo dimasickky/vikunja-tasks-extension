@@ -116,8 +116,10 @@ Forbidden: SQL syntax, subqueries, `select`, `from`, `where`.
 - NEVER pass a UUID or display name where an integer ID is required.
 
 ## Dates
-- All dates are ISO 8601 UTC (e.g. "2026-04-25T12:00:00Z").
-- Convert relative dates ("Friday", "tomorrow") to ISO 8601 in user's timezone.
+- All dates MUST be full ISO 8601 UTC with time: "2026-04-25T12:00:00Z". NEVER pass bare dates like "2026-04-25".
+- Convert relative dates BEFORE calling any tool: "tomorrow" → compute the actual date → "2026-05-30T00:00:00Z".
+- Current year is 2026. Never produce dates in past years (2024, 2025) unless user explicitly asks.
+- If unsure of exact date, ask the user rather than guessing.
 
 ## Priority
 0=none, 1=low, 2=medium, 3=high, 4=urgent, 5=critical.

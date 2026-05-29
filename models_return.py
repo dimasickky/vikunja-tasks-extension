@@ -357,7 +357,7 @@ class DeleteBucketResult(BaseModel):
 class ListProjectTasksResult(BaseModel):
     project_id: int
     project_title: str
-    tasks_on_page: int
+    total_count: int
     tasks: List[TaskItem]
 
 

@@ -1,7 +1,7 @@
 """tasks · CRUD lifecycle functions (create / update / complete / delete)."""
 
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from imperal_sdk.chat import ActionResult
 
@@ -43,6 +43,18 @@ class CreateTaskParams(BaseModel):
         ),
     )
 
+    @field_validator("priority", mode="before")
+    @classmethod
+    def coerce_priority(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except (ValueError, TypeError):
+                return v
+        return v
+
 
 class UpdateTaskParams(BaseModel):
     task_id: int
@@ -53,6 +65,18 @@ class UpdateTaskParams(BaseModel):
     end_date: Optional[str] = None
     priority: Optional[int] = Field(None, ge=0, le=5)
     percent_done: Optional[float] = Field(None, ge=0.0, le=1.0)
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def coerce_priority(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except (ValueError, TypeError):
+                return v
+        return v
     bucket_id: Optional[int] = None
     project_id: Optional[int] = Field(None, description="Move to another project.")
     hex_color: Optional[str] = None
@@ -264,9 +288,10 @@ async def _delete_task_impl(ctx, params: DeleteTaskParams) -> ActionResult:
     effects=["create:task"],
     event="task.created",
     description=(
-        "Create a new task in a project. Pass project_name (e.g. 'webhostmost tasks') "
-        "or project_id. Optional assignee field auto-resolves name/email to Vikunja user. "
-        "Returns task_id + full task details."
+        "Create a new task in a project. Pass project_name (e.g. 'webhostmost tasks') or project_id. "
+        "The assignee field handles assignment internally — do NOT add a separate assign_task step. "
+        "priority must be an integer: 0=none 1=low 2=medium 3=high 4=urgent 5=critical. "
+        "due_date must be full ISO 8601 with time (e.g. '2026-06-15T00:00:00Z'), never a bare date."
     ),
     data_model=CreateTaskResult,
 )

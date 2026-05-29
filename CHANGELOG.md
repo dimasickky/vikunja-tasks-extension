@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.25.6] — 2026-05-29
+
+### Fixed
+
+- **Priority coercion** — `CreateTaskParams` and `UpdateTaskParams` now accept `priority`
+  as string (`"5"`) and coerce to int before Pydantic validation. Prevents
+  VALIDATION_MISSING_FIELD errors when the classifier emits priority as a quoted number.
+- **Double assignment** — updated `create_task` description to explicitly state that
+  the `assignee` param handles assignment internally; classifier must not add a
+  separate `assign_task` step.
+- **Autopagination** — `list_my_tasks`, `filter_tasks`, `list_project_tasks` now
+  automatically paginate through all pages (up to 1000 tasks) when called with default
+  `page=1`. Vikunja hard-caps at 50 per request; previously only the first page was
+  returned. Explicit `page=2+` calls still return that specific page only.
+- **Date guidance** — system_prompt now explicitly instructs LLM to convert relative
+  dates to full ISO 8601 before calling tools, current year is 2026, bare dates are
+  forbidden.
+- **`ListProjectTasksResult`** — renamed `tasks_on_page` → `total_count` since listing
+  now returns all tasks, not just one page.
+
 ## [3.25.5] — 2026-05-29
 
 ### Fixed

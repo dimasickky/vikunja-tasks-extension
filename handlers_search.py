@@ -9,6 +9,24 @@ from app import api_get, chat, NoParams
 from handlers_crud import _require_user, _bridge_error_msg
 from models_return import TaskListResult, FindTaskResult
 
+_MAX_PAGES = 20  # hard cap: 20 * 50 = 1000 tasks max
+
+
+async def _fetch_all_pages(ctx, base_params: dict) -> list:
+    """Paginate /v1/tasks/all until exhausted or _MAX_PAGES reached."""
+    all_tasks: list = []
+    for page in range(1, _MAX_PAGES + 1):
+        q = {**base_params, "page": page, "per_page": 50}
+        resp = await api_get(ctx, "/v1/tasks/all", q)
+        if isinstance(resp, dict):  # error response
+            break
+        if not isinstance(resp, list) or len(resp) == 0:
+            break
+        all_tasks.extend(resp)
+        if len(resp) < 50:  # last page
+            break
+    return all_tasks
+
 
 class ListMyTasksParams(BaseModel):
     filter: Optional[str] = Field(
@@ -52,16 +70,25 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
     if isinstance(imperal_id, ActionResult):
         return imperal_id
 
-    q: dict = {"imperal_id": imperal_id, "page": params.page, "per_page": params.per_page}
-    if params.filter:   q["filter"] = params.filter
-    if params.sort_by:  q["sort_by"] = params.sort_by
-    if params.search:   q["s"] = params.search
+    base: dict = {"imperal_id": imperal_id}
+    if params.filter:   base["filter"] = params.filter
+    if params.sort_by:  base["sort_by"] = params.sort_by
+    if params.search:   base["s"] = params.search
 
-    resp = await api_get(ctx, "/v1/tasks/all", q)
-    if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"))
-
-    tasks = resp if isinstance(resp, list) else []
+    # Auto-paginate when using default page=1 to return all tasks, not just first 50.
+    if params.page == 1:
+        tasks = await _fetch_all_pages(ctx, base)
+        if not tasks:
+            # Check if it was an error by doing a single call
+            resp = await api_get(ctx, "/v1/tasks/all", {**base, "page": 1, "per_page": 50})
+            if isinstance(resp, dict) and resp.get("status") == "error":
+                return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"))
+    else:
+        q = {**base, "page": params.page, "per_page": params.per_page}
+        resp = await api_get(ctx, "/v1/tasks/all", q)
+        if isinstance(resp, dict) and resp.get("status") == "error":
+            return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"))
+        tasks = resp if isinstance(resp, list) else []
     return ActionResult.success(
         summary=_summarise_tasks(tasks),
         data={

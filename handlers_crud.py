@@ -18,7 +18,12 @@ from models_return import (
     CreateSubtaskResult,
     ListSubtasksResult,
     ToggleChecklistResult,
-    GetTaskResult,
+    TaskEntity,
+    SubtaskItem,
+    TaskAssignee,
+    TaskLabelItem,
+    vikunja_priority,
+    vikunja_date,
 )
 
 
@@ -533,7 +538,7 @@ async def list_subtasks(ctx, params: ListSubtasksParams) -> ActionResult:
         data={
             "task_id":  params.task_id,
             "subtasks": [
-                {"task_id": s["id"], "title": s["title"], "done": s.get("done", False)}
+                SubtaskItem(id=s["id"], title=s.get("title", "?"), kind="task", is_done=s.get("done", False))
                 for s in subtasks
             ],
         },
@@ -600,7 +605,7 @@ class GetTaskParams(BaseModel):
         "due date, priority, assignees, labels, and project. "
         "Use this to verify task state before updating, or when user asks about a specific task."
     ),
-    data_model=GetTaskResult,
+    data_model=TaskEntity,
 )
 async def get_task(ctx, params: GetTaskParams) -> ActionResult:
     imperal_id = _require_user(ctx)
@@ -612,32 +617,33 @@ async def get_task(ctx, params: GetTaskParams) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch task"))
 
     t = resp
-    assignees = [
-        {"vikunja_user_id": a.get("id"), "username": a.get("username", "")}
-        for a in (t.get("assignees") or [])
-    ]
-    labels = [
-        {"label_id": l.get("id"), "title": l.get("title", ""), "hex_color": l.get("hex_color")}
-        for l in (t.get("labels") or [])
-    ]
+    entity = TaskEntity(
+        id=t.get("id"),
+        title=t.get("title", "") or f"Task #{params.task_id}",
+        kind="task",
+        description=t.get("description") or None,
+        is_done=t.get("done", False),
+        priority=vikunja_priority(t.get("priority", 0)),
+        due_at=vikunja_date(t.get("due_date")),
+        start_at=vikunja_date(t.get("start_date")),
+        created_at=vikunja_date(t.get("created")),
+        updated_at=vikunja_date(t.get("updated")),
+        percent_done=t.get("percent_done", 0.0),
+        project_id=t.get("project_id"),
+        bucket_id=t.get("bucket_id") or None,
+        hex_color=t.get("hex_color") or None,
+        is_favorite=t.get("is_favorite", False),
+        assignees=[
+            TaskAssignee(vikunja_user_id=a.get("id"), username=a.get("username", ""))
+            for a in (t.get("assignees") or [])
+        ],
+        labels=[
+            TaskLabelItem(label_id=l.get("id"), title=l.get("title", ""), hex_color=l.get("hex_color"))
+            for l in (t.get("labels") or [])
+        ],
+    )
+    status = "done" if entity.is_done else "open"
     return ActionResult.success(
-        summary=f"Task #{params.task_id}: {t.get('title', '?')} ({'done' if t.get('done') else 'open'})",
-        data={
-            "task_id":      t.get("id"),
-            "title":        t.get("title", ""),
-            "description":  t.get("description", ""),
-            "done":         t.get("done", False),
-            "due_date":     (t.get("due_date") or "")[:10] or None,
-            "start_date":   (t.get("start_date") or "")[:10] or None,
-            "priority":     t.get("priority", 0),
-            "percent_done": t.get("percent_done", 0.0),
-            "project_id":   t.get("project_id"),
-            "bucket_id":    t.get("bucket_id") or None,
-            "hex_color":    t.get("hex_color"),
-            "is_favorite":  t.get("is_favorite", False),
-            "assignees":    assignees,
-            "labels":       labels,
-            "created":      t.get("created"),
-            "updated":      t.get("updated"),
-        },
+        summary=f"Task '{entity.title}' (id={entity.id}) — {status}",
+        data=entity,
     )

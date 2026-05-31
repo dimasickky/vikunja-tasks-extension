@@ -1,8 +1,84 @@
-"""tasks · Typed return models for @chat.function data_model= contracts (SDK 5.0.1)."""
+"""tasks · Typed return models for @chat.function data_model= contracts (SDK 5.2.0 SDL)."""
 
 from typing import Any, List, Optional
 
 from pydantic import BaseModel
+
+from imperal_sdk import sdl
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────── #
+
+_PRIORITY_MAP: dict[int, Optional[str]] = {
+    0: None, 1: "low", 2: "medium", 3: "high", 4: "urgent", 5: "urgent",
+}
+
+
+def vikunja_priority(p: int) -> Optional[str]:
+    """Vikunja int priority (0-5) → SDL Prioritized literal."""
+    return _PRIORITY_MAP.get(p)
+
+
+def vikunja_date(raw: Optional[str]) -> Optional[str]:
+    """Return ISO string or None for Vikunja null dates (0001-01-01...)."""
+    if not raw or raw.startswith("0001"):
+        return None
+    return raw
+
+
+# ─── Shared primitives ────────────────────────────────────────────────────── #
+
+class TaskAssignee(BaseModel):
+    vikunja_user_id: int
+    username: str
+
+
+class TaskLabelItem(BaseModel):
+    label_id: int
+    title: str
+    hex_color: Optional[str] = None
+
+
+# ─── SDL Entity types (SDK 5.2.0) ─────────────────────────────────────────── #
+
+class TaskEntity(sdl.Entity, sdl.Completable, sdl.Prioritized, sdl.Schedulable, sdl.Timestamped):
+    """Full SDL task entity. id=task_id, title=task title, kind="task"."""
+    project_id: Optional[int] = None
+    bucket_id: Optional[int] = None
+    hex_color: Optional[str] = None
+    percent_done: float = 0.0
+    is_favorite: bool = False
+    assignees: List[TaskAssignee] = []
+    labels: List[TaskLabelItem] = []
+
+
+class ProjectEntity(sdl.Entity, sdl.Progress, sdl.Timestamped):
+    """Full SDL project entity. id=project_id, title=project title, kind="project"."""
+    hex_color: Optional[str] = None
+    is_archived: bool = False
+
+
+class BucketEntity(sdl.Entity, sdl.Progress):
+    """SDL kanban bucket. id=bucket_id, title=bucket title, kind="bucket".
+    sdl.Progress provides: total_count (task count), done_count."""
+    limit: int = 0
+    is_done_bucket: bool = False
+
+
+# ─── Slim SDL entity types for list items ─────────────────────────────────── #
+
+class TaskItem(sdl.Entity, sdl.Completable, sdl.Prioritized, sdl.Schedulable):
+    """Slim SDL task entity for list/search results."""
+    project_id: Optional[int] = None
+
+
+class SubtaskItem(sdl.Entity, sdl.Completable):
+    """Slim SDL task entity for subtask lists."""
+
+
+class ProjectItem(sdl.Entity):
+    """Slim SDL project entity for project list results."""
+    hex_color: Optional[str] = None
 
 
 # ─── handlers_crud ────────────────────────────────────────────────────────── #
@@ -13,7 +89,7 @@ class CreateTaskResult(BaseModel):
     project_id: int
     due_date: Optional[str] = None
     priority: int = 0
-    bucket_id: Optional[int] = None   # None = default bucket; never 0 (ambiguous)
+    bucket_id: Optional[int] = None
     assignee: Optional[str] = None
     refresh_panels: List[str]
 
@@ -61,12 +137,6 @@ class CreateSubtaskResult(BaseModel):
     refresh_panels: List[str]
 
 
-class SubtaskItem(BaseModel):
-    task_id: int
-    title: str
-    done: bool
-
-
 class ListSubtasksResult(BaseModel):
     task_id: int
     subtasks: List[SubtaskItem]
@@ -79,48 +149,7 @@ class ToggleChecklistResult(BaseModel):
     refresh_panels: List[str]
 
 
-# ─── handlers_crud (get_task) ─────────────────────────────────────────────── #
-
-class TaskAssignee(BaseModel):
-    vikunja_user_id: int
-    username: str
-
-
-class TaskLabelItem(BaseModel):
-    label_id: int
-    title: str
-    hex_color: Optional[str] = None
-
-
-class GetTaskResult(BaseModel):
-    task_id: int
-    title: str
-    description: str
-    done: bool
-    due_date: Optional[str] = None
-    start_date: Optional[str] = None
-    priority: int
-    percent_done: float
-    project_id: int
-    bucket_id: Optional[int] = None
-    hex_color: Optional[str] = None
-    is_favorite: bool = False
-    assignees: List[TaskAssignee]
-    labels: List[TaskLabelItem]
-    created: Optional[str] = None
-    updated: Optional[str] = None
-
-
 # ─── handlers_search ──────────────────────────────────────────────────────── #
-
-class TaskItem(BaseModel):
-    task_id: int
-    title: str
-    project_id: Optional[int]
-    done: bool
-    due_date: Optional[str]
-    priority: int
-
 
 class TaskListResult(BaseModel):
     count: int
@@ -211,7 +240,7 @@ class TaskLabelResult(BaseModel):
     refresh_panels: List[str]
 
 
-# ─── handlers_structure ───────────────────────────────────────────────────── #
+# ─── handlers_structure — projects ────────────────────────────────────────── #
 
 class CreateProjectResult(BaseModel):
     project_id: int
@@ -239,6 +268,13 @@ class DeleteProjectResult(BaseModel):
     refresh_panels: List[str]
 
 
+class ListProjectsResult(BaseModel):
+    count: int
+    projects: List[ProjectItem]
+
+
+# ─── handlers_structure — labels ──────────────────────────────────────────── #
+
 class LabelItem(BaseModel):
     label_id: int
     title: str
@@ -263,84 +299,34 @@ class DeleteLabelResult(BaseModel):
     refresh_panels: List[str]
 
 
-class ProjectItem(BaseModel):
-    project_id: int
-    title: str
-    hex_color: Optional[str]
-
-
-class ListProjectsResult(BaseModel):
-    count: int
-    projects: List[ProjectItem]
-
-
-class BucketTaskItem(BaseModel):
-    task_id: int
-    title: str
-    done: bool
-    priority: int
-    due_date: Optional[str]
-
-
-class BucketItem(BaseModel):
-    bucket_id: int
-    title: str
-    limit: int
-    task_count: int
-    tasks: List[BucketTaskItem]
-
-
-class ListBucketsResult(BaseModel):
-    project_id: int
-    buckets: List[BucketItem]
-
-
-# ─── Tier-2: focused bucket endpoints ────────────────────────────────────── #
-
-class BucketNavItem(BaseModel):
-    """Lightweight bucket descriptor with task count."""
-    bucket_id: int
-    title: str
-    limit: int
-    task_count: int = 0
-    is_done_bucket: bool
-
+# ─── handlers_structure — buckets ─────────────────────────────────────────── #
 
 class ListProjectBucketsResult(BaseModel):
-    """Result of list_project_buckets — bucket names, IDs, and task counts."""
+    """list_project_buckets — bucket names, IDs, and task counts."""
     project_id: int
     project_title: str
     bucket_count: int
-    buckets: List[BucketNavItem]
-
-
-class BucketCountItem(BaseModel):
-    bucket_id: int
-    title: str
-    task_count: int
-    done_count: int
-    pending_count: int
-    is_done_bucket: bool
+    buckets: List[BucketEntity]
 
 
 class CountTasksPerBucketResult(BaseModel):
-    """Result of count_tasks_per_bucket — per-bucket and project-level task counts."""
+    """count_tasks_per_bucket — per-bucket and project-level task counts."""
     project_id: int
     project_title: str
     bucket_count: int
     total_tasks: int
     total_done: int
     total_pending: int
-    buckets: List[BucketCountItem]
+    buckets: List[BucketEntity]
 
 
 class GetBucketTasksResult(BaseModel):
-    """Result of get_bucket_tasks / get_named_bucket_tasks."""
+    """get_bucket_tasks / get_named_bucket_tasks."""
     project_id: int
     bucket_id: int
     bucket_title: str
     task_count: int
-    tasks: List[BucketTaskItem]
+    tasks: List[TaskItem]
 
 
 class RenameBucketResult(BaseModel):
@@ -366,21 +352,13 @@ class DeleteBucketResult(BaseModel):
     refresh_panels: List[str]
 
 
-# ─── handlers_structure (new: list_project_tasks + get_project) ──────────── #
+# ─── handlers_structure — list_project_tasks + get_project ────────────────── #
 
 class ListProjectTasksResult(BaseModel):
     project_id: int
     project_title: str
     total_count: int
     tasks: List[TaskItem]
-
-
-class GetProjectResult(BaseModel):
-    project_id: int
-    title: str
-    description: str
-    hex_color: Optional[str] = None
-    is_archived: bool = False
 
 
 # ─── handlers_ai ──────────────────────────────────────────────────────────── #

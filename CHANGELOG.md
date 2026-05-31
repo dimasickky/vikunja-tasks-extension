@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.27.0] — 2026-05-31
+
+### Changed
+
+- **SDL migration (SDK 5.2.0).** Entity-read functions now return typed SDL entities instead of plain dicts.
+  `get_task` → `TaskEntity`, `get_project` → `ProjectEntity`, bucket lists → `BucketEntity`,
+  task list items → `TaskItem` (slim SDL entity). All entities carry canonical `id`/`title`/`kind`
+  fields read directly by kernel entity focus — enables correct cross-turn context ("в том же проекте").
+- **SDK bump** `5.0.3` → `5.2.0`.
+- `models_return` added to `main.py` hot-reload purge list.
+
 ## [3.26.0] — 2026-05-29
 
 ### Added

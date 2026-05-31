@@ -7,7 +7,7 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_get, chat, NoParams, fetch_all_pages
 from handlers_crud import _require_user, _bridge_error_msg
-from models_return import TaskListResult, FindTaskResult
+from models_return import TaskListResult, FindTaskResult, TaskItem, vikunja_priority, vikunja_date
 
 
 class ListMyTasksParams(BaseModel):
@@ -75,14 +75,15 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
         data={
             "count": len(tasks),
             "tasks": [
-                {
-                    "task_id":    t["id"],
-                    "title":      t["title"],
-                    "project_id": t.get("project_id"),
-                    "done":       t.get("done", False),
-                    "due_date":   t.get("due_date"),
-                    "priority":   t.get("priority", 0),
-                }
+                TaskItem(
+                    id=t["id"],
+                    title=t.get("title", "?"),
+                    kind="task",
+                    is_done=t.get("done", False),
+                    priority=vikunja_priority(t.get("priority", 0)),
+                    due_at=vikunja_date(t.get("due_date")),
+                    project_id=t.get("project_id"),
+                )
                 for t in tasks
             ],
         },
@@ -162,9 +163,7 @@ async def find_task(ctx, params: FindTaskParams) -> ActionResult:
     if n == 0:
         summary = f"No tasks found matching '{params.query}'."
     else:
-        preview = ", ".join(
-            f"{t.get('title','?')} (#{t.get('task_id')})" for t in tasks[:5]
-        )
+        preview = ", ".join(f"{t.title} (#{t.id})" for t in tasks[:5])
         more = f" + {n - 5} more" if n > 5 else ""
         summary = f"Found {n} task(s) matching '{params.query}': {preview}{more}."
 

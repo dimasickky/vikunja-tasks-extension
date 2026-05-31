@@ -1,8 +1,8 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.0.2",
+  "sdk_version": "5.2.0",
   "app_id": "tasks",
-  "version": "3.26.0",
+  "version": "3.27.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -1122,28 +1122,188 @@
       },
       "return_schema": {
         "$defs": {
-          "SubtaskItem": {
+          "Ref": {
+            "description": "Lightweight reference to another entity (parent/related/list-item/cross-app).\n\nCarries ``title`` so the kernel can render/resolve without a second lookup.",
             "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "kind": {
+                "title": "Kind",
+                "type": "string"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
               },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
+              "app_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "App Id"
               }
             },
             "required": [
-              "task_id",
-              "title",
-              "done"
+              "id",
+              "kind",
+              "title"
+            ],
+            "title": "Ref",
+            "type": "object"
+          },
+          "SubtaskItem": {
+            "description": "Slim SDL task entity for subtask lists.",
+            "properties": {
+              "is_done": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Is Done",
+                "x-sdl-role": "task.is_done"
+              },
+              "completed_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Completed At",
+                "x-sdl-role": "task.completed_at"
+              },
+              "completed_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Ref"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "x-sdl-role": "task.completed_by"
+              },
+              "resolution": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "completed",
+                      "wont_do",
+                      "duplicate",
+                      "cannot_reproduce",
+                      "obsolete",
+                      "deferred"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Resolution",
+                "x-sdl-role": "task.resolution"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              }
+            },
+            "required": [
+              "id",
+              "title"
             ],
             "title": "SubtaskItem",
-            "type": "object"
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
         "properties": {
@@ -1268,6 +1428,49 @@
       },
       "return_schema": {
         "$defs": {
+          "Ref": {
+            "description": "Lightweight reference to another entity (parent/related/list-item/cross-app).\n\nCarries ``title`` so the kernel can render/resolve without a second lookup.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "kind": {
+                "title": "Kind",
+                "type": "string"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "app_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "App Id"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "title"
+            ],
+            "title": "Ref",
+            "type": "object"
+          },
           "TaskAssignee": {
             "properties": {
               "vikunja_user_id": {
@@ -1317,24 +1520,250 @@
             "type": "object"
           }
         },
+        "description": "Full SDL task entity. id=task_id, title=task title, kind=\"task\".",
         "properties": {
-          "task_id": {
-            "title": "Task Id",
-            "type": "integer"
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At",
+            "x-sdl-role": "time.created_at"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updated At",
+            "x-sdl-role": "time.updated_at"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deleted At",
+            "x-sdl-role": "time.deleted_at"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start At",
+            "x-sdl-role": "time.start_at"
+          },
+          "end_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End At",
+            "x-sdl-role": "time.end_at"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due At",
+            "x-sdl-role": "time.due_at"
+          },
+          "all_day": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "All Day",
+            "x-sdl-role": "time.all_day"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Timezone",
+            "x-sdl-role": "time.timezone"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "urgent"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Priority",
+            "x-sdl-role": "task.priority"
+          },
+          "urgency": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Urgency",
+            "x-sdl-role": "task.urgency"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "enum": [
+                  "info",
+                  "minor",
+                  "major",
+                  "critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Severity",
+            "x-sdl-role": "task.severity"
+          },
+          "is_done": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Is Done",
+            "x-sdl-role": "task.is_done"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Completed At",
+            "x-sdl-role": "task.completed_at"
+          },
+          "completed_by": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Ref"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "x-sdl-role": "task.completed_by"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "enum": [
+                  "completed",
+                  "wont_do",
+                  "duplicate",
+                  "cannot_reproduce",
+                  "obsolete",
+                  "deferred"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Resolution",
+            "x-sdl-role": "task.resolution"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
           },
           "title": {
             "title": "Title",
             "type": "string"
           },
-          "description": {
-            "title": "Description",
+          "kind": {
+            "default": "",
+            "title": "Kind",
             "type": "string"
           },
-          "done": {
-            "title": "Done",
-            "type": "boolean"
-          },
-          "due_date": {
+          "subtitle": {
             "anyOf": [
               {
                 "type": "string"
@@ -1344,9 +1773,9 @@
               }
             ],
             "default": null,
-            "title": "Due Date"
+            "title": "Subtitle"
           },
-          "start_date": {
+          "description": {
             "anyOf": [
               {
                 "type": "string"
@@ -1356,19 +1785,43 @@
               }
             ],
             "default": null,
-            "title": "Start Date"
+            "title": "Description"
           },
-          "priority": {
-            "title": "Priority",
-            "type": "integer"
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
           },
-          "percent_done": {
-            "title": "Percent Done",
-            "type": "number"
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
           },
           "project_id": {
-            "title": "Project Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Project Id"
           },
           "bucket_id": {
             "anyOf": [
@@ -1394,12 +1847,18 @@
             "default": null,
             "title": "Hex Color"
           },
+          "percent_done": {
+            "default": 0.0,
+            "title": "Percent Done",
+            "type": "number"
+          },
           "is_favorite": {
             "default": false,
             "title": "Is Favorite",
             "type": "boolean"
           },
           "assignees": {
+            "default": [],
             "items": {
               "$ref": "#/$defs/TaskAssignee"
             },
@@ -1407,50 +1866,21 @@
             "type": "array"
           },
           "labels": {
+            "default": [],
             "items": {
               "$ref": "#/$defs/TaskLabelItem"
             },
             "title": "Labels",
             "type": "array"
-          },
-          "created": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Created"
-          },
-          "updated": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Updated"
           }
         },
         "required": [
-          "task_id",
-          "title",
-          "description",
-          "done",
-          "priority",
-          "percent_done",
-          "project_id",
-          "assignees",
-          "labels"
+          "id",
+          "title"
         ],
-        "title": "GetTaskResult",
-        "type": "object"
+        "title": "TaskEntity",
+        "type": "object",
+        "x-sdl": "entity"
       },
       "event": "",
       "background": false,
@@ -2750,14 +3180,75 @@
       "return_schema": {
         "$defs": {
           "ProjectItem": {
+            "description": "Slim SDL project entity for project list results.",
             "properties": {
-              "project_id": {
-                "title": "Project Id",
-                "type": "integer"
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
               },
               "hex_color": {
                 "anyOf": [
@@ -2768,16 +3259,17 @@
                     "type": "null"
                   }
                 ],
+                "default": null,
                 "title": "Hex Color"
               }
             },
             "required": [
-              "project_id",
-              "title",
-              "hex_color"
+              "id",
+              "title"
             ],
             "title": "ProjectItem",
-            "type": "object"
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
         "properties": {
@@ -2847,42 +3339,137 @@
       },
       "return_schema": {
         "$defs": {
-          "BucketNavItem": {
-            "description": "Lightweight bucket descriptor with task count.",
+          "BucketEntity": {
+            "description": "SDL kanban bucket. id=bucket_id, title=bucket title, kind=\"bucket\".\nsdl.Progress provides: total_count (task count), done_count.",
             "properties": {
-              "bucket_id": {
-                "title": "Bucket Id",
-                "type": "integer"
+              "progress": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Progress",
+                "x-sdl-role": "task.progress"
+              },
+              "done_count": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Done Count",
+                "x-sdl-role": "task.done_count"
+              },
+              "total_count": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Total Count",
+                "x-sdl-role": "task.total_count"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
               },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
               "limit": {
+                "default": 0,
                 "title": "Limit",
                 "type": "integer"
               },
-              "task_count": {
-                "default": 0,
-                "title": "Task Count",
-                "type": "integer"
-              },
               "is_done_bucket": {
+                "default": false,
                 "title": "Is Done Bucket",
                 "type": "boolean"
               }
             },
             "required": [
-              "bucket_id",
-              "title",
-              "limit",
-              "is_done_bucket"
+              "id",
+              "title"
             ],
-            "title": "BucketNavItem",
-            "type": "object"
+            "title": "BucketEntity",
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
-        "description": "Result of list_project_buckets — bucket names, IDs, and task counts.",
+        "description": "list_project_buckets — bucket names, IDs, and task counts.",
         "properties": {
           "project_id": {
             "title": "Project Id",
@@ -2898,7 +3485,7 @@
           },
           "buckets": {
             "items": {
-              "$ref": "#/$defs/BucketNavItem"
+              "$ref": "#/$defs/BucketEntity"
             },
             "title": "Buckets",
             "type": "array"
@@ -2986,25 +3573,29 @@
       },
       "return_schema": {
         "$defs": {
-          "BucketTaskItem": {
+          "Ref": {
+            "description": "Lightweight reference to another entity (parent/related/list-item/cross-app).\n\nCarries ``title`` so the kernel can render/resolve without a second lookup.",
             "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "kind": {
+                "title": "Kind",
+                "type": "string"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
               },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
-              },
-              "due_date": {
+              "app_id": {
                 "anyOf": [
                   {
                     "type": "string"
@@ -3013,21 +3604,291 @@
                     "type": "null"
                   }
                 ],
-                "title": "Due Date"
+                "default": null,
+                "title": "App Id"
               }
             },
             "required": [
-              "task_id",
-              "title",
-              "done",
-              "priority",
-              "due_date"
+              "id",
+              "kind",
+              "title"
             ],
-            "title": "BucketTaskItem",
+            "title": "Ref",
             "type": "object"
+          },
+          "TaskItem": {
+            "description": "Slim SDL task entity for list/search results.",
+            "properties": {
+              "start_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Start At",
+                "x-sdl-role": "time.start_at"
+              },
+              "end_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "End At",
+                "x-sdl-role": "time.end_at"
+              },
+              "due_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Due At",
+                "x-sdl-role": "time.due_at"
+              },
+              "all_day": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "All Day",
+                "x-sdl-role": "time.all_day"
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Timezone",
+                "x-sdl-role": "time.timezone"
+              },
+              "priority": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Priority",
+                "x-sdl-role": "task.priority"
+              },
+              "urgency": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Urgency",
+                "x-sdl-role": "task.urgency"
+              },
+              "severity": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "info",
+                      "minor",
+                      "major",
+                      "critical"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Severity",
+                "x-sdl-role": "task.severity"
+              },
+              "is_done": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Is Done",
+                "x-sdl-role": "task.is_done"
+              },
+              "completed_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Completed At",
+                "x-sdl-role": "task.completed_at"
+              },
+              "completed_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Ref"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "x-sdl-role": "task.completed_by"
+              },
+              "resolution": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "completed",
+                      "wont_do",
+                      "duplicate",
+                      "cannot_reproduce",
+                      "obsolete",
+                      "deferred"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Resolution",
+                "x-sdl-role": "task.resolution"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Project Id"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "TaskItem",
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
-        "description": "Result of get_bucket_tasks / get_named_bucket_tasks.",
+        "description": "get_bucket_tasks / get_named_bucket_tasks.",
         "properties": {
           "project_id": {
             "title": "Project Id",
@@ -3047,7 +3908,7 @@
           },
           "tasks": {
             "items": {
-              "$ref": "#/$defs/BucketTaskItem"
+              "$ref": "#/$defs/TaskItem"
             },
             "title": "Tasks",
             "type": "array"
@@ -3110,46 +3971,137 @@
       },
       "return_schema": {
         "$defs": {
-          "BucketCountItem": {
+          "BucketEntity": {
+            "description": "SDL kanban bucket. id=bucket_id, title=bucket title, kind=\"bucket\".\nsdl.Progress provides: total_count (task count), done_count.",
             "properties": {
-              "bucket_id": {
-                "title": "Bucket Id",
-                "type": "integer"
+              "progress": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Progress",
+                "x-sdl-role": "task.progress"
+              },
+              "done_count": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Done Count",
+                "x-sdl-role": "task.done_count"
+              },
+              "total_count": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Total Count",
+                "x-sdl-role": "task.total_count"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
               },
-              "task_count": {
-                "title": "Task Count",
-                "type": "integer"
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
               },
-              "done_count": {
-                "title": "Done Count",
-                "type": "integer"
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
               },
-              "pending_count": {
-                "title": "Pending Count",
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "limit": {
+                "default": 0,
+                "title": "Limit",
                 "type": "integer"
               },
               "is_done_bucket": {
+                "default": false,
                 "title": "Is Done Bucket",
                 "type": "boolean"
               }
             },
             "required": [
-              "bucket_id",
-              "title",
-              "task_count",
-              "done_count",
-              "pending_count",
-              "is_done_bucket"
+              "id",
+              "title"
             ],
-            "title": "BucketCountItem",
-            "type": "object"
+            "title": "BucketEntity",
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
-        "description": "Result of count_tasks_per_bucket — per-bucket and project-level task counts.",
+        "description": "count_tasks_per_bucket — per-bucket and project-level task counts.",
         "properties": {
           "project_id": {
             "title": "Project Id",
@@ -3177,7 +4129,7 @@
           },
           "buckets": {
             "items": {
-              "$ref": "#/$defs/BucketCountItem"
+              "$ref": "#/$defs/BucketEntity"
             },
             "title": "Buckets",
             "type": "array"
@@ -3514,15 +4466,298 @@
       },
       "return_schema": {
         "$defs": {
-          "TaskItem": {
+          "Ref": {
+            "description": "Lightweight reference to another entity (parent/related/list-item/cross-app).\n\nCarries ``title`` so the kernel can render/resolve without a second lookup.",
             "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "kind": {
+                "title": "Kind",
+                "type": "string"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
+              },
+              "app_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "App Id"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "title"
+            ],
+            "title": "Ref",
+            "type": "object"
+          },
+          "TaskItem": {
+            "description": "Slim SDL task entity for list/search results.",
+            "properties": {
+              "start_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Start At",
+                "x-sdl-role": "time.start_at"
+              },
+              "end_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "End At",
+                "x-sdl-role": "time.end_at"
+              },
+              "due_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Due At",
+                "x-sdl-role": "time.due_at"
+              },
+              "all_day": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "All Day",
+                "x-sdl-role": "time.all_day"
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Timezone",
+                "x-sdl-role": "time.timezone"
+              },
+              "priority": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Priority",
+                "x-sdl-role": "task.priority"
+              },
+              "urgency": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Urgency",
+                "x-sdl-role": "task.urgency"
+              },
+              "severity": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "info",
+                      "minor",
+                      "major",
+                      "critical"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Severity",
+                "x-sdl-role": "task.severity"
+              },
+              "is_done": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Is Done",
+                "x-sdl-role": "task.is_done"
+              },
+              "completed_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Completed At",
+                "x-sdl-role": "task.completed_at"
+              },
+              "completed_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Ref"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "x-sdl-role": "task.completed_by"
+              },
+              "resolution": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "completed",
+                      "wont_do",
+                      "duplicate",
+                      "cannot_reproduce",
+                      "obsolete",
+                      "deferred"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Resolution",
+                "x-sdl-role": "task.resolution"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
               },
               "project_id": {
                 "anyOf": [
@@ -3533,38 +4768,17 @@
                     "type": "null"
                   }
                 ],
+                "default": null,
                 "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
               }
             },
             "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
+              "id",
+              "title"
             ],
             "title": "TaskItem",
-            "type": "object"
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
         "properties": {
@@ -3643,18 +4857,156 @@
         "type": "object"
       },
       "return_schema": {
+        "description": "Full SDL project entity. id=project_id, title=project title, kind=\"project\".",
         "properties": {
-          "project_id": {
-            "title": "Project Id",
-            "type": "integer"
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At",
+            "x-sdl-role": "time.created_at"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updated At",
+            "x-sdl-role": "time.updated_at"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deleted At",
+            "x-sdl-role": "time.deleted_at"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Progress",
+            "x-sdl-role": "task.progress"
+          },
+          "done_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Done Count",
+            "x-sdl-role": "task.done_count"
+          },
+          "total_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total Count",
+            "x-sdl-role": "task.total_count"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
           },
           "title": {
             "title": "Title",
             "type": "string"
           },
-          "description": {
-            "title": "Description",
+          "kind": {
+            "default": "",
+            "title": "Kind",
             "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
           },
           "hex_color": {
             "anyOf": [
@@ -3675,12 +5027,12 @@
           }
         },
         "required": [
-          "project_id",
-          "title",
-          "description"
+          "id",
+          "title"
         ],
-        "title": "GetProjectResult",
-        "type": "object"
+        "title": "ProjectEntity",
+        "type": "object",
+        "x-sdl": "entity"
       },
       "event": "",
       "background": false,
@@ -3755,15 +5107,298 @@
       },
       "return_schema": {
         "$defs": {
-          "TaskItem": {
+          "Ref": {
+            "description": "Lightweight reference to another entity (parent/related/list-item/cross-app).\n\nCarries ``title`` so the kernel can render/resolve without a second lookup.",
             "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "kind": {
+                "title": "Kind",
+                "type": "string"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
+              },
+              "app_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "App Id"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "title"
+            ],
+            "title": "Ref",
+            "type": "object"
+          },
+          "TaskItem": {
+            "description": "Slim SDL task entity for list/search results.",
+            "properties": {
+              "start_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Start At",
+                "x-sdl-role": "time.start_at"
+              },
+              "end_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "End At",
+                "x-sdl-role": "time.end_at"
+              },
+              "due_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Due At",
+                "x-sdl-role": "time.due_at"
+              },
+              "all_day": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "All Day",
+                "x-sdl-role": "time.all_day"
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Timezone",
+                "x-sdl-role": "time.timezone"
+              },
+              "priority": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Priority",
+                "x-sdl-role": "task.priority"
+              },
+              "urgency": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Urgency",
+                "x-sdl-role": "task.urgency"
+              },
+              "severity": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "info",
+                      "minor",
+                      "major",
+                      "critical"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Severity",
+                "x-sdl-role": "task.severity"
+              },
+              "is_done": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Is Done",
+                "x-sdl-role": "task.is_done"
+              },
+              "completed_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Completed At",
+                "x-sdl-role": "task.completed_at"
+              },
+              "completed_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Ref"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "x-sdl-role": "task.completed_by"
+              },
+              "resolution": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "completed",
+                      "wont_do",
+                      "duplicate",
+                      "cannot_reproduce",
+                      "obsolete",
+                      "deferred"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Resolution",
+                "x-sdl-role": "task.resolution"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
               },
               "project_id": {
                 "anyOf": [
@@ -3774,38 +5409,17 @@
                     "type": "null"
                   }
                 ],
+                "default": null,
                 "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
               }
             },
             "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
+              "id",
+              "title"
             ],
             "title": "TaskItem",
-            "type": "object"
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
         "properties": {
@@ -3849,15 +5463,298 @@
       },
       "return_schema": {
         "$defs": {
-          "TaskItem": {
+          "Ref": {
+            "description": "Lightweight reference to another entity (parent/related/list-item/cross-app).\n\nCarries ``title`` so the kernel can render/resolve without a second lookup.",
             "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "kind": {
+                "title": "Kind",
+                "type": "string"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
+              },
+              "app_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "App Id"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "title"
+            ],
+            "title": "Ref",
+            "type": "object"
+          },
+          "TaskItem": {
+            "description": "Slim SDL task entity for list/search results.",
+            "properties": {
+              "start_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Start At",
+                "x-sdl-role": "time.start_at"
+              },
+              "end_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "End At",
+                "x-sdl-role": "time.end_at"
+              },
+              "due_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Due At",
+                "x-sdl-role": "time.due_at"
+              },
+              "all_day": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "All Day",
+                "x-sdl-role": "time.all_day"
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Timezone",
+                "x-sdl-role": "time.timezone"
+              },
+              "priority": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Priority",
+                "x-sdl-role": "task.priority"
+              },
+              "urgency": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Urgency",
+                "x-sdl-role": "task.urgency"
+              },
+              "severity": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "info",
+                      "minor",
+                      "major",
+                      "critical"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Severity",
+                "x-sdl-role": "task.severity"
+              },
+              "is_done": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Is Done",
+                "x-sdl-role": "task.is_done"
+              },
+              "completed_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Completed At",
+                "x-sdl-role": "task.completed_at"
+              },
+              "completed_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Ref"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "x-sdl-role": "task.completed_by"
+              },
+              "resolution": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "completed",
+                      "wont_do",
+                      "duplicate",
+                      "cannot_reproduce",
+                      "obsolete",
+                      "deferred"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Resolution",
+                "x-sdl-role": "task.resolution"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
               },
               "project_id": {
                 "anyOf": [
@@ -3868,38 +5765,17 @@
                     "type": "null"
                   }
                 ],
+                "default": null,
                 "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
               }
             },
             "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
+              "id",
+              "title"
             ],
             "title": "TaskItem",
-            "type": "object"
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
         "properties": {
@@ -3943,15 +5819,298 @@
       },
       "return_schema": {
         "$defs": {
-          "TaskItem": {
+          "Ref": {
+            "description": "Lightweight reference to another entity (parent/related/list-item/cross-app).\n\nCarries ``title`` so the kernel can render/resolve without a second lookup.",
             "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "kind": {
+                "title": "Kind",
+                "type": "string"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
+              },
+              "app_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "App Id"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "title"
+            ],
+            "title": "Ref",
+            "type": "object"
+          },
+          "TaskItem": {
+            "description": "Slim SDL task entity for list/search results.",
+            "properties": {
+              "start_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Start At",
+                "x-sdl-role": "time.start_at"
+              },
+              "end_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "End At",
+                "x-sdl-role": "time.end_at"
+              },
+              "due_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Due At",
+                "x-sdl-role": "time.due_at"
+              },
+              "all_day": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "All Day",
+                "x-sdl-role": "time.all_day"
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Timezone",
+                "x-sdl-role": "time.timezone"
+              },
+              "priority": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Priority",
+                "x-sdl-role": "task.priority"
+              },
+              "urgency": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Urgency",
+                "x-sdl-role": "task.urgency"
+              },
+              "severity": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "info",
+                      "minor",
+                      "major",
+                      "critical"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Severity",
+                "x-sdl-role": "task.severity"
+              },
+              "is_done": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Is Done",
+                "x-sdl-role": "task.is_done"
+              },
+              "completed_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Completed At",
+                "x-sdl-role": "task.completed_at"
+              },
+              "completed_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Ref"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "x-sdl-role": "task.completed_by"
+              },
+              "resolution": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "completed",
+                      "wont_do",
+                      "duplicate",
+                      "cannot_reproduce",
+                      "obsolete",
+                      "deferred"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Resolution",
+                "x-sdl-role": "task.resolution"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
               },
               "project_id": {
                 "anyOf": [
@@ -3962,38 +6121,17 @@
                     "type": "null"
                   }
                 ],
+                "default": null,
                 "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
               }
             },
             "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
+              "id",
+              "title"
             ],
             "title": "TaskItem",
-            "type": "object"
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
         "properties": {
@@ -4046,15 +6184,298 @@
       },
       "return_schema": {
         "$defs": {
-          "TaskItem": {
+          "Ref": {
+            "description": "Lightweight reference to another entity (parent/related/list-item/cross-app).\n\nCarries ``title`` so the kernel can render/resolve without a second lookup.",
             "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "kind": {
+                "title": "Kind",
+                "type": "string"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
+              },
+              "app_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "App Id"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "title"
+            ],
+            "title": "Ref",
+            "type": "object"
+          },
+          "TaskItem": {
+            "description": "Slim SDL task entity for list/search results.",
+            "properties": {
+              "start_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Start At",
+                "x-sdl-role": "time.start_at"
+              },
+              "end_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "End At",
+                "x-sdl-role": "time.end_at"
+              },
+              "due_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Due At",
+                "x-sdl-role": "time.due_at"
+              },
+              "all_day": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "All Day",
+                "x-sdl-role": "time.all_day"
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Timezone",
+                "x-sdl-role": "time.timezone"
+              },
+              "priority": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Priority",
+                "x-sdl-role": "task.priority"
+              },
+              "urgency": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Urgency",
+                "x-sdl-role": "task.urgency"
+              },
+              "severity": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "info",
+                      "minor",
+                      "major",
+                      "critical"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Severity",
+                "x-sdl-role": "task.severity"
+              },
+              "is_done": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Is Done",
+                "x-sdl-role": "task.is_done"
+              },
+              "completed_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Completed At",
+                "x-sdl-role": "task.completed_at"
+              },
+              "completed_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Ref"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "x-sdl-role": "task.completed_by"
+              },
+              "resolution": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "completed",
+                      "wont_do",
+                      "duplicate",
+                      "cannot_reproduce",
+                      "obsolete",
+                      "deferred"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Resolution",
+                "x-sdl-role": "task.resolution"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
               },
               "project_id": {
                 "anyOf": [
@@ -4065,38 +6486,17 @@
                     "type": "null"
                   }
                 ],
+                "default": null,
                 "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
               }
             },
             "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
+              "id",
+              "title"
             ],
             "title": "TaskItem",
-            "type": "object"
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
         "properties": {
@@ -4171,15 +6571,298 @@
       },
       "return_schema": {
         "$defs": {
-          "TaskItem": {
+          "Ref": {
+            "description": "Lightweight reference to another entity (parent/related/list-item/cross-app).\n\nCarries ``title`` so the kernel can render/resolve without a second lookup.",
             "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "kind": {
+                "title": "Kind",
+                "type": "string"
               },
               "title": {
                 "title": "Title",
                 "type": "string"
+              },
+              "app_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "App Id"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "title"
+            ],
+            "title": "Ref",
+            "type": "object"
+          },
+          "TaskItem": {
+            "description": "Slim SDL task entity for list/search results.",
+            "properties": {
+              "start_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Start At",
+                "x-sdl-role": "time.start_at"
+              },
+              "end_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "End At",
+                "x-sdl-role": "time.end_at"
+              },
+              "due_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Due At",
+                "x-sdl-role": "time.due_at"
+              },
+              "all_day": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "All Day",
+                "x-sdl-role": "time.all_day"
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Timezone",
+                "x-sdl-role": "time.timezone"
+              },
+              "priority": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Priority",
+                "x-sdl-role": "task.priority"
+              },
+              "urgency": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Urgency",
+                "x-sdl-role": "task.urgency"
+              },
+              "severity": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "info",
+                      "minor",
+                      "major",
+                      "critical"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Severity",
+                "x-sdl-role": "task.severity"
+              },
+              "is_done": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Is Done",
+                "x-sdl-role": "task.is_done"
+              },
+              "completed_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Completed At",
+                "x-sdl-role": "task.completed_at"
+              },
+              "completed_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Ref"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "x-sdl-role": "task.completed_by"
+              },
+              "resolution": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "completed",
+                      "wont_do",
+                      "duplicate",
+                      "cannot_reproduce",
+                      "obsolete",
+                      "deferred"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Resolution",
+                "x-sdl-role": "task.resolution"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
               },
               "project_id": {
                 "anyOf": [
@@ -4190,38 +6873,17 @@
                     "type": "null"
                   }
                 ],
+                "default": null,
                 "title": "Project Id"
-              },
-              "done": {
-                "title": "Done",
-                "type": "boolean"
-              },
-              "due_date": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Due Date"
-              },
-              "priority": {
-                "title": "Priority",
-                "type": "integer"
               }
             },
             "required": [
-              "task_id",
-              "title",
-              "project_id",
-              "done",
-              "due_date",
-              "priority"
+              "id",
+              "title"
             ],
             "title": "TaskItem",
-            "type": "object"
+            "type": "object",
+            "x-sdl": "entity"
           }
         },
         "properties": {

@@ -18,15 +18,19 @@ from models_return import (
     CreateLabelResult,
     DeleteLabelResult,
     ListProjectsResult,
-    BucketNavItem,
     ListProjectBucketsResult,
     GetBucketTasksResult,
     RenameBucketResult,
     CreateBucketResult,
     DeleteBucketResult,
     ListProjectTasksResult,
-    GetProjectResult,
     CountTasksPerBucketResult,
+    ProjectEntity,
+    BucketEntity,
+    ProjectItem,
+    TaskItem,
+    vikunja_priority,
+    vikunja_date,
 )
 
 log = logging.getLogger("tasks")
@@ -226,7 +230,7 @@ async def _list_projects_impl(ctx) -> ActionResult:
         data={
             "count":    len(active),
             "projects": [
-                {"project_id": p["id"], "title": p.get("title", "?"), "hex_color": p.get("hex_color")}
+                ProjectItem(id=p["id"], title=p.get("title", "?"), kind="project", hex_color=p.get("hex_color"))
                 for p in active
             ],
         },
@@ -444,24 +448,25 @@ async def list_project_buckets(ctx, params: ListProjectBucketsParams) -> ActionR
     proj_resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
     proj_title = proj_resp.get("title", f"#{params.project_id}") if isinstance(proj_resp, dict) else f"#{params.project_id}"
 
-    bucket_list = [
-        {
-            "bucket_id":      b["id"],
-            "title":          b.get("title", "?"),
-            "limit":          b.get("limit", 0),
-            "task_count":     len(b.get("tasks") or []),
-            "is_done_bucket": b.get("is_done_bucket", False),
-        }
+    bucket_entities = [
+        BucketEntity(
+            id=b["id"],
+            title=b.get("title", "?"),
+            kind="bucket",
+            limit=b.get("limit", 0),
+            total_count=len(b.get("tasks") or []),
+            is_done_bucket=b.get("is_done_bucket", False),
+        )
         for b in buckets
     ]
-    names = ", ".join(f"{b['title']} ({b['task_count']})" for b in bucket_list)
+    names = ", ".join(f"{b.title} ({b.total_count})" for b in bucket_entities)
     return ActionResult.success(
-        summary=f"Project '{proj_title}' has {len(bucket_list)} bucket(s): {names}.",
+        summary=f"Project '{proj_title}' has {len(bucket_entities)} bucket(s): {names}.",
         data={
             "project_id":    params.project_id,
             "project_title": proj_title,
-            "bucket_count":  len(bucket_list),
-            "buckets":       bucket_list,
+            "bucket_count":  len(bucket_entities),
+            "buckets":       bucket_entities,
         },
     )
 
@@ -534,15 +539,16 @@ async def get_bucket_tasks(ctx, params: GetBucketTasksParams) -> ActionResult:
         if target is None:
             continue
 
-        def _task_entry(t: dict) -> dict:
-            due = (t.get("due_date") or "")[:10]
-            return {
-                "task_id":  t["id"],
-                "title":    t.get("title", "?"),
-                "done":     t.get("done", False),
-                "priority": t.get("priority", 0),
-                "due_date": due or None,
-            }
+        def _task_entry(t: dict) -> TaskItem:
+            return TaskItem(
+                id=t["id"],
+                title=t.get("title", "?"),
+                kind="task",
+                is_done=t.get("done", False),
+                priority=vikunja_priority(t.get("priority", 0)),
+                due_at=vikunja_date(t.get("due_date")),
+                project_id=t.get("project_id"),
+            )
 
         task_list = [_task_entry(t) for t in (target.get("tasks") or [])]
         proj_title = project_titles.get(pid, f"#{pid}")
@@ -635,21 +641,21 @@ async def count_tasks_per_bucket(ctx, params: CountTasksParams) -> ActionResult:
     proj_title = proj_resp.get("title", f"#{params.project_id}") if isinstance(proj_resp, dict) else f"#{params.project_id}"
 
     bucket_counts = [
-        {
-            "bucket_id":      b["bucket_id"],
-            "title":          b.get("title", "?"),
-            "task_count":     b["task_count"],
-            "done_count":     b["done_count"],
-            "pending_count":  b["task_count"] - b["done_count"],
-            "is_done_bucket": False,
-        }
+        BucketEntity(
+            id=b["bucket_id"],
+            title=b.get("title", "?"),
+            kind="bucket",
+            total_count=b["task_count"],
+            done_count=b["done_count"],
+            is_done_bucket=False,
+        )
         for b in (counts_resp if isinstance(counts_resp, list) else [])
     ]
 
-    total_tasks = sum(b["task_count"] for b in bucket_counts)
-    total_done = sum(b["done_count"] for b in bucket_counts)
+    total_tasks = sum(b.total_count or 0 for b in bucket_counts)
+    total_done = sum(b.done_count or 0 for b in bucket_counts)
     lines = [
-        f"  {b['title']}: {b['task_count']} ({b['pending_count']} pending, {b['done_count']} done)"
+        f"  {b.title}: {b.total_count} ({(b.total_count or 0) - (b.done_count or 0)} pending, {b.done_count} done)"
         for b in bucket_counts
     ]
     summary = (
@@ -872,19 +878,19 @@ async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResul
             return ActionResult.error(_bridge_error_msg(tasks_resp, "Couldn't fetch project tasks"))
         tasks = tasks_resp if isinstance(tasks_resp, list) else []
 
-    def _task_entry(t: dict) -> dict:
-        due = (t.get("due_date") or "")[:10]
-        return {
-            "task_id":    t["id"],
-            "title":      t.get("title", "?"),
-            "project_id": t.get("project_id"),
-            "done":       t.get("done", False),
-            "due_date":   due or None,
-            "priority":   t.get("priority", 0),
-        }
+    def _task_entry(t: dict) -> TaskItem:
+        return TaskItem(
+            id=t["id"],
+            title=t.get("title", "?"),
+            kind="task",
+            is_done=t.get("done", False),
+            priority=vikunja_priority(t.get("priority", 0)),
+            due_at=vikunja_date(t.get("due_date")),
+            project_id=t.get("project_id"),
+        )
 
     task_list = [_task_entry(t) for t in tasks]
-    done_ct = sum(1 for t in tasks if t.get("done"))
+    done_ct = sum(1 for t in task_list if t.is_done)
     return ActionResult.success(
         summary=f"Project '{proj_title}': {len(task_list)} task(s) total, {done_ct} done.",
         data={
@@ -914,7 +920,7 @@ class GetProjectParams(BaseModel):
         "Pass project_id OR project_name (e.g. 'WebHostMost Tasks'). "
         "Use when user asks about a specific project or you need its ID from a name."
     ),
-    data_model=GetProjectResult,
+    data_model=ProjectEntity,
 )
 async def get_project(ctx, params: GetProjectParams) -> ActionResult:
     imperal_id = _require_user(ctx)
@@ -932,13 +938,15 @@ async def get_project(ctx, params: GetProjectParams) -> ActionResult:
     if isinstance(resp, dict) and resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch project"))
 
+    entity = ProjectEntity(
+        id=resp.get("id", params.project_id),
+        title=resp.get("title", "") or f"Project #{params.project_id}",
+        kind="project",
+        description=resp.get("description") or None,
+        hex_color=resp.get("hex_color") or None,
+        is_archived=resp.get("is_archived", False),
+    )
     return ActionResult.success(
-        summary=f"Project #{params.project_id}: {resp.get('title', '?')}.",
-        data={
-            "project_id":   resp.get("id", params.project_id),
-            "title":        resp.get("title", ""),
-            "description":  resp.get("description", ""),
-            "hex_color":    resp.get("hex_color"),
-            "is_archived":  resp.get("is_archived", False),
-        },
+        summary=f"Project '{entity.title}' (id={entity.id}).",
+        data=entity,
     )

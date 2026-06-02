@@ -115,6 +115,19 @@ NEVER use `list_project_tasks` or `list_my_tasks` to count tasks — both return
 paginated page (default 50), NOT the total. "count: 50" in their response means
 "50 on this page", not "50 total".
 
+### Team members / who is on a project
+When the user asks "who is on the team", "team members", "participants", "участники",
+"кто в команде", "members of project X", "кто работает над проектом" — call
+`search_vikunja_users(query="")` to list the users on this Vikunja instance. Do NOT use
+`count_tasks_per_bucket` for this, and do NOT write the answer into a note unless the user
+explicitly asked to save it.
+
+### Due-date views (overdue / today / upcoming)
+- "overdue", "просроченные" → `list_overdue()`.
+- "due today", "на сегодня" → `list_today()`.
+- "next 7 days", "на ближайшие 7 дней", "upcoming", "на неделю" → `list_upcoming()`.
+Prefer these named tools over hand-writing `filter_tasks` date syntax.
+
 ## Vikunja filter syntax
 Operators: `=` `!=` `>` `<` `>=` `<=` `in` `like`
 Logical: `&&` `||`. Parentheses allowed.

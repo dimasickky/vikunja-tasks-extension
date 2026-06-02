@@ -130,6 +130,21 @@ async def list_today(ctx, params: NoParams) -> ActionResult:
     )
 
 
+@chat.function(
+    "list_upcoming",
+    action_type="read",
+    description="List tasks due in the next 7 days (done=false AND due_date between now and now+7d).",
+    data_model=TaskListResult,
+)
+async def list_upcoming(ctx, params: NoParams) -> ActionResult:
+    return await _list_my_tasks_impl(
+        ctx, ListMyTasksParams(
+            filter="done = false && due_date >= now && due_date < now+7d",
+            sort_by="due_date",
+        ),
+    )
+
+
 class FindTaskParams(BaseModel):
     query: str = Field(
         ...,

@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.28.0] — 2026-06-02
+
+### Added
+
+- **`list_upcoming`** — lists tasks due in the next 7 days (`done = false && due_date >= now
+  && due_date < now+7d`), sorted by due date. Mirrors `list_overdue` / `list_today`. Gives the
+  planner a named tool for "задачи на ближайшие 7 дней" instead of hand-writing Vikunja date
+  filter syntax.
+
+### Changed
+
+- **system_prompt** — added routing rules: (1) "team members / участники / кто в команде /
+  members of project X" → `search_vikunja_users(query="")` (NOT `count_tasks_per_bucket`, and
+  do not silently write the answer into a note); (2) due-date views — overdue → `list_overdue`,
+  today → `list_today`, next 7 days → `list_upcoming`.
+
 ## [3.27.0] — 2026-05-31
 
 ### Changed

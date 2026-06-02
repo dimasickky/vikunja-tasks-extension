@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.2.0",
   "app_id": "tasks",
-  "version": "3.27.0",
+  "version": "3.28.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -5807,6 +5807,362 @@
     {
       "name": "list_today",
       "description": "List tasks due today (done=false AND due_date between start-of-day and end-of-day).",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Empty Pydantic params model for no-arg @chat.function handlers (V17 compliance).",
+        "properties": {},
+        "title": "NoParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "Ref": {
+            "description": "Lightweight reference to another entity (parent/related/list-item/cross-app).\n\nCarries ``title`` so the kernel can render/resolve without a second lookup.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "kind": {
+                "title": "Kind",
+                "type": "string"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "app_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "App Id"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "title"
+            ],
+            "title": "Ref",
+            "type": "object"
+          },
+          "TaskItem": {
+            "description": "Slim SDL task entity for list/search results.",
+            "properties": {
+              "start_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Start At",
+                "x-sdl-role": "time.start_at"
+              },
+              "end_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "End At",
+                "x-sdl-role": "time.end_at"
+              },
+              "due_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Due At",
+                "x-sdl-role": "time.due_at"
+              },
+              "all_day": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "All Day",
+                "x-sdl-role": "time.all_day"
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Timezone",
+                "x-sdl-role": "time.timezone"
+              },
+              "priority": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Priority",
+                "x-sdl-role": "task.priority"
+              },
+              "urgency": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Urgency",
+                "x-sdl-role": "task.urgency"
+              },
+              "severity": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "info",
+                      "minor",
+                      "major",
+                      "critical"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Severity",
+                "x-sdl-role": "task.severity"
+              },
+              "is_done": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Is Done",
+                "x-sdl-role": "task.is_done"
+              },
+              "completed_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Completed At",
+                "x-sdl-role": "task.completed_at"
+              },
+              "completed_by": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Ref"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "x-sdl-role": "task.completed_by"
+              },
+              "resolution": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "completed",
+                      "wont_do",
+                      "duplicate",
+                      "cannot_reproduce",
+                      "obsolete",
+                      "deferred"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Resolution",
+                "x-sdl-role": "task.resolution"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Project Id"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "TaskItem",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/$defs/TaskItem"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "tasks"
+        ],
+        "title": "TaskListResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_upcoming",
+      "description": "List tasks due in the next 7 days (done=false AND due_date between now and now+7d).",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],

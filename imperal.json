@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.2.0",
   "app_id": "tasks",
-  "version": "3.28.0",
+  "version": "3.29.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -2636,6 +2636,70 @@
           "users"
         ],
         "title": "SearchUsersResult",
+        "type": "object"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_project_members",
+      "description": "List the members of a specific project (its assignable users — owner plus user/team shares). Use this when the user asks who is on a named project, e.g. 'who is on the WebHostMost Tasks team', 'участники проекта X', 'кто работает над проектом'. Pass project_name when you only know the name; it is resolved automatically. Prefer this over search_vikunja_users when the user names a project — it is project-scoped rather than instance-wide.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer project ID. Pass project_name instead if you only know the name.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project title to resolve (e.g. 'WebHostMost Tasks'). Used when project_id is unknown. Case-insensitive.",
+            "title": "Project Name"
+          }
+        },
+        "title": "ListProjectMembersParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "users": {
+            "items": {},
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project_id",
+          "users"
+        ],
+        "title": "ProjectMembersResult",
         "type": "object"
       },
       "event": "",

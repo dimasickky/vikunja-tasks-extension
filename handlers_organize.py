@@ -17,6 +17,7 @@ from handlers_crud import (
 )
 from models_return import (
     SearchUsersResult,
+    ProjectMembersResult,
     AssignResult,
     UnassignResult,
     TaskLabelResult,
@@ -30,6 +31,20 @@ class SearchUsersParams(BaseModel):
         description=(
             "Name or email fragment to search for (e.g. 'val', 'ignat', 'denis@'). "
             "Pass empty string to list all known users on this Vikunja instance."
+        ),
+    )
+
+
+class ListProjectMembersParams(BaseModel):
+    project_id: Optional[int] = Field(
+        None,
+        description="Integer project ID. Pass project_name instead if you only know the name.",
+    )
+    project_name: Optional[str] = Field(
+        None,
+        description=(
+            "Project title to resolve (e.g. 'WebHostMost Tasks'). Used when project_id is unknown. "
+            "Case-insensitive."
         ),
     )
 
@@ -141,6 +156,38 @@ async def _search_users_impl(ctx, params: SearchUsersParams) -> ActionResult:
     return ActionResult.success(
         summary=f"Found {len(users)} user(s) {label}:\n" + "\n".join(lines),
         data={"users": users},
+    )
+
+
+async def _list_project_members_impl(ctx, params: ListProjectMembersParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    project_id = params.project_id
+    if project_id is None and params.project_name:
+        project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+        if project_id is None:
+            return ActionResult.error(f"No project found matching '{params.project_name}'.")
+    if project_id is None:
+        return ActionResult.error("Pass project_id or project_name to list its members.")
+
+    resp = await api_get(ctx, f"/v1/projects/{project_id}/users", {"imperal_id": imperal_id})
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't list project members"))
+
+    members = resp if isinstance(resp, list) else []
+    proj_label = params.project_name or f"#{project_id}"
+    if not members:
+        return ActionResult.success(
+            summary=f"No members found on project {proj_label}.",
+            data={"project_id": project_id, "users": []},
+        )
+
+    lines = [f"• {u['username']} (ID: {u['id']})" for u in members if u.get("id")]
+    return ActionResult.success(
+        summary=f"{len(members)} member(s) on project {proj_label}:\n" + "\n".join(lines),
+        data={"project_id": project_id, "users": members},
     )
 
 
@@ -479,3 +526,20 @@ async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
 )
 async def search_vikunja_users(ctx, params: SearchUsersParams) -> ActionResult:
     return await _search_users_impl(ctx, params)
+
+
+@chat.function(
+    "list_project_members",
+    action_type="read",
+    description=(
+        "List the members of a specific project (its assignable users — owner plus "
+        "user/team shares). Use this when the user asks who is on a named project, e.g. "
+        "'who is on the WebHostMost Tasks team', 'участники проекта X', 'кто работает над проектом'. "
+        "Pass project_name when you only know the name; it is resolved automatically. "
+        "Prefer this over search_vikunja_users when the user names a project — it is "
+        "project-scoped rather than instance-wide."
+    ),
+    data_model=ProjectMembersResult,
+)
+async def list_project_members(ctx, params: ListProjectMembersParams) -> ActionResult:
+    return await _list_project_members_impl(ctx, params)

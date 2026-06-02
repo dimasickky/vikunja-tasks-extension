@@ -116,11 +116,13 @@ paginated page (default 50), NOT the total. "count: 50" in their response means
 "50 on this page", not "50 total".
 
 ### Team members / who is on a project
-When the user asks "who is on the team", "team members", "participants", "участники",
-"кто в команде", "members of project X", "кто работает над проектом" — call
-`search_vikunja_users(query="")` to list the users on this Vikunja instance. Do NOT use
-`count_tasks_per_bucket` for this, and do NOT write the answer into a note unless the user
-explicitly asked to save it.
+When the user names a project — "who is on the WebHostMost Tasks team", "members of project X",
+"участники проекта X", "кто работает над проектом X" — call
+`list_project_members(project_name="X")`. It is project-scoped (owner + user/team shares).
+When the user asks about people generally, with no project — "who is available", "who can I
+assign to", "кто вообще есть" — call `search_vikunja_users(query="")` to list everyone on the
+instance. Do NOT use `count_tasks_per_bucket` for either, and do NOT write the answer into a
+note unless the user explicitly asked to save it.
 
 ### Due-date views (overdue / today / upcoming)
 - "overdue", "просроченные" → `list_overdue()`.

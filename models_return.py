@@ -221,6 +221,11 @@ class SearchUsersResult(BaseModel):
     users: List[Any]
 
 
+class ProjectMembersResult(BaseModel):
+    project_id: int
+    users: List[Any]
+
+
 class AssignResult(BaseModel):
     task_id: int
     assignee_vikunja_user_id: Optional[int] = None

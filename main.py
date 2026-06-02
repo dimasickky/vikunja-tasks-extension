@@ -1,4 +1,4 @@
-"""tasks · BYO Vikunja kanban manager (each user connects their own). (build v3.28.0 — adds list_upcoming)."""
+"""tasks · BYO Vikunja kanban manager (each user connects their own). (build v3.29.0 — adds list_project_members)."""
 from __future__ import annotations
 
 import sys, os

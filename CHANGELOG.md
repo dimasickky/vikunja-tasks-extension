@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.29.0] — 2026-06-03
+
+### Added
+
+- **`list_project_members`** — lists the members of a specific project (owner + user/team
+  shares) via the bridge's `GET /v1/projects/{id}/users` (Vikunja `projectusers`, BYO-correct
+  and instance-agnostic). Accepts `project_id` or `project_name` (auto-resolved). Replaces the
+  former semi-workaround of routing "who is on project X" to the instance-wide
+  `search_vikunja_users(query="")`.
+
+### Changed
+
+- **system_prompt** — team-membership routing now distinguishes project-scoped from
+  instance-wide: a named project → `list_project_members(project_name=...)`; a general
+  "who is available" with no project → `search_vikunja_users(query="")`.
+
 ## [3.28.0] — 2026-06-02
 
 ### Added

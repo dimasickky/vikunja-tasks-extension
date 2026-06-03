@@ -3,6 +3,7 @@
 from typing import Optional, List
 from pydantic import BaseModel, Field, field_validator
 
+from imperal_sdk import sdl
 from imperal_sdk.chat import ActionResult
 
 import logging
@@ -387,8 +388,8 @@ async def delete_task(ctx, params: DeleteTaskParams) -> ActionResult:
 
 
 class DeleteTasksParams(BaseModel):
-    task_ids: Optional[List[int]] = Field(
-        None,
+    task_ids: Optional[List[int]] = sdl.field(
+        role="ref.target_id",
         description="List of integer task IDs to delete. Use this if you already have the IDs.",
     )
     task_titles: Optional[List[str]] = Field(
@@ -536,11 +537,12 @@ async def list_subtasks(ctx, params: ListSubtasksParams) -> ActionResult:
     return ActionResult.success(
         summary=f"Task #{params.task_id} has {len(subtasks)} subtask(s), {done_ct} done.",
         data={
-            "task_id":  params.task_id,
-            "subtasks": [
-                SubtaskItem(id=s["id"], title=s.get("title", "?"), kind="task", is_done=s.get("done", False))
+            "items": [
+                SubtaskItem(id=s["id"], title=s.get("title", "?"), kind="task", is_done=s.get("done", False)).model_dump()
                 for s in subtasks
             ],
+            "total":   len(subtasks),
+            "task_id": params.task_id,
         },
     )
 

@@ -70,23 +70,21 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
         if isinstance(resp, dict) and resp.get("status") == "error":
             return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"))
         tasks = resp if isinstance(resp, list) else []
+    items = [
+        TaskItem(
+            id=t["id"],
+            title=t.get("title", "?"),
+            kind="task",
+            is_done=t.get("done", False),
+            priority=vikunja_priority(t.get("priority", 0)),
+            due_at=vikunja_date(t.get("due_date")),
+            project_id=t.get("project_id"),
+        ).model_dump()
+        for t in tasks
+    ]
     return ActionResult.success(
         summary=_summarise_tasks(tasks),
-        data={
-            "count": len(tasks),
-            "tasks": [
-                TaskItem(
-                    id=t["id"],
-                    title=t.get("title", "?"),
-                    kind="task",
-                    is_done=t.get("done", False),
-                    priority=vikunja_priority(t.get("priority", 0)),
-                    due_at=vikunja_date(t.get("due_date")),
-                    project_id=t.get("project_id"),
-                )
-                for t in tasks
-            ],
-        },
+        data={"items": items, "total": len(items)},
     )
 
 
@@ -173,18 +171,18 @@ async def find_task(ctx, params: FindTaskParams) -> ActionResult:
     if result.status != "success":
         return result
 
-    tasks = (result.data or {}).get("tasks", []) if isinstance(result.data, dict) else []
-    n = len(tasks)
+    items = (result.data or {}).get("items", []) if isinstance(result.data, dict) else []
+    n = len(items)
     if n == 0:
         summary = f"No tasks found matching '{params.query}'."
     else:
-        preview = ", ".join(f"{t.title} (#{t.id})" for t in tasks[:5])
+        preview = ", ".join(f"{t.get('title', '?')} (#{t.get('id')})" for t in items[:5])
         more = f" + {n - 5} more" if n > 5 else ""
         summary = f"Found {n} task(s) matching '{params.query}': {preview}{more}."
 
     return ActionResult.success(
         summary=summary,
-        data={"count": n, "query": params.query, "tasks": tasks},
+        data={"items": items, "total": n, "query": params.query},
     )
 
 

@@ -225,15 +225,13 @@ async def _list_projects_impl(ctx) -> ActionResult:
 
     projects = resp if isinstance(resp, list) else []
     active = [p for p in projects if not p.get("is_archived", False)]
+    items = [
+        ProjectItem(id=p["id"], title=p.get("title", "?"), kind="project", hex_color=p.get("hex_color")).model_dump()
+        for p in active
+    ]
     return ActionResult.success(
         summary=f"{len(active)} project(s): {', '.join(p.get('title', '?') for p in active[:10])}.",
-        data={
-            "count":    len(active),
-            "projects": [
-                ProjectItem(id=p["id"], title=p.get("title", "?"), kind="project", hex_color=p.get("hex_color"))
-                for p in active
-            ],
-        },
+        data={"items": items, "total": len(items)},
     )
 
 
@@ -558,11 +556,11 @@ async def get_bucket_tasks(ctx, params: GetBucketTasksParams) -> ActionResult:
                 f"{len(task_list)} task(s)."
             ),
             data={
+                "items":        [t.model_dump() for t in task_list],
+                "total":        len(task_list),
                 "project_id":   pid,
                 "bucket_id":    target["id"],
                 "bucket_title": target.get("title", "?"),
-                "task_count":   len(task_list),
-                "tasks":        task_list,
             },
         )
 
@@ -894,10 +892,10 @@ async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResul
     return ActionResult.success(
         summary=f"Project '{proj_title}': {len(task_list)} task(s) total, {done_ct} done.",
         data={
+            "items":         [t.model_dump() for t in task_list],
+            "total":         len(task_list),
             "project_id":    params.project_id,
             "project_title": proj_title,
-            "total_count":   len(task_list),
-            "tasks":         task_list,
         },
     )
 

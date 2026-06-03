@@ -1,5 +1,38 @@
 # Changelog
 
+## [3.31.0] — 2026-06-03
+
+### Changed
+
+- **SDL: all task / project / subtask list reads now return real `sdl.EntityList[…]`**
+  (`items=[...]`, `total=N`, `x-sdl="entity-list"`), completing the entity-list migration started in
+  3.30.0 (users/members). Affected returns: `TaskListResult`, `FindTaskResult`, `GetBucketTasksResult`,
+  `ListProjectTasksResult` → `sdl.EntityList[TaskItem]`; `ListProjectsResult` → `sdl.EntityList[ProjectItem]`;
+  `ListSubtasksResult` → `sdl.EntityList[SubtaskItem]`. Coordinates (`query`, `project_id`, `bucket_id`,
+  `bucket_title`, `project_title`, `task_id`) are kept as additive typed fields on the subclasses.
+- **List items are now `model_dump()`-ed to plain dicts** in the result payload (was: raw `TaskItem` /
+  `ProjectItem` / `SubtaskItem` pydantic objects placed inside a plain `dict`, which `ActionResult.to_dict()`
+  did not recurse into → repr-strings in `data_facts`). Each item now serializes as a canonical SDL triple
+  (`id`/`title`/`kind` + facets).
+- **Why:** the kernel surfaces a cross-turn salient set / resolves plural anaphora ("удали эти", "вторую") /
+  builds proactive set-offers ONLY from results it recognizes as an SDL entity-list — singular focus via the
+  `x-sdl` return-schema marker (`core/entity_focus.py`), plural/offer via the structural `data["items"]`
+  detector (`resolve_gate._entitylist_ids_titles`). Task reads previously failed both (legacy key `tasks`,
+  no top-level `x-sdl="entity-list"`), so tasks were invisible to anaphora/proactive while mail/users worked.
+
+### Fixed
+
+- **`delete_tasks`: `task_ids` now carries the SDL role `ref.target_id`** (`sdl.field`), so the kernel's
+  `the platform` maps the bulk-delete target to `task_ids` by SDL role (priority 1), robust even if a
+  scalar `*_id` like `project_id` were ever made required. Complements the kernel's by-name `*_ids`
+  preference (federal `I-TARGET-MAPPED-BY-SDL-ROLE` / `I-BULK-TARGET-IS-ID-COLLECTION`).
+
+### Notes
+
+- Pure extension-side change; the the backend service wire contract is unchanged.
+- `system_prompt.txt`: the counting caveat now references `"total: 50"` (the EntityList `total` field) instead
+  of the removed `count` key.
+
 ## [3.30.0] — 2026-06-03
 
 ### Changed

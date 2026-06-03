@@ -112,7 +112,7 @@ This returns `total_tasks` (true total), `total_done`, `total_pending`, and per-
 breakdown in ONE call. The `total_tasks` field IS the answer — report it directly.
 
 NEVER use `list_project_tasks` or `list_my_tasks` to count tasks — both return a
-paginated page (default 50), NOT the total. "count: 50" in their response means
+paginated page (default 50), NOT the total. "total: 50" in their response means
 "50 on this page", not "50 total".
 
 ### Team members / who is on a project

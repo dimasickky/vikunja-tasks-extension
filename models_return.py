@@ -137,9 +137,10 @@ class CreateSubtaskResult(BaseModel):
     refresh_panels: List[str]
 
 
-class ListSubtasksResult(BaseModel):
-    task_id: int
-    subtasks: List[SubtaskItem]
+class ListSubtasksResult(sdl.EntityList[SubtaskItem]):
+    """list_subtasks return — a REAL sdl.EntityList[SubtaskItem] (items=[...],
+    total=N, x-sdl='entity-list'). Parent task_id carried as an additive typed field."""
+    task_id: Optional[int] = None
 
 
 class ToggleChecklistResult(BaseModel):
@@ -151,15 +152,17 @@ class ToggleChecklistResult(BaseModel):
 
 # ─── handlers_search ──────────────────────────────────────────────────────── #
 
-class TaskListResult(BaseModel):
-    count: int
-    tasks: List[TaskItem]
+class TaskListResult(sdl.EntityList[TaskItem]):
+    """list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —
+    a REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').
+    NO legacy {count, tasks:[dict]} wrapper."""
+    pass
 
 
-class FindTaskResult(BaseModel):
-    count: int
-    query: str
-    tasks: List[TaskItem]
+class FindTaskResult(sdl.EntityList[TaskItem]):
+    """find_task — a REAL sdl.EntityList[TaskItem]; the search query carried as an
+    additive typed field."""
+    query: str = ""
 
 
 # ─── handlers_connection ──────────────────────────────────────────────────── #
@@ -293,9 +296,10 @@ class DeleteProjectResult(BaseModel):
     refresh_panels: List[str]
 
 
-class ListProjectsResult(BaseModel):
-    count: int
-    projects: List[ProjectItem]
+class ListProjectsResult(sdl.EntityList[ProjectItem]):
+    """list_projects — a REAL sdl.EntityList[ProjectItem] (items=[...], total=N,
+    x-sdl='entity-list')."""
+    pass
 
 
 # ─── handlers_structure — labels ──────────────────────────────────────────── #
@@ -345,13 +349,12 @@ class CountTasksPerBucketResult(BaseModel):
     buckets: List[BucketEntity]
 
 
-class GetBucketTasksResult(BaseModel):
-    """get_bucket_tasks / get_named_bucket_tasks."""
-    project_id: int
-    bucket_id: int
-    bucket_title: str
-    task_count: int
-    tasks: List[TaskItem]
+class GetBucketTasksResult(sdl.EntityList[TaskItem]):
+    """get_bucket_tasks / get_named_bucket_tasks — a REAL sdl.EntityList[TaskItem]
+    (items=[...], total=N); bucket coordinates carried as additive typed fields."""
+    project_id: Optional[int] = None
+    bucket_id: Optional[int] = None
+    bucket_title: str = ""
 
 
 class RenameBucketResult(BaseModel):
@@ -379,11 +382,11 @@ class DeleteBucketResult(BaseModel):
 
 # ─── handlers_structure — list_project_tasks + get_project ────────────────── #
 
-class ListProjectTasksResult(BaseModel):
-    project_id: int
-    project_title: str
-    total_count: int
-    tasks: List[TaskItem]
+class ListProjectTasksResult(sdl.EntityList[TaskItem]):
+    """list_project_tasks — a REAL sdl.EntityList[TaskItem] (items=[...], total=N);
+    project coordinates carried as additive typed fields."""
+    project_id: Optional[int] = None
+    project_title: str = ""
 
 
 # ─── handlers_ai ──────────────────────────────────────────────────────────── #

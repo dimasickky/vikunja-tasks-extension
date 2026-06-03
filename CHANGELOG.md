@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.30.0] — 2026-06-03
+
+### Changed
+
+- **SDL: `search_vikunja_users` + `list_project_members` now return real `sdl.EntityList[UserEntity]`**
+  (`x-sdl="entity-list"`), replacing the legacy `{users: List[Any]}` wrappers. New `UserEntity(sdl.Entity)`
+  (`id`=vikunja user id, `title`=username, `kind="user"`, `connected` flag) with a `mode="before"` `_sdl_canon`
+  validator. Result data is now `{"items": [...], "total": n}` (+ `project_id` for members). Mirrors the
+  admin-ext `list_users → sdl.EntityList[UserRecord]` migration (kernel resolves users as typed SDL entities;
+  enables entity_focus / `$REF` / by-name routing over user lists). Pure extension-side; bridge wire contract
+  unchanged.
+
 ## [3.29.0] — 2026-06-03
 
 ### Added

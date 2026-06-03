@@ -2,7 +2,7 @@
 
 from typing import Any, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from imperal_sdk import sdl
 
@@ -217,13 +217,33 @@ class CommentRefResult(BaseModel):
 
 # ─── handlers_organize ────────────────────────────────────────────────────── #
 
-class SearchUsersResult(BaseModel):
-    users: List[Any]
+class UserEntity(sdl.Entity):
+    """Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,
+    title=username. `connected` marks whether the user has linked their own
+    Imperal↔Vikunja connection. Mirrors the admin-ext UserRecord pattern."""
+    username: str = ""
+    connected: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _sdl_canon(cls, data):
+        if isinstance(data, dict):
+            data["id"] = data.get("id") or data.get("vikunja_user_id") or 0
+            data.setdefault("title", data.get("username") or data.get("name") or "")
+            data.setdefault("kind", "user")
+        return data
 
 
-class ProjectMembersResult(BaseModel):
-    project_id: int
-    users: List[Any]
+class SearchUsersResult(sdl.EntityList[UserEntity]):
+    """search_vikunja_users return — a REAL sdl.EntityList[UserEntity] (items=[...],
+    x-sdl='entity-list'). NO legacy {users:[dict]} wrapper."""
+    pass
+
+
+class ProjectMembersResult(sdl.EntityList[UserEntity]):
+    """list_project_members return — a REAL sdl.EntityList[UserEntity]; project_id
+    carried as an additive typed field (EntityList is a pydantic BaseModel)."""
+    project_id: Optional[int] = None
 
 
 class AssignResult(BaseModel):

@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.2.0",
   "app_id": "tasks",
-  "version": "3.29.0",
+  "version": "3.30.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -2625,18 +2625,143 @@
         "type": "object"
       },
       "return_schema": {
+        "$defs": {
+          "UserEntity": {
+            "description": "Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,\ntitle=username. `connected` marks whether the user has linked their own\nImperal↔Vikunja connection. Mirrors the admin-ext UserRecord pattern.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "username": {
+                "default": "",
+                "title": "Username",
+                "type": "string"
+              },
+              "connected": {
+                "default": false,
+                "title": "Connected",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "UserEntity",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "description": "search_vikunja_users return — a REAL sdl.EntityList[UserEntity] (items=[...],\nx-sdl='entity-list'). NO legacy {users:[dict]} wrapper.",
         "properties": {
-          "users": {
-            "items": {},
-            "title": "Users",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/UserEntity"
+            },
+            "title": "Items",
             "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
           }
         },
         "required": [
-          "users"
+          "items"
         ],
         "title": "SearchUsersResult",
-        "type": "object"
+        "type": "object",
+        "x-sdl": "entity-list"
       },
       "event": "",
       "background": false,
@@ -2684,23 +2809,155 @@
         "type": "object"
       },
       "return_schema": {
+        "$defs": {
+          "UserEntity": {
+            "description": "Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,\ntitle=username. `connected` marks whether the user has linked their own\nImperal↔Vikunja connection. Mirrors the admin-ext UserRecord pattern.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "username": {
+                "default": "",
+                "title": "Username",
+                "type": "string"
+              },
+              "connected": {
+                "default": false,
+                "title": "Connected",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "UserEntity",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "description": "list_project_members return — a REAL sdl.EntityList[UserEntity]; project_id\ncarried as an additive typed field (EntityList is a pydantic BaseModel).",
         "properties": {
-          "project_id": {
-            "title": "Project Id",
-            "type": "integer"
-          },
-          "users": {
-            "items": {},
-            "title": "Users",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/UserEntity"
+            },
+            "title": "Items",
             "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Project Id"
           }
         },
         "required": [
-          "project_id",
-          "users"
+          "items"
         ],
         "title": "ProjectMembersResult",
-        "type": "object"
+        "type": "object",
+        "x-sdl": "entity-list"
       },
       "event": "",
       "background": false,

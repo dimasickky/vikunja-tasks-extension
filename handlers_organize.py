@@ -145,17 +145,26 @@ async def _search_users_impl(ctx, params: SearchUsersParams) -> ActionResult:
     users = resp if isinstance(resp, list) else []
     if not users:
         msg = f"No users found matching '{params.query}'." if params.query else "No other users found on this Vikunja instance."
-        return ActionResult.success(summary=msg, data={"users": []})
+        return ActionResult.success(summary=msg, data={"items": [], "total": 0})
 
-    lines = []
+    # SDL entity-list: each user is a canonical sdl.Entity (id=vikunja user id,
+    # title=username, kind="user"); gateway fields kept verbatim for rendering.
+    items, lines = [], []
     for u in users:
+        if not isinstance(u, dict):
+            continue
+        it = dict(u)
+        it["id"] = u.get("id") or u.get("vikunja_user_id") or 0
+        it.setdefault("title", u.get("username") or u.get("name") or "")
+        it.setdefault("kind", "user")
+        items.append(it)
         tag = " ✓" if u.get("connected") else ""
-        lines.append(f"• {u['username']} (ID: {u['id']}){tag}")
+        lines.append(f"• {it['title']} (ID: {it['id']}){tag}")
 
     label = f"matching '{params.query}'" if params.query else "on this Vikunja instance"
     return ActionResult.success(
-        summary=f"Found {len(users)} user(s) {label}:\n" + "\n".join(lines),
-        data={"users": users},
+        summary=f"Found {len(items)} user(s) {label}:\n" + "\n".join(lines),
+        data={"items": items, "total": len(items)},
     )
 
 
@@ -181,13 +190,24 @@ async def _list_project_members_impl(ctx, params: ListProjectMembersParams) -> A
     if not members:
         return ActionResult.success(
             summary=f"No members found on project {proj_label}.",
-            data={"project_id": project_id, "users": []},
+            data={"items": [], "total": 0, "project_id": project_id},
         )
 
-    lines = [f"• {u['username']} (ID: {u['id']})" for u in members if u.get("id")]
+    # SDL entity-list: each member is a canonical sdl.Entity (kind="user").
+    items, lines = [], []
+    for u in members:
+        if not isinstance(u, dict) or not u.get("id"):
+            continue
+        it = dict(u)
+        it["id"] = u.get("id") or u.get("vikunja_user_id") or 0
+        it.setdefault("title", u.get("username") or u.get("name") or "")
+        it.setdefault("kind", "user")
+        items.append(it)
+        lines.append(f"• {it['title']} (ID: {it['id']})")
+
     return ActionResult.success(
-        summary=f"{len(members)} member(s) on project {proj_label}:\n" + "\n".join(lines),
-        data={"project_id": project_id, "users": members},
+        summary=f"{len(items)} member(s) on project {proj_label}:\n" + "\n".join(lines),
+        data={"items": items, "total": len(items), "project_id": project_id},
     )
 
 

@@ -1,4 +1,4 @@
-"""tasks · BYO Vikunja kanban manager (each user connects their own). (build v3.29.0 — adds list_project_members)."""
+"""tasks · BYO Vikunja kanban manager (each user connects their own). (build v3.30.0 — users/members → sdl.EntityList)."""
 from __future__ import annotations
 
 import sys, os

@@ -372,7 +372,7 @@ class ListProjectBucketsParams(BaseModel):
 class GetBucketTasksParams(BaseModel):
     bucket_name: Optional[str] = Field(
         None,
-        description="Bucket/column name (e.g. 'the team', 'To-Do'). Case-insensitive. Use this OR bucket_id.",
+        description="Bucket/column name (e.g. 'Backlog', 'To-Do'). Case-insensitive. Use this OR bucket_id.",
     )
     bucket_id: Optional[int] = Field(
         None,
@@ -487,7 +487,7 @@ async def list_project_buckets(ctx, params: ListProjectBucketsParams) -> ActionR
     action_type="read",
     description=(
         "Get tasks from a specific kanban bucket/column. "
-        "Use when the user asks WHAT TASKS ARE IN a named bucket (e.g. 'what tasks are in the team?', "
+        "Use when the user asks WHAT TASKS ARE IN a named bucket (e.g. 'what tasks are in Backlog?', "
         "'show me the To-Do column', 'tasks in Corporate Tasks bucket'). "
         "Do NOT use to list all buckets — use list_project_buckets for that. "
         "Pass bucket_name (resolved automatically) OR bucket_id. "
@@ -502,7 +502,7 @@ async def get_bucket_tasks(ctx, params: GetBucketTasksParams) -> ActionResult:
 
     if not params.bucket_name and not params.bucket_id:
         return ActionResult.error(
-            "Pass bucket_name (e.g. 'the team') or bucket_id. "
+            "Pass bucket_name (e.g. 'Backlog') or bucket_id. "
             "Use list_project_buckets to see available buckets."
         )
 

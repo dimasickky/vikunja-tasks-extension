@@ -69,7 +69,7 @@ class AssignTaskParams(BaseModel):
         None,
         description=(
             "Bucket/column name to disambiguate when multiple tasks share the same title "
-            "(e.g. 'the team'). Case-insensitive. Used only when task_name is set."
+            "(e.g. 'Backlog'). Case-insensitive. Used only when task_name is set."
         ),
     )
     assignee_query: str = Field(

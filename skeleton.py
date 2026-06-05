@@ -11,7 +11,7 @@ log = logging.getLogger("tasks.skeleton")
 
 # NOTE on TTL (v3.2.0): SDK 4.1.0 SkeletonClient is read-only — there is no
 # `ctx.skeleton.invalidate()` API for handlers to call after a write. The
-# canonical refresh path is the kernel skeleton-tick workflow (per-extension
+# canonical refresh path is the platform skeleton-tick workflow (per-extension
 # `ttl_seconds`). To keep the LLM's view of task counters / recent_tasks fresh
 # after writes initiated through chat, we lower TTL from 300s to 30s. Panels
 # (panels.py / panels_editor.py / panels_task.py) do NOT read skeleton — they
@@ -195,7 +195,7 @@ async def skeleton_alert_tasks(
     old: dict | None = None,
     new: dict | None = None,
 ) -> dict:
-    """Called by kernel when tasks snapshot changes between ticks."""
+    """Called by platform when tasks snapshot changes between ticks."""
     if not new:
         return {"response": ""}
 

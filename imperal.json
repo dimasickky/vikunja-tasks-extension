@@ -1967,7 +1967,7 @@
               }
             ],
             "default": null,
-            "description": "Bucket/column name to disambiguate when multiple tasks share the same title (e.g. 'the team'). Case-insensitive. Used only when task_name is set.",
+            "description": "Bucket/column name to disambiguate when multiple tasks share the same title (e.g. 'Backlog'). Case-insensitive. Used only when task_name is set.",
             "title": "Bucket Name"
           },
           "assignee_query": {
@@ -3904,7 +3904,7 @@
     },
     {
       "name": "get_bucket_tasks",
-      "description": "Get tasks from a specific kanban bucket/column. Use when the user asks WHAT TASKS ARE IN a named bucket (e.g. 'what tasks are in the team?', 'show me the To-Do column', 'tasks in Corporate Tasks bucket'). Do NOT use to list all buckets — use list_project_buckets for that. Pass bucket_name (resolved automatically) OR bucket_id. project_name and project_id are optional — omit to search across all projects.",
+      "description": "Get tasks from a specific kanban bucket/column. Use when the user asks WHAT TASKS ARE IN a named bucket (e.g. 'what tasks are in Backlog?', 'show me the To-Do column', 'tasks in Corporate Tasks bucket'). Do NOT use to list all buckets — use list_project_buckets for that. Pass bucket_name (resolved automatically) OR bucket_id. project_name and project_id are optional — omit to search across all projects.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -3921,7 +3921,7 @@
               }
             ],
             "default": null,
-            "description": "Bucket/column name (e.g. 'the team', 'To-Do'). Case-insensitive. Use this OR bucket_id.",
+            "description": "Bucket/column name (e.g. 'Backlog', 'To-Do'). Case-insensitive. Use this OR bucket_id.",
             "title": "Bucket Name"
           },
           "bucket_id": {

@@ -102,8 +102,16 @@ class SubtaskItem(sdl.Entity, sdl.Completable):
 
 
 class ProjectItem(sdl.Entity):
-    """Slim SDL project entity for project list results."""
+    """Slim SDL project entity for project list results.
+
+    Carries `is_archived` / `is_favorite` so the narrator can answer
+    "show favorited / archived projects" by filtering the facts itself.
+    (Progress counts are intentionally NOT here — Vikunja's project object
+    has none; computing them needs an N× bucket_counts fan-out, which the
+    skeleton already does — answer "% complete" from skeleton context.)"""
     hex_color: Optional[str] = None
+    is_archived: bool = False
+    is_favorite: bool = False
 
 
 # ─── handlers_crud ────────────────────────────────────────────────────────── #

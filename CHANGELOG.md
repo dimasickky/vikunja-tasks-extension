@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.33.0] — 2026-06-05
+
+### Changed
+
+- **`list_projects` now returns ALL projects with `is_archived` / `is_favorite` flags** (was:
+  archived projects silently dropped, so "show my archived/favorited projects" was unanswerable).
+  `ProjectItem` gained the two boolean fields; the narrator filters by them (SDL-native — emit
+  facts, narrator decides). Summary still reports active count. Project progress (% complete) is
+  intentionally NOT added — Vikunja's project object carries no counts and computing them needs an
+  N× bucket_counts fan-out the skeleton already does; answer "% complete" from skeleton context.
+
 ## [3.32.0] — 2026-06-05
 
 ### Fixed

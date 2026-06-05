@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.2.0",
   "app_id": "tasks",
-  "version": "3.32.0",
+  "version": "3.33.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -3540,7 +3540,7 @@
       "return_schema": {
         "$defs": {
           "ProjectItem": {
-            "description": "Slim SDL project entity for project list results.",
+            "description": "Slim SDL project entity for project list results.\n\nCarries `is_archived` / `is_favorite` so the narrator can answer\n\"show favorited / archived projects\" by filtering the facts itself.\n(Progress counts are intentionally NOT here — Vikunja's project object\nhas none; computing them needs an N× bucket_counts fan-out, which the\nskeleton already does — answer \"% complete\" from skeleton context.)",
             "properties": {
               "id": {
                 "anyOf": [
@@ -3621,6 +3621,16 @@
                 ],
                 "default": null,
                 "title": "Hex Color"
+              },
+              "is_archived": {
+                "default": false,
+                "title": "Is Archived",
+                "type": "boolean"
+              },
+              "is_favorite": {
+                "default": false,
+                "title": "Is Favorite",
+                "type": "boolean"
               }
             },
             "required": [

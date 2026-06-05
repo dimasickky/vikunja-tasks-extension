@@ -226,13 +226,24 @@ async def _list_projects_impl(ctx) -> ActionResult:
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch projects"))
 
     projects = resp if isinstance(resp, list) else []
-    active = [p for p in projects if not p.get("is_archived", False)]
+    # Return ALL projects with is_archived/is_favorite flags — let the narrator
+    # filter ("show archived/favorited"). Previously archived projects were
+    # dropped entirely, which made those questions unanswerable.
     items = [
-        ProjectItem(id=p["id"], title=p.get("title", "?"), kind="project", hex_color=p.get("hex_color")).model_dump()
-        for p in active
+        ProjectItem(
+            id=p["id"],
+            title=p.get("title", "?"),
+            kind="project",
+            hex_color=p.get("hex_color"),
+            is_archived=p.get("is_archived", False),
+            is_favorite=p.get("is_favorite", False),
+        ).model_dump()
+        for p in projects
     ]
+    active = [p for p in projects if not p.get("is_archived", False)]
     return ActionResult.success(
-        summary=f"{len(active)} project(s): {', '.join(p.get('title', '?') for p in active[:10])}.",
+        summary=f"{len(projects)} project(s), {len(active)} active: "
+                f"{', '.join(p.get('title', '?') for p in active[:10])}.",
         data={"items": items, "total": len(items)},
     )
 

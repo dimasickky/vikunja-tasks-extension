@@ -7,7 +7,15 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_get, chat, NoParams, fetch_all_pages
 from handlers_crud import _require_user, _bridge_error_msg
-from models_return import TaskListResult, FindTaskResult, TaskItem, vikunja_priority, vikunja_date
+from models_return import (
+    TaskListResult,
+    FindTaskResult,
+    TaskItem,
+    vikunja_priority,
+    vikunja_date,
+    vikunja_assignees,
+    vikunja_labels,
+)
 
 
 class ListMyTasksParams(BaseModel):
@@ -79,6 +87,10 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
             priority=vikunja_priority(t.get("priority", 0)),
             due_at=vikunja_date(t.get("due_date")),
             project_id=t.get("project_id"),
+            bucket_id=t.get("bucket_id") or None,
+            percent_done=t.get("percent_done", 0.0),
+            assignees=vikunja_assignees(t.get("assignees")),
+            labels=vikunja_labels(t.get("labels")),
         ).model_dump()
         for t in tasks
     ]

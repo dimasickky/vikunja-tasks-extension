@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.2.0",
   "app_id": "tasks",
-  "version": "3.31.0",
+  "version": "3.32.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -4002,8 +4002,26 @@
             "title": "Ref",
             "type": "object"
           },
+          "TaskAssignee": {
+            "properties": {
+              "vikunja_user_id": {
+                "title": "Vikunja User Id",
+                "type": "integer"
+              },
+              "username": {
+                "title": "Username",
+                "type": "string"
+              }
+            },
+            "required": [
+              "vikunja_user_id",
+              "username"
+            ],
+            "title": "TaskAssignee",
+            "type": "object"
+          },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -4263,6 +4281,39 @@
                 ],
                 "default": null,
                 "title": "Project Id"
+              },
+              "bucket_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Bucket Id"
+              },
+              "percent_done": {
+                "default": 0.0,
+                "title": "Percent Done",
+                "type": "number"
+              },
+              "assignees": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskAssignee"
+                },
+                "title": "Assignees",
+                "type": "array"
+              },
+              "labels": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskLabelItem"
+                },
+                "title": "Labels",
+                "type": "array"
               }
             },
             "required": [
@@ -4272,6 +4323,36 @@
             "title": "TaskItem",
             "type": "object",
             "x-sdl": "entity"
+          },
+          "TaskLabelItem": {
+            "properties": {
+              "label_id": {
+                "title": "Label Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "label_id",
+              "title"
+            ],
+            "title": "TaskLabelItem",
+            "type": "object"
           }
         },
         "description": "get_bucket_tasks / get_named_bucket_tasks — a REAL sdl.EntityList[TaskItem]\n(items=[...], total=N); bucket coordinates carried as additive typed fields.",
@@ -4934,8 +5015,26 @@
             "title": "Ref",
             "type": "object"
           },
+          "TaskAssignee": {
+            "properties": {
+              "vikunja_user_id": {
+                "title": "Vikunja User Id",
+                "type": "integer"
+              },
+              "username": {
+                "title": "Username",
+                "type": "string"
+              }
+            },
+            "required": [
+              "vikunja_user_id",
+              "username"
+            ],
+            "title": "TaskAssignee",
+            "type": "object"
+          },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -5195,6 +5294,39 @@
                 ],
                 "default": null,
                 "title": "Project Id"
+              },
+              "bucket_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Bucket Id"
+              },
+              "percent_done": {
+                "default": 0.0,
+                "title": "Percent Done",
+                "type": "number"
+              },
+              "assignees": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskAssignee"
+                },
+                "title": "Assignees",
+                "type": "array"
+              },
+              "labels": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskLabelItem"
+                },
+                "title": "Labels",
+                "type": "array"
               }
             },
             "required": [
@@ -5204,6 +5336,36 @@
             "title": "TaskItem",
             "type": "object",
             "x-sdl": "entity"
+          },
+          "TaskLabelItem": {
+            "properties": {
+              "label_id": {
+                "title": "Label Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "label_id",
+              "title"
+            ],
+            "title": "TaskLabelItem",
+            "type": "object"
           }
         },
         "description": "list_project_tasks — a REAL sdl.EntityList[TaskItem] (items=[...], total=N);\nproject coordinates carried as additive typed fields.",
@@ -5608,8 +5770,26 @@
             "title": "Ref",
             "type": "object"
           },
+          "TaskAssignee": {
+            "properties": {
+              "vikunja_user_id": {
+                "title": "Vikunja User Id",
+                "type": "integer"
+              },
+              "username": {
+                "title": "Username",
+                "type": "string"
+              }
+            },
+            "required": [
+              "vikunja_user_id",
+              "username"
+            ],
+            "title": "TaskAssignee",
+            "type": "object"
+          },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -5869,6 +6049,39 @@
                 ],
                 "default": null,
                 "title": "Project Id"
+              },
+              "bucket_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Bucket Id"
+              },
+              "percent_done": {
+                "default": 0.0,
+                "title": "Percent Done",
+                "type": "number"
+              },
+              "assignees": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskAssignee"
+                },
+                "title": "Assignees",
+                "type": "array"
+              },
+              "labels": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskLabelItem"
+                },
+                "title": "Labels",
+                "type": "array"
               }
             },
             "required": [
@@ -5878,6 +6091,36 @@
             "title": "TaskItem",
             "type": "object",
             "x-sdl": "entity"
+          },
+          "TaskLabelItem": {
+            "properties": {
+              "label_id": {
+                "title": "Label Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "label_id",
+              "title"
+            ],
+            "title": "TaskLabelItem",
+            "type": "object"
           }
         },
         "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
@@ -5990,8 +6233,26 @@
             "title": "Ref",
             "type": "object"
           },
+          "TaskAssignee": {
+            "properties": {
+              "vikunja_user_id": {
+                "title": "Vikunja User Id",
+                "type": "integer"
+              },
+              "username": {
+                "title": "Username",
+                "type": "string"
+              }
+            },
+            "required": [
+              "vikunja_user_id",
+              "username"
+            ],
+            "title": "TaskAssignee",
+            "type": "object"
+          },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -6251,6 +6512,39 @@
                 ],
                 "default": null,
                 "title": "Project Id"
+              },
+              "bucket_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Bucket Id"
+              },
+              "percent_done": {
+                "default": 0.0,
+                "title": "Percent Done",
+                "type": "number"
+              },
+              "assignees": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskAssignee"
+                },
+                "title": "Assignees",
+                "type": "array"
+              },
+              "labels": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskLabelItem"
+                },
+                "title": "Labels",
+                "type": "array"
               }
             },
             "required": [
@@ -6260,6 +6554,36 @@
             "title": "TaskItem",
             "type": "object",
             "x-sdl": "entity"
+          },
+          "TaskLabelItem": {
+            "properties": {
+              "label_id": {
+                "title": "Label Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "label_id",
+              "title"
+            ],
+            "title": "TaskLabelItem",
+            "type": "object"
           }
         },
         "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
@@ -6372,8 +6696,26 @@
             "title": "Ref",
             "type": "object"
           },
+          "TaskAssignee": {
+            "properties": {
+              "vikunja_user_id": {
+                "title": "Vikunja User Id",
+                "type": "integer"
+              },
+              "username": {
+                "title": "Username",
+                "type": "string"
+              }
+            },
+            "required": [
+              "vikunja_user_id",
+              "username"
+            ],
+            "title": "TaskAssignee",
+            "type": "object"
+          },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -6633,6 +6975,39 @@
                 ],
                 "default": null,
                 "title": "Project Id"
+              },
+              "bucket_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Bucket Id"
+              },
+              "percent_done": {
+                "default": 0.0,
+                "title": "Percent Done",
+                "type": "number"
+              },
+              "assignees": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskAssignee"
+                },
+                "title": "Assignees",
+                "type": "array"
+              },
+              "labels": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskLabelItem"
+                },
+                "title": "Labels",
+                "type": "array"
               }
             },
             "required": [
@@ -6642,6 +7017,36 @@
             "title": "TaskItem",
             "type": "object",
             "x-sdl": "entity"
+          },
+          "TaskLabelItem": {
+            "properties": {
+              "label_id": {
+                "title": "Label Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "label_id",
+              "title"
+            ],
+            "title": "TaskLabelItem",
+            "type": "object"
           }
         },
         "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
@@ -6754,8 +7159,26 @@
             "title": "Ref",
             "type": "object"
           },
+          "TaskAssignee": {
+            "properties": {
+              "vikunja_user_id": {
+                "title": "Vikunja User Id",
+                "type": "integer"
+              },
+              "username": {
+                "title": "Username",
+                "type": "string"
+              }
+            },
+            "required": [
+              "vikunja_user_id",
+              "username"
+            ],
+            "title": "TaskAssignee",
+            "type": "object"
+          },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -7015,6 +7438,39 @@
                 ],
                 "default": null,
                 "title": "Project Id"
+              },
+              "bucket_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Bucket Id"
+              },
+              "percent_done": {
+                "default": 0.0,
+                "title": "Percent Done",
+                "type": "number"
+              },
+              "assignees": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskAssignee"
+                },
+                "title": "Assignees",
+                "type": "array"
+              },
+              "labels": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskLabelItem"
+                },
+                "title": "Labels",
+                "type": "array"
               }
             },
             "required": [
@@ -7024,6 +7480,36 @@
             "title": "TaskItem",
             "type": "object",
             "x-sdl": "entity"
+          },
+          "TaskLabelItem": {
+            "properties": {
+              "label_id": {
+                "title": "Label Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "label_id",
+              "title"
+            ],
+            "title": "TaskLabelItem",
+            "type": "object"
           }
         },
         "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
@@ -7145,8 +7631,26 @@
             "title": "Ref",
             "type": "object"
           },
+          "TaskAssignee": {
+            "properties": {
+              "vikunja_user_id": {
+                "title": "Vikunja User Id",
+                "type": "integer"
+              },
+              "username": {
+                "title": "Username",
+                "type": "string"
+              }
+            },
+            "required": [
+              "vikunja_user_id",
+              "username"
+            ],
+            "title": "TaskAssignee",
+            "type": "object"
+          },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -7406,6 +7910,39 @@
                 ],
                 "default": null,
                 "title": "Project Id"
+              },
+              "bucket_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Bucket Id"
+              },
+              "percent_done": {
+                "default": 0.0,
+                "title": "Percent Done",
+                "type": "number"
+              },
+              "assignees": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskAssignee"
+                },
+                "title": "Assignees",
+                "type": "array"
+              },
+              "labels": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskLabelItem"
+                },
+                "title": "Labels",
+                "type": "array"
               }
             },
             "required": [
@@ -7415,6 +7952,36 @@
             "title": "TaskItem",
             "type": "object",
             "x-sdl": "entity"
+          },
+          "TaskLabelItem": {
+            "properties": {
+              "label_id": {
+                "title": "Label Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "label_id",
+              "title"
+            ],
+            "title": "TaskLabelItem",
+            "type": "object"
           }
         },
         "description": "find_task — a REAL sdl.EntityList[TaskItem]; the search query carried as an\nadditive typed field.",
@@ -7558,8 +8125,26 @@
             "title": "Ref",
             "type": "object"
           },
+          "TaskAssignee": {
+            "properties": {
+              "vikunja_user_id": {
+                "title": "Vikunja User Id",
+                "type": "integer"
+              },
+              "username": {
+                "title": "Username",
+                "type": "string"
+              }
+            },
+            "required": [
+              "vikunja_user_id",
+              "username"
+            ],
+            "title": "TaskAssignee",
+            "type": "object"
+          },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -7819,6 +8404,39 @@
                 ],
                 "default": null,
                 "title": "Project Id"
+              },
+              "bucket_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Bucket Id"
+              },
+              "percent_done": {
+                "default": 0.0,
+                "title": "Percent Done",
+                "type": "number"
+              },
+              "assignees": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskAssignee"
+                },
+                "title": "Assignees",
+                "type": "array"
+              },
+              "labels": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/TaskLabelItem"
+                },
+                "title": "Labels",
+                "type": "array"
               }
             },
             "required": [
@@ -7828,6 +8446,36 @@
             "title": "TaskItem",
             "type": "object",
             "x-sdl": "entity"
+          },
+          "TaskLabelItem": {
+            "properties": {
+              "label_id": {
+                "title": "Label Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "hex_color": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Hex Color"
+              }
+            },
+            "required": [
+              "label_id",
+              "title"
+            ],
+            "title": "TaskLabelItem",
+            "type": "object"
           }
         },
         "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",

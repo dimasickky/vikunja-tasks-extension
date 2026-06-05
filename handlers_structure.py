@@ -31,6 +31,8 @@ from models_return import (
     TaskItem,
     vikunja_priority,
     vikunja_date,
+    vikunja_assignees,
+    vikunja_labels,
 )
 
 log = logging.getLogger("tasks")
@@ -546,6 +548,10 @@ async def get_bucket_tasks(ctx, params: GetBucketTasksParams) -> ActionResult:
                 priority=vikunja_priority(t.get("priority", 0)),
                 due_at=vikunja_date(t.get("due_date")),
                 project_id=t.get("project_id"),
+                bucket_id=t.get("bucket_id") or None,
+                percent_done=t.get("percent_done", 0.0),
+                assignees=vikunja_assignees(t.get("assignees")),
+                labels=vikunja_labels(t.get("labels")),
             )
 
         task_list = [_task_entry(t) for t in (target.get("tasks") or [])]
@@ -885,6 +891,10 @@ async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResul
             priority=vikunja_priority(t.get("priority", 0)),
             due_at=vikunja_date(t.get("due_date")),
             project_id=t.get("project_id"),
+            bucket_id=t.get("bucket_id") or None,
+            percent_done=t.get("percent_done", 0.0),
+            assignees=vikunja_assignees(t.get("assignees")),
+            labels=vikunja_labels(t.get("labels")),
         )
 
     task_list = [_task_entry(t) for t in tasks]

@@ -39,6 +39,22 @@ class TaskLabelItem(BaseModel):
     hex_color: Optional[str] = None
 
 
+def vikunja_assignees(raw) -> List[TaskAssignee]:
+    """Vikunja task `assignees` array → typed list. Empty list when absent."""
+    return [
+        TaskAssignee(vikunja_user_id=a.get("id"), username=a.get("username", ""))
+        for a in (raw or [])
+    ]
+
+
+def vikunja_labels(raw) -> List[TaskLabelItem]:
+    """Vikunja task `labels` array → typed list. Empty list when absent."""
+    return [
+        TaskLabelItem(label_id=l.get("id"), title=l.get("title", ""), hex_color=l.get("hex_color"))
+        for l in (raw or [])
+    ]
+
+
 # ─── SDL Entity types (SDK 5.2.0) ─────────────────────────────────────────── #
 
 class TaskEntity(sdl.Entity, sdl.Completable, sdl.Prioritized, sdl.Schedulable, sdl.Timestamped):
@@ -68,8 +84,17 @@ class BucketEntity(sdl.Entity, sdl.Progress):
 # ─── Slim SDL entity types for list items ─────────────────────────────────── #
 
 class TaskItem(sdl.Entity, sdl.Completable, sdl.Prioritized, sdl.Schedulable):
-    """Slim SDL task entity for list/search results."""
+    """Slim SDL task entity for list/search results.
+
+    Carries assignees / labels / percent_done / bucket_id so list reads can
+    answer "who is assigned", "which are labeled X", "% done", and "which
+    bucket" WITHOUT an N× get_task fan-out. `description` stays off the slim
+    item on purpose (HTML body would bloat large lists) — use get_task for it."""
     project_id: Optional[int] = None
+    bucket_id: Optional[int] = None
+    percent_done: float = 0.0
+    assignees: List[TaskAssignee] = []
+    labels: List[TaskLabelItem] = []
 
 
 class SubtaskItem(sdl.Entity, sdl.Completable):

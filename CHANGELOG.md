@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.32.0] — 2026-06-05
+
+### Fixed
+
+- **Task list reads now carry `assignees` (data-gap fix).** The slim `TaskItem` previously
+  exposed only `id/title/is_done/priority/due_at/project_id` — it had **no `assignees`** field,
+  so EVERY list/search read (`list_project_tasks`, `list_my_tasks`, `find_task`,
+  `get_bucket_tasks`, `list_overdue/today/upcoming`, `filter_tasks`) was structurally incapable
+  of answering "who is assigned to the tasks?". The kernel, given an assignee-less list, fell
+  back to dumping titles and fabricating a "(with assignees)" framing. `assignees` is now
+  populated on every task list item from the Vikunja list payload (verified: `/v1/tasks/all`
+  already embeds the full `assignees` array — no bridge change needed).
+
+### Changed
+
+- **`TaskItem` enriched** with `bucket_id`, `percent_done`, `assignees`, `labels` (mirrors the
+  fields `get_task`/`TaskEntity` already returned). This also closes the `find_task` contract gap
+  (its description + params promised `bucket_id`, which the slim model never carried). `description`
+  is intentionally kept OFF the slim list item (HTML body would bloat large lists) — use `get_task`.
+- New helpers `vikunja_assignees()` / `vikunja_labels()` in `models_return.py`; the three identical
+  `_task_entry` builders (`handlers_search.py`, two in `handlers_structure.py`) now populate the
+  new fields via these helpers (DRY).
+
 ## [3.31.0] — 2026-06-03
 
 ### Changed

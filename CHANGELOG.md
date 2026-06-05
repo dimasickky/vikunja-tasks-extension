@@ -6,10 +6,10 @@
 
 - **`list_projects` now returns ALL projects with `is_archived` / `is_favorite` flags** (was:
   archived projects silently dropped, so "show my archived/favorited projects" was unanswerable).
-  `ProjectItem` gained the two boolean fields; the narrator filters by them (SDL-native — emit
-  facts, narrator decides). Summary still reports active count. Project progress (% complete) is
-  intentionally NOT added — Vikunja's project object carries no counts and computing them needs an
-  N× bucket_counts fan-out the skeleton already does; answer "% complete" from skeleton context.
+  `ProjectItem` gained the two boolean fields so the assistant can filter by them. Summary still
+  reports active count. Project progress (% complete) is intentionally NOT added — Vikunja's project
+  object carries no counts and computing them needs a per-bucket count fan-out the live view already
+  does; answer "% complete" from the existing board data.
 
 ## [3.32.0] — 2026-06-05
 
@@ -19,10 +19,10 @@
   exposed only `id/title/is_done/priority/due_at/project_id` — it had **no `assignees`** field,
   so EVERY list/search read (`list_project_tasks`, `list_my_tasks`, `find_task`,
   `get_bucket_tasks`, `list_overdue/today/upcoming`, `filter_tasks`) was structurally incapable
-  of answering "who is assigned to the tasks?". The kernel, given an assignee-less list, fell
+  of answering "who is assigned to the tasks?". Given an assignee-less list, the assistant fell
   back to dumping titles and fabricating a "(with assignees)" framing. `assignees` is now
-  populated on every task list item from the Vikunja list payload (verified: `/v1/tasks/all`
-  already embeds the full `assignees` array — no bridge change needed).
+  populated on every task list item from the Vikunja list payload (the task list response
+  already embeds the full `assignees` array — no backend change needed).
 
 ### Changed
 
@@ -39,53 +39,47 @@
 ### Changed
 
 - **SDL: all task / project / subtask list reads now return real `sdl.EntityList[…]`**
-  (`items=[...]`, `total=N`, `x-sdl="entity-list"`), completing the entity-list migration started in
+  (`items=[...]`, `total=N`), completing the entity-list migration started in
   3.30.0 (users/members). Affected returns: `TaskListResult`, `FindTaskResult`, `GetBucketTasksResult`,
   `ListProjectTasksResult` → `sdl.EntityList[TaskItem]`; `ListProjectsResult` → `sdl.EntityList[ProjectItem]`;
   `ListSubtasksResult` → `sdl.EntityList[SubtaskItem]`. Coordinates (`query`, `project_id`, `bucket_id`,
   `bucket_title`, `project_title`, `task_id`) are kept as additive typed fields on the subclasses.
-- **List items are now `model_dump()`-ed to plain dicts** in the result payload (was: raw `TaskItem` /
-  `ProjectItem` / `SubtaskItem` pydantic objects placed inside a plain `dict`, which `ActionResult.to_dict()`
-  did not recurse into → repr-strings in `data_facts`). Each item now serializes as a canonical SDL triple
-  (`id`/`title`/`kind` + facets).
-- **Why:** the kernel surfaces a cross-turn salient set / resolves plural anaphora ("удали эти", "вторую") /
-  builds proactive set-offers ONLY from results it recognizes as an SDL entity-list — singular focus via the
-  `x-sdl` return-schema marker (`core/entity_focus.py`), plural/offer via the structural `data["items"]`
-  detector (`resolve_gate._entitylist_ids_titles`). Task reads previously failed both (legacy key `tasks`,
-  no top-level `x-sdl="entity-list"`), so tasks were invisible to anaphora/proactive while mail/users worked.
+- **List items are now serialized to plain dicts** in the result payload (was: raw `TaskItem` /
+  `ProjectItem` / `SubtaskItem` objects, which did not serialize cleanly). Each item now serializes as a
+  canonical entity (`id`/`title`/`kind` + facets).
+- **Why:** the platform recognizes cross-turn references ("delete these", "the second one") and builds
+  proactive multi-item offers ONLY from results it recognizes as a typed entity list. Task reads previously
+  used a legacy shape, so tasks were invisible to anaphora/proactive flows while other extensions worked. They
+  now behave like the rest of the platform.
 
 ### Fixed
 
-- **`delete_tasks`: `task_ids` now carries the SDL role `ref.target_id`** (`sdl.field`), so the kernel's
-  `the platform` maps the bulk-delete target to `task_ids` by SDL role (priority 1), robust even if a
-  scalar `*_id` like `project_id` were ever made required. Complements the kernel's by-name `*_ids`
-  preference (federal `I-TARGET-MAPPED-BY-SDL-ROLE` / `I-BULK-TARGET-IS-ID-COLLECTION`).
+- **`delete_tasks`: the bulk-delete target now reliably maps to `task_ids`.** Bulk delete now consistently
+  targets the right set of tasks, even when other ID fields are present in the request.
 
 ### Notes
 
-- Pure extension-side change; the the backend service wire contract is unchanged.
-- `system_prompt.txt`: the counting caveat now references `"total: 50"` (the EntityList `total` field) instead
+- Pure extension-side change; the backend wire contract is unchanged.
+- `system_prompt.txt`: the counting caveat now references `"total: 50"` (the entity-list `total` field) instead
   of the removed `count` key.
 
 ## [3.30.0] — 2026-06-03
 
 ### Changed
 
-- **SDL: `search_vikunja_users` + `list_project_members` now return real `sdl.EntityList[UserEntity]`**
-  (`x-sdl="entity-list"`), replacing the legacy `{users: List[Any]}` wrappers. New `UserEntity(sdl.Entity)`
-  (`id`=vikunja user id, `title`=username, `kind="user"`, `connected` flag) with a `mode="before"` `_sdl_canon`
-  validator. Result data is now `{"items": [...], "total": n}` (+ `project_id` for members). Mirrors the
-  admin-ext `list_users → sdl.EntityList[UserRecord]` migration (kernel resolves users as typed SDL entities;
-  enables entity_focus / `$REF` / by-name routing over user lists). Pure extension-side; bridge wire contract
-  unchanged.
+- **SDL: `search_vikunja_users` + `list_project_members` now return real `sdl.EntityList[UserEntity]`**,
+  replacing the legacy `{users: List[Any]}` wrappers. New `UserEntity` (`id`=Vikunja user id, `title`=username,
+  `kind="user"`, `connected` flag). Result data is now `{"items": [...], "total": n}` (+ `project_id` for
+  members). This lets the platform resolve users as typed entities, enabling by-name routing and cross-turn
+  references over user lists. Pure extension-side; backend wire contract unchanged.
 
 ## [3.29.0] — 2026-06-03
 
 ### Added
 
 - **`list_project_members`** — lists the members of a specific project (owner + user/team
-  shares) via the bridge's `GET /v1/projects/{id}/users` (Vikunja `projectusers`, BYO-correct
-  and instance-agnostic). Accepts `project_id` or `project_name` (auto-resolved). Replaces the
+  shares) via the backend (instance-agnostic and BYO-correct). Accepts `project_id` or
+  `project_name` (auto-resolved). Replaces the
   former semi-workaround of routing "who is on project X" to the instance-wide
   `search_vikunja_users(query="")`.
 
@@ -118,7 +112,7 @@
 - **SDL migration (SDK 5.2.0).** Entity-read functions now return typed SDL entities instead of plain dicts.
   `get_task` → `TaskEntity`, `get_project` → `ProjectEntity`, bucket lists → `BucketEntity`,
   task list items → `TaskItem` (slim SDL entity). All entities carry canonical `id`/`title`/`kind`
-  fields read directly by kernel entity focus — enables correct cross-turn context ("в том же проекте").
+  fields read directly by the platform — enables correct cross-turn context ("in the same project").
 - **SDK bump** `5.0.3` → `5.2.0`.
 - `models_return` added to `main.py` hot-reload purge list.
 
@@ -160,12 +154,11 @@
 
 - **`create_task`** — added `bucket_name: Optional[str]` param. When caller passes a bucket
   name (e.g. "Social Media"), the handler resolves it to `bucket_id` via the kanban view
-  before creating the task. Previously the kernel's chain plan passed `bucket_name` but the
+  before creating the task. Previously the planner passed `bucket_name` but the
   param was silently ignored (unknown field), causing all tasks to land in the default bucket.
-  Confirmed from logs: `args_keys=['bucket_name', 'project_name', 'title']` at 16:17:38 UTC.
-- **Bridge `bucket_counts`** — added explicit `int()` cast for `task_count` and `done_count`.
-  MySQL's `COALESCE(SUM(...), 0)` returns a string `"0"` via aiomysql; caused TypeError in
-  `count_tasks_per_bucket` (`int - str`). Confirmed from logs at 16:17:05 UTC.
+- **Backend `bucket_counts`** — added explicit `int()` cast for `task_count` and `done_count`.
+  The aggregate count could come back as a string, causing a TypeError in
+  `count_tasks_per_bucket` (`int - str`).
 
 ## [3.25.6] — 2026-05-29
 
@@ -173,9 +166,9 @@
 
 - **Priority coercion** — `CreateTaskParams` and `UpdateTaskParams` now accept `priority`
   as string (`"5"`) and coerce to int before Pydantic validation. Prevents
-  VALIDATION_MISSING_FIELD errors when the classifier emits priority as a quoted number.
+  validation errors when priority arrives as a quoted number.
 - **Double assignment** — updated `create_task` description to explicitly state that
-  the `assignee` param handles assignment internally; classifier must not add a
+  the `assignee` param handles assignment internally; the assistant must not add a
   separate `assign_task` step.
 - **Autopagination** — `list_my_tasks`, `filter_tasks`, `list_project_tasks` now
   automatically paginate through all pages (up to 1000 tasks) when called with default
@@ -191,7 +184,7 @@
 
 ### Fixed
 
-- **Bridge `create_task` / `update_task`** — normalize bare date strings (`"2026-05-30"`)
+- **Backend `create_task` / `update_task`** — normalize bare date strings (`"2026-05-30"`)
   to full ISO 8601 (`"2026-05-30T00:00:00Z"`) before sending to Vikunja. Vikunja rejects
   date-only values with 400 "Invalid model provided". LLMs frequently omit the time part.
 - **`CreateTaskParams.priority` description** — fixed `"5=urgent"` → correct scale
@@ -210,14 +203,14 @@
 
 ### Fixed
 
-- **`count_tasks_per_bucket`** — rewrote to use new bridge SQL endpoint
+- **`count_tasks_per_bucket`** — rewrote to use new backend SQL endpoint
   `GET /v1/projects/{id}/views/{vid}/bucket_counts` instead of embedded tasks
   from the Vikunja REST API. Vikunja caps REST responses at 50 tasks per request
   regardless of `per_page`; the SQL path queries `task_buckets` + `tasks` directly,
-  returning exact counts with no pagination limits. Confirmed 187 tasks on test
-  project vs previous capped result.
-- **Bridge** — added `GET /{project_id}/views/{view_id}/bucket_counts` endpoint
-  with SQL query and connection ownership check (412 if no connection).
+  returning exact counts with no pagination limits. Confirmed 187 tasks on a test
+  project vs the previous capped result.
+- **Backend** — added a `bucket_counts` endpoint that returns exact per-bucket counts,
+  with a connection ownership check.
 
 ## [3.25.2] — 2026-05-28
 
@@ -249,8 +242,7 @@
   Summary line updated to show task count alongside each bucket name.
 - **`BucketNavItem`** (models_return.py) — added `task_count: int = 0` field.
 - **skeleton** — `buckets_per_project` now includes `task_count` per bucket, enabling
-  classifier to serve aggregation queries from skeleton without extra API calls
-  (kernel invariant I-CLASSIFIER-AGGREGATION-PREFERS-SKELETON).
+  the platform to serve aggregation queries from cached context without extra API calls.
 - **system_prompt** — fixed misleading counting guidance (was pointing to non-existent
   `list_buckets` + `task_count`). Now directs LLM to `count_tasks_per_bucket`.
 - **`search_vikunja_users`** — fixed `chain_callable=False` → `True`; function was
@@ -290,14 +282,14 @@
 ## [3.22.0] — 2026-05-23
 
 ### Fixed
-- **Skeleton — flat `buckets` list** — added top-level `buckets` key to skeleton response so kernel the platform autofill can find `bucket_id` by name. Previously buckets were only nested inside `active_projects[i]["buckets"]`, which the kernel's `section.get("buckets")` lookup never found.
-- **Skeleton — all projects** — removed `:5` cap on bucket fetch. Bridge now reads from DB (fast), so fetching all active projects is safe at 30s TTL.
-- **`_bridge_error_msg`** — no longer returns `"prefix: None"` when bridge detail is absent; returns just the prefix instead.
+- **Skeleton — flat `buckets` list** — added a top-level `buckets` key to the skeleton response so the platform's chain autofill can find `bucket_id` by name. Previously buckets were only nested inside `active_projects[i]["buckets"]`, which the top-level lookup never found.
+- **Skeleton — all projects** — removed `:5` cap on bucket fetch. Backend now reads from DB (fast), so fetching all active projects is safe at 30s TTL.
+- **`_bridge_error_msg`** — no longer returns `"prefix: None"` when backend detail is absent; returns just the prefix instead.
 
 ## [3.21.0] — 2026-05-20
 
 ### Fixed
-- **Skeleton — buckets per project** — kanban buckets now fetched and included for up to 5 active projects on every skeleton tick. Classifier previously had no bucket data → sent wrong `bucket_id` to bridge → Vikunja 400 errors.
+- **Skeleton — buckets per project** — kanban buckets now fetched and included for up to 5 active projects on every skeleton tick. Classifier previously had no bucket data → sent wrong `bucket_id` to backend → Vikunja 400 errors.
 - **Skeleton — `bucket_id` + `assignees` in recent tasks** — each recent task now carries its current bucket and assignee usernames.
 - **Skeleton — team members** — `team_members` list (username + connected) now included; helps classifier resolve assignee names without guessing.
 - **Skeleton — `asyncio.gather` resilience** — added `return_exceptions=True` to all gather calls including new bucket/views fetches; a single failing project view call no longer drops the entire skeleton tick.
@@ -328,8 +320,8 @@
 - **Task create form — bucket pre-selection**: column selector now pre-fills
   when `bucket_id` is passed via panel navigation.
 
-### Backend (the backend service)
-- Added `DELETE /v1/projects/{project_id}/views/{view_id}/buckets/{bucket_id}` route.
+### Backend
+- Added a route to delete a kanban column (bucket) from a project view.
 
 ## [3.18.0] — 2026-05-18
 
@@ -348,14 +340,14 @@
 ## [3.16.0] — 2026-05-18
 
 ### Fixed
-- **`id_projection` on compound-name write handlers** — added `id_projection="task_id"` to `update_task`, `complete_task`, `uncomplete_task`, `delete_task`. Per SDK docs, compound-name write/destructive handlers must declare `id_projection` so the kernel can build proper $REF chain context and audit records. These handlers had `task_id` in params but no projection declared.
+- **`id_projection` on compound-name write handlers** — added `id_projection="task_id"` to `update_task`, `complete_task`, `uncomplete_task`, `delete_task`. Compound-name write/destructive handlers must declare `id_projection` so the platform can build proper multi-step chain context and audit records. These handlers had `task_id` in params but no projection declared.
 
 ---
 
 ## [3.15.0] — 2026-05-18
 
 ### Added
-- **`rename_bucket(project_id, bucket_id, title, limit?)`** — rename a kanban column or update its WIP limit. New bridge endpoint `POST /v1/projects/{id}/views/{view_id}/buckets/{bucket_id}` added to the backend service to proxy Vikunja's `PUT /api/v1/projects/{id}/views/{vid}/buckets/{bid}`.
+- **`rename_bucket(project_id, bucket_id, title, limit?)`** — rename a kanban column or update its WIP limit. A new backend endpoint was added to proxy Vikunja's bucket-update API.
 
 ---
 
@@ -369,7 +361,7 @@
 - **`_match_by_name()`** — shared case-insensitive name matcher (exact → prefix → contains) used by compound handlers.
 
 ### Fixed
-- **`on_event` format** — both `panels.py` and `panels_editor.py` now use correct `tasks.task.created` format (app_id prefix required per SDK docs: "kernel prepends app_id automatically"). Confirmed via SDK source `extensions/client.py:145`.
+- **`on_event` format** — both `panels.py` and `panels_editor.py` now use the correct `tasks.task.created` format (the app_id prefix is required; the platform prepends `app_id` automatically).
 - **`system_prompt.txt`** — `get_named_bucket_tasks` is now the primary bucket lookup pattern. `list_buckets` relegated to "full board overview only" use case.
 
 ---
@@ -390,8 +382,8 @@
 ## [3.12.0] — 2026-05-17
 
 ### Added
-- **`get_task(task_id)`** — fetch full task details (title, description, done, due date, priority, assignees, labels). Bridge endpoint was always there, now exposed.
-- **`list_labels()`** — list all labels with label_id and title. Enables label resolution by name before `add_label`. Bridge endpoint was always there, now exposed.
+- **`get_task(task_id)`** — fetch full task details (title, description, done, due date, priority, assignees, labels). Backend endpoint was always there, now exposed.
+- **`list_labels()`** — list all labels with label_id and title. Enables label resolution by name before `add_label`. Backend endpoint was always there, now exposed.
 
 ### Fixed
 - **`view_kind` comparison** — `list_buckets` now handles both string `"kanban"` (older Vikunja) and integer `4` (Vikunja v0.21+). Previously always returned "No kanban view found" on newer Vikunja versions.
@@ -414,7 +406,7 @@
 
 ### Changed
 
-- **SDK 5.0.1** — bumped `imperal-sdk` to `5.0.1` (Federal Typed Return Contract, additive).
+- **SDK 5.0.1** — bumped `imperal-sdk` to `5.0.1` (typed return contract, additive).
 - **`data_model=` migration** — all 39 `@chat.function` handlers now declare typed return DTOs via `data_model=` (handlers_crud, handlers_search, handlers_connection, handlers_structure, handlers_collab, handlers_organize). Enables `$REF` path validation and classifier envelope `return_fields`.
 - **`tool_name=`** remains in `ChatExtension(...)` — still a required positional arg in SDK 5.0.1 (slated for removal in 5.1.0).
 
@@ -424,7 +416,7 @@
 
 ### Changed
 
-- **SDK 5.0.0 migration** — bumped `imperal-sdk` to `5.0.0`. Removed unused `system_prompt=` kwarg and `SYSTEM_PROMPT` variable (no-op in 5.0.0). Removed unused `pathlib.Path` import. Manifest rebuilt — `tool_tasks_chat` orchestrator-tool entry removed (V25 compliance, `I-LOADER-REJECTS-LEGACY-LLM-ROUTER`).
+- **SDK 5.0.0 migration** — bumped `imperal-sdk` to `5.0.0`. Removed unused `system_prompt=` kwarg and `SYSTEM_PROMPT` variable (no-op in 5.0.0). Removed unused `pathlib.Path` import. Manifest rebuilt — the legacy `tool_tasks_chat` orchestrator-tool entry was removed (no longer supported in SDK 5.0.0).
 
 ---
 
@@ -432,13 +424,13 @@
 
 ### Fixed
 
-- **V18**: removed `from __future__ import annotations` from `app.py` — was co-located with `NoParams(BaseModel)`, risking silent Pydantic validation failures.
-- **id_projection**: added `id_projection="task_id"` to `update_comment` handler — kernel was unable to resolve the resource ID in chain steps.
+- removed `from __future__ import annotations` from `app.py` — it was co-located with `NoParams(BaseModel)`, risking silent Pydantic validation failures.
+- **id_projection**: added `id_projection="task_id"` to `update_comment` handler — the platform was unable to resolve the resource ID in chain steps.
 - **system_prompt**: added explicit pagination warning — `list_my_tasks`/`filter_tasks` return max 50 items per page; LLM must use `list_buckets` to count all tasks in a project.
 
 ### Changed
 
-- SDK bumped `4.2.10 → 4.2.16` — picks up `ui.Link` render fix (4.2.11), long-running ops primitives `ctx.background_task` / `ctx.deliver_chat_message` (4.2.12), `@chat.function(background=True)` (4.2.13), schema.json fix (4.2.14), placeholder-args guard I-PARAMS-NO-PLACEHOLDER-VALUES (4.2.15), hallucinated tool name logging (4.2.16).
+- SDK bumped `4.2.10 → 4.2.16` — picks up `ui.Link` render fix (4.2.11), long-running ops primitives `ctx.background_task` / `ctx.deliver_chat_message` (4.2.12), `@chat.function(background=True)` (4.2.13), schema.json fix (4.2.14), a placeholder-args guard (4.2.15), and hallucinated tool name logging (4.2.16).
 
 ---
 
@@ -475,13 +467,13 @@
 
 ### Fixed
 
-- **[I-MAGIC-UX] 4 raw exception leaks in `handlers_connection.py`** — `f"Connect/Disconnect/Status failed: {e}"` replaced with `log.error(...)` + safe `ActionResult.error(..., retryable=True)`.
-- **[V18] `from __future__ import annotations` removed** from all 6 handler files that define Pydantic `BaseModel` param classes (`handlers_connection.py`, `handlers_crud.py`, `handlers_organize.py`, `handlers_search.py`, `handlers_structure.py`, `handlers_collab.py`).
+- **4 raw exception leaks in `handlers_connection.py`** — `f"Connect/Disconnect/Status failed: {e}"` replaced with `log.error(...)` + safe `ActionResult.error(..., retryable=True)` so internal error details are no longer surfaced to users.
+- **`from __future__ import annotations` removed** from all 6 handler files that define Pydantic `BaseModel` param classes (`handlers_connection.py`, `handlers_crud.py`, `handlers_organize.py`, `handlers_search.py`, `handlers_structure.py`, `handlers_collab.py`).
 - **[Cleanup] Duplicate `NoParams` class removed** from `handlers_connection.py` — was shadowing the imported `NoParams` from `app.py`.
 - **[Logging] `import logging` + `log` added** to `handlers_connection.py`.
-- **[Skeleton] `skeleton_alert_tasks` restored** using `@ext.tool` (correct per docs.imperal.io and kernel source). MANIFEST-SKELETON-1 validator bug reported to the team.
-- **[Skeleton] `"error": str(e)` removed** from degraded skeleton return (zero-values only per SDK contract).
-- **[Backend] `the backend service/routes_provision.py`** — 2 raw exception leaks in `HTTPException` 500 responses replaced with generic messages + `log.error(...)`. Service restarted.
+- **[Skeleton] `skeleton_alert_tasks` restored** using `@ext.tool`. A false-positive in one manifest validator was reported upstream.
+- **[Skeleton] `"error": str(e)` removed** from degraded skeleton return (zero-values only).
+- **[Backend] provisioning route** — 2 raw exception leaks in 500 responses replaced with generic messages + internal logging. Service restarted.
 
 ---
 
@@ -493,8 +485,8 @@
 
 ### Fixed
 
-- **`assign_task` — two-tier user resolution** — Bridge `_resolve_vikunja_user_id` now falls back to Vikunja API (`GET /api/v1/users?s=`) when the assignee is not found in `vikunja_connections`. Users with a Vikunja account who haven't connected their Imperal account (e.g. Ignat) can now be assigned tasks.
-- **`GET /v1/users` bridge endpoint** — same two-tier logic; empty `s` lists all connected users on the same Vikunja instance. Results include `connected: bool` field.
+- **`assign_task` — two-tier user resolution** — the backend now falls back to the Vikunja user-search API when the assignee is not found among connected users. Users with a Vikunja account who haven't connected their Imperal account can now be assigned tasks.
+- **`GET /v1/users` backend endpoint** — same two-tier logic; an empty query lists all connected users on the same Vikunja instance. Results include a `connected: bool` field.
 
 ---
 
@@ -502,10 +494,10 @@
 
 ### Fixed
 
-- **[P0] `assign_task` — task_name auto-resolve + id_projection** — Added `task_name: Optional[str]` to `AssignTaskParams`. When `task_id=0` and `task_name` is provided, the extension searches for the task automatically instead of failing with Pydantic validation error. Previously, LLM passed `task_name` (non-existent field) causing "missing required field task_id". Added `id_projection="task_id"` so kernel chain dispatch can inject task_id from prior steps.
+- **[P0] `assign_task` — task_name auto-resolve + id_projection** — Added `task_name: Optional[str]` to `AssignTaskParams`. When `task_id=0` and `task_name` is provided, the extension searches for the task automatically instead of failing with Pydantic validation error. Previously, LLM passed `task_name` (non-existent field) causing "missing required field task_id". Added `id_projection="task_id"` so multi-step chain dispatch can inject task_id from prior steps.
 - **[P1] `unassign_task` — added `id_projection="task_id"`** — same missing projection fixed.
-- **[P1] Bridge `_resolve_vikunja_user_id` — tenant isolation** — user lookup now scoped to same `base_url` as requester. Previously searched all vikunja_connections globally — could return users from different Vikunja instances in multi-tenant deployments.
-- **[P1] Bridge `connect` / `connect_with_pat` — old PAT revoked on reconnect** — `_revoke_existing_connection()` now called before `save_connection()`. Previously, the old PAT became an orphan in the user's Vikunja on every reconnect.
+- **[P1] Backend — tenant isolation on user lookup** — user lookup is now scoped to the same Vikunja instance as the requester. Previously it searched all connections globally — could return users from different Vikunja instances in multi-tenant deployments.
+- **[P1] Backend `connect` / `connect_with_pat` — old token revoked on reconnect** — the previous access token is now revoked before storing the new one. Previously, the old token became an orphan in the user's Vikunja on every reconnect.
 
 ### Changed
 
@@ -519,9 +511,9 @@
 
 ### Changed
 
-- **`assign_task` now accepts name or email** — `assignee_query: str` replaces `assignee_vikunja_user_id: int`. The bridge resolves the name/email to a Vikunja user ID via `/api/v1/users?s=query`. No more asking the user for a numeric ID.
-- Bridge `POST /v1/tasks/{id}/assign` extended with `assignee_query` field; response includes `_resolved_user_id` and `_resolved_username` for subsequent unassign calls.
-- Bridge `GET /v1/users` endpoint added for user lookup.
+- **`assign_task` now accepts name or email** — `assignee_query: str` replaces `assignee_vikunja_user_id: int`. The backend resolves the name/email to a Vikunja user ID. No more asking the user for a numeric ID.
+- Backend assign endpoint extended with an `assignee_query` field; the response includes `_resolved_user_id` and `_resolved_username` for subsequent unassign calls.
+- Backend user-lookup endpoint added.
 
 ---
 
@@ -530,7 +522,7 @@
 ### Changed
 
 - **SDK upgraded to `imperal-sdk==4.1.2`** — picks up Pydantic feedback-loop (4.1.0), narration schema tightening (4.1.1), and `id_projection` chain dispatch (4.1.2).
-- **`id_projection` added to all compound-named chain functions** — fixes kernel chain-step target projection:
+- **`id_projection` added to all compound-named chain functions** — fixes multi-step chain target projection:
   - `handlers_organize.py`: `add_label`, `remove_label`, `set_due_date`, `set_priority`, `move_to_project`, `move_to_bucket` → all `id_projection="task_id"`
   - `handlers_crud.py`: `create_task` → `id_projection="project_id"` (chains from create_project); `create_subtask` → `id_projection="parent_task_id"`; `toggle_checklist_item` → `id_projection="task_id"`
   - `handlers_collab.py`: `add_comment`, `mention_user` → `id_projection="task_id"`
@@ -541,8 +533,8 @@
 
 ### Changed — task description editor
 
-- **`panels_task.py`** — task detail panel description edit form switched from a single-line `ui.Input` to `ui.RichEditor` (SDK 4.1.0 TipTap WYSIWYG component, same TipTap engine Vikunja stores descriptions with). Round-trips HTML faithfully: paragraphs, headings, lists, bold/italic, code blocks, links — all preserved end-to-end (Vikunja → bridge → extension panel → bridge → Vikunja). The rendered `ui.Html(...)` preview above the editor was already correct; only the edit affordance was the regression. TipTap `taskList` nodes inside description continue to be stripped from the rendered preview and surfaced as a separate interactive Checklist card via `toggle_checklist_item`; whatever taskList items the user keeps when editing in the rich editor are saved back verbatim.
-- **No bridge changes.** Description payload to Vikunja is identical (HTML body in `description` field).
+- **`panels_task.py`** — task detail panel description edit form switched from a single-line `ui.Input` to `ui.RichEditor` (SDK 4.1.0 TipTap WYSIWYG component, same TipTap engine Vikunja stores descriptions with). Round-trips HTML faithfully: paragraphs, headings, lists, bold/italic, code blocks, links — all preserved end-to-end (Vikunja → backend → extension panel → backend → Vikunja). The rendered `ui.Html(...)` preview above the editor was already correct; only the edit affordance was the regression. TipTap `taskList` nodes inside description continue to be stripped from the rendered preview and surfaced as a separate interactive Checklist card via `toggle_checklist_item`; whatever taskList items the user keeps when editing in the rich editor are saved back verbatim.
+- **No backend changes.** Description payload to Vikunja is identical (HTML body in `description` field).
 
 ---
 
@@ -555,28 +547,28 @@
   - `_split_top_and_children(tasks, child_ids)` — partitions a bucket's tasks into top-level cards and children.
   - `_subtasks_section(children)` — renders the collapsed `ui.Section(collapsible=True)` with each child as a normal `_task_card` (kept clickable; opens task detail).
   - Bucket-card title counter changed to `(N top-level)` so the header number matches what's visible. Total-with-children count is shown inside the collapsible section title.
-- **No bridge changes.** Vikunja still stores subtasks as plain tasks linked via `task_relations`; the visual nesting is purely client-side, so it works regardless of the Vikunja version, the per-view `show_subtasks` toggle, or whether the user brings an external Vikunja instance.
+- **No backend changes.** Vikunja still stores subtasks as plain tasks linked via `task_relations`; the visual nesting is purely client-side, so it works regardless of the Vikunja version, the per-view `show_subtasks` toggle, or whether the user brings an external Vikunja instance.
 
 ---
 
 ## [3.2.1] — 2026-05-04
 
-### Bridge (`/home/the backend service/routes_tasks.py`) — rollback of v3.2.0 kanban fix
+### Backend — rollback of v3.2.0 kanban fix
 
-- **`create_subtask` — reverted Step 4** (`POST /api/v1/tasks/{child_id}` with `bucket_id: 0`). The call was confirmed to be a silent no-op against Vikunja's `task_buckets` join table — the API echoes `bucket_id: 0` back in the response but the `task_buckets` row (keyed per `project_view_id`) stays untouched, so the subtask still renders on the kanban board.
+- **`create_subtask` — reverted Step 4** (the attempt to detach the new subtask from the board by setting `bucket_id: 0`). The call was confirmed to be a silent no-op — the API echoes `bucket_id: 0` back in the response but the underlying board assignment stays untouched, so the subtask still renders on the kanban board.
 - **Investigation summary** — Vikunja's REST API has no path to detach a task from all buckets:
-  - `Task.bucket_id` is a virtual response field; the canonical store is the `task_buckets` join table (keyed per `project_view_id`). The `POST /tasks/{id}` bucket-update path requires the new `bucket_id` to belong to the same view, so `0` is silently rejected.
-  - There is no `DELETE /projects/{p}/views/{v}/buckets/{b}/tasks/{t}` endpoint.
-  - The `Task` model has no `is_subtask` / `hide_on_board` flag.
-  - The view-level `bucket_configuration_mode=filter` could in theory exclude subtasks via a filter query, but switching modes wipes all manual bucket assignments — a destructive global change to the user's board.
-  - Direct `DELETE FROM task_buckets WHERE task_id=…` against the Vikunja DB does correctly remove the card from the kanban view (verified end-to-end on `tasks.webhostmost.com`: subtask 1226 disappeared from `GET /projects/32/views/176/tasks` and Vikunja did not re-create the row), but the bridge BYO model gives only API access to a user's Vikunja, not DB. Implementing this would break the BYO contract for users who bring an external Vikunja instance.
-- **Decision** — accept this as a documented Vikunja-side limitation rather than ship a fake fix. The bridge `create_subtask` docstring now records the full investigation so the next person doesn't re-discover it.
-- **End-user workaround** — in Vikunja UI, drag the subtask card off the board or move it to a hidden bucket. This UX is Vikunja-side and not exposed via API.
-- Bridge restarted; `/health` returns 200.
+  - `bucket_id` is a virtual response field; the canonical store is a per-view board-assignment table. The bucket-update path requires the new `bucket_id` to belong to the same view, so `0` is silently rejected.
+  - There is no API endpoint to remove a single task from a bucket.
+  - The task model has no `is_subtask` / `hide_on_board` flag.
+  - Switching the view to a filter-based bucket configuration could in theory exclude subtasks, but it wipes all manual bucket assignments — a destructive global change to the user's board.
+  - A direct database delete of the board-assignment row does correctly remove the card from the kanban view (verified end-to-end), but the BYO model gives only API access to a user's Vikunja, not database access. Implementing this would break the BYO contract for users who bring an external Vikunja instance.
+- **Decision** — accept this as a documented Vikunja-side limitation rather than ship a fake fix. The backend `create_subtask` docstring now records the full investigation so the next person doesn't re-discover it.
+- **End-user workaround** — in the Vikunja UI, drag the subtask card off the board or move it to a hidden bucket. This UX is Vikunja-side and not exposed via API.
+- Backend restarted; health check passes.
 
 ### Extension
 
-- **`app.py`** — version bumped to `3.2.1`. Manifest rebuilt via `imperal build .`.
+- **`app.py`** — version bumped to `3.2.1`. Manifest rebuilt.
 
 ---
 
@@ -584,31 +576,31 @@
 
 ### Added
 
-- **`handlers_search.py` — `find_task(query)` chat function (read-only).** Searches tasks by title substring via Vikunja `s=` query parameter and returns matching tasks with their integer `task_id`, `project_id`, `done`, `due_date`, `priority`. Closes the "LLM fabricated task_id because the user referred to a task by name" failure mode — system_prompt now mandates `find_task` FIRST whenever an integer task_id is unknown. V16/V17 compliant (`FindTaskParams` is a module-scope BaseModel with detailed Field description).
-- **`handlers_crud.py` — `uncomplete_task(task_id)` chat function** (`action_type="write"`, `chain_callable=True`, `effects=["update:task"]`, `event="task.uncompleted"`). Inverse of `complete_task` — POSTs `{done: false, percent_done: 0.0}` to bridge. Closes "accidentally completed a task and can't reopen it from chat".
+- **`handlers_search.py` — `find_task(query)` chat function (read-only).** Searches tasks by title substring via Vikunja `s=` query parameter and returns matching tasks with their integer `task_id`, `project_id`, `done`, `due_date`, `priority`. Closes the "LLM fabricated task_id because the user referred to a task by name" failure mode — system_prompt now mandates `find_task` FIRST whenever an integer task_id is unknown. `FindTaskParams` is a module-scope BaseModel with a detailed Field description.
+- **`handlers_crud.py` — `uncomplete_task(task_id)` chat function** (`action_type="write"`, `chain_callable=True`, `effects=["update:task"]`, `event="task.uncompleted"`). Inverse of `complete_task` — POSTs `{done: false, percent_done: 0.0}` to backend. Closes "accidentally completed a task and can't reopen it from chat".
 - **`panels_task.py` — Reopen UI buttons.** Parent task action bar now renders a "Reopen" button (`ui.Call("uncomplete_task", task_id=...)`) instead of "Complete" when the task is `done=true`. Subtask action row now also includes a "Reopen" button (`RotateCcw` icon) before the existing "Delete" button for completed subtasks.
 
 ### Changed
 
 - **`system_prompt.txt`** — new "Task name → task_id resolution (REQUIRED)" rule under `## Tool selection`. The LLM must call `find_task(query=...)` before any task-targeted write tool when only the task title is known. Also documents `uncomplete_task` under `## Subtasks`.
-- **`skeleton.py`** — `@ext.skeleton("tasks")` TTL reduced from `300` to `30`. Investigated the canonical SDK invalidation API first: `imperal_sdk/skeleton/client.py:25` (`SkeletonClient`) is documented read-only with invariants `I-SKELETON-PROTOCOL-READ-ONLY` and `I-NO-SKELETON-PUT`; the only writer is the kernel `the platform` activity on its tick. Sibling extensions (`notes`, `sql-db`) do not invalidate skeletons either (sql-db invalidates only its local `ctx.cache` schema snapshot). With no SDK invalidation API available, lowering TTL is the canonical option to close the LLM-context staleness window without breaking SDK contract. Panels are already real-time (fetch fresh via `api_get` + `refresh_panels` field on `ActionResult.data`); the 30s TTL affects only LLM-context counters/`recent_tasks`.
+- **`skeleton.py`** — `@ext.skeleton("tasks")` TTL reduced from `300` to `30`. The skeleton/context API is read-only for extensions — there is no way for an extension to actively invalidate cached context, and sibling extensions (`notes`, `sql-db`) don't either. Lowering the TTL is therefore the supported way to close the context-staleness window. Panels are already real-time (they fetch fresh data and request a panel refresh); the 30s TTL affects only the cached context counters / `recent_tasks`.
 
-### Bridge (`/home/the backend service/routes_tasks.py`)
+### Backend
 
-- **`create_subtask`** — added Step 4: after creating the child task and linking the parent→child relation, the bridge now POSTs `/api/v1/tasks/{child_id}` with `bucket_id: 0` to detach the subtask from the kanban board. Vikunja auto-places every new task into the project's default bucket; subtasks must be link-only — visible inside parent task detail, not as a separate kanban card. The detach call is wrapped in try/except (non-fatal — the relation matters more). The handler now re-fetches the freshly updated child task before returning so the response carries up-to-date `related_tasks` and a cleared `bucket_id`. Backup at `/home/the backend service/routes_tasks.py.bak.pre-3.2.0`. Service restarted; `/health` returns 200.
-- **Caveat:** complete subtask hiding on kanban also depends on Vikunja's per-view `show_subtasks` toggle. The bridge fix removes bucket binding, which works on Vikunja versions and views without that toggle.
+- **`create_subtask`** — added Step 4: after creating the child task and linking the parent→child relation, the backend now attempts to detach the subtask from the kanban board (`bucket_id: 0`). Vikunja auto-places every new task into the project's default bucket; subtasks should be link-only — visible inside parent task detail, not as a separate kanban card. The detach call is non-fatal (the relation matters more). The handler now re-fetches the freshly updated child task before returning so the response carries up-to-date `related_tasks` and a cleared `bucket_id`. Service restarted; health check passes.
+- **Caveat:** complete subtask hiding on kanban also depends on Vikunja's per-view `show_subtasks` toggle. The backend fix removes bucket binding, which works on Vikunja versions and views without that toggle.
 
 ---
 
 ## [3.1.0] — 2026-05-04
 
-### SDK 4.1.0 federal compliance pass
+### SDK 4.1.0 compliance pass
 
 - **`requirements.txt`** — pin bumped `imperal-sdk==4.0.1` → `imperal-sdk==4.1.0`. Worker venv was already on 4.1.0 (last-install-wins from sibling extensions); now declared explicitly. Restores the hard-equality pin invariant.
-- **`app.py`** — added a public `NoParams(BaseModel)` for no-arg `@chat.function` handlers (V17 compliance). Replaces three previously separate `_NoParams` classes in `handlers_search.py`, `handlers_structure.py`, `handlers_connection.py` — now a single module-scope class in `app.py`, imported everywhere.
+- **`app.py`** — added a public `NoParams(BaseModel)` for no-arg `@chat.function` handlers. Replaces three previously separate `_NoParams` classes in `handlers_search.py`, `handlers_structure.py`, `handlers_connection.py` — now a single module-scope class in `app.py`, imported everywhere.
 - **`app.py`** — renamed `_imperal_id(ctx)` → `imperal_id_of(ctx)` (public cross-module API; underscore prefix removed). Imports updated in `handlers_crud.py`, `skeleton.py`, `panels.py`, `panels_editor.py`, `panels_task.py`.
-- **`app.py`** — `tool_tasks_chat` ChatExtension wrapper description extended to instruct the LLM to "pass user message verbatim as `message`", per federal Runtime Invariant `I-CHAT-FUNCTION-VERBATIM-PARAMS` (2026-05-02).
-- **`skeleton.py`** — `skeleton_refresh_tasks(ctx, **_)` → `(ctx)` and `skeleton_alert_tasks(ctx, old, new, **kwargs)` → `(ctx, old, new)`. Universal `**kwargs` sinks removed — federal V22 requires strictly typed lifecycle signatures; after the kernel-side fix for `I-EXT-SYSTEM-TASK-NO-MESSAGE-KWARG`, the defensive sinks are no longer needed.
+- **`app.py`** — chat wrapper description extended to instruct the assistant to pass the user message verbatim.
+- **`skeleton.py`** — `skeleton_refresh_tasks(ctx, **_)` → `(ctx)` and `skeleton_alert_tasks(ctx, old, new, **kwargs)` → `(ctx, old, new)`. Universal `**kwargs` sinks removed — lifecycle signatures must be strictly typed; after a corresponding platform fix, the defensive sinks are no longer needed.
 
 ### Improved
 
@@ -626,8 +618,8 @@
 
 ### Added
 
-- **`handlers_collab.py` — `update_comment`**: новый `@chat.function` для редактирования текста существующего комментария (`action_type="write"`). Вызывает `POST /v1/tasks/{task_id}/comments/{comment_id}` на bridge.
-- **`handlers_collab.py` — `delete_comment`**: новый `@chat.function` для удаления комментария (`action_type="destructive"`). Вызывает `DELETE /v1/tasks/{task_id}/comments/{comment_id}` на bridge.
+- **`handlers_collab.py` — `update_comment`**: новый `@chat.function` для редактирования текста существующего комментария (`action_type="write"`). Вызывает `POST /v1/tasks/{task_id}/comments/{comment_id}` на backend.
+- **`handlers_collab.py` — `delete_comment`**: новый `@chat.function` для удаления комментария (`action_type="destructive"`). Вызывает `DELETE /v1/tasks/{task_id}/comments/{comment_id}` на backend.
 
 ### Fixed
 
@@ -640,7 +632,7 @@
 
 ### Fixed / Improved
 
-- **`handlers_structure.py` — `list_buckets`**: now returns tasks embedded per bucket (already available from the `/tasks` bridge endpoint — was being stripped before). Response shape: `{buckets: [{bucket_id, title, limit, task_count, tasks: [{task_id, title, done, priority, due_date}]}]}`. LLM can answer "what's in bucket X" from a single `list_buckets` call without chaining `filter_tasks`.
+- **`handlers_structure.py` — `list_buckets`**: now returns tasks embedded per bucket (already available from the `/tasks` backend endpoint — was being stripped before). Response shape: `{buckets: [{bucket_id, title, limit, task_count, tasks: [{task_id, title, done, priority, due_date}]}]}`. LLM can answer "what's in bucket X" from a single `list_buckets` call without chaining `filter_tasks`.
 - **`system_prompt.txt`**: updated bucket rule — LLM now knows `list_buckets` returns tasks and must NOT use `filter_tasks` to filter by bucket (Vikunja filter syntax does not support `bucket_id`). Added explicit `bucket_id` NOT-a-filter-field note to the filter fields list.
 - **`list_buckets` function description**: updated to reflect that it returns tasks per bucket.
 
@@ -722,7 +714,7 @@
 
 ### Fixed
 
-- **`system_prompt.txt`** — added **Project lookup rule**: LLM must call `list_projects` first when user asks for tasks by project name, then pass the numeric `project_id` to `filter_tasks`. Added **Vikunja filter syntax** section explicitly listing valid operators/fields/time helpers and forbidding SQL-style subqueries (`select`, `from`, `where` — these produce errors). Fixes hallucination observed on prod: `project_id = '(select id from projects where title ~ '%webhostmost tasks%')'`.
+- **`system_prompt.txt`** — added **Project lookup rule**: LLM must call `list_projects` first when user asks for tasks by project name, then pass the numeric `project_id` to `filter_tasks`. Added **Vikunja filter syntax** section explicitly listing valid operators/fields/time helpers and forbidding SQL-style subqueries (`select`, `from`, `where` — these produce errors). Fixes an observed hallucination where the model emitted a SQL subquery in place of a numeric `project_id`.
 
 ---
 
@@ -748,10 +740,10 @@
 
 - **`panels_board.py`** — switch project Kanban fetch from `/v1/projects/{pid}/views/{vid}/buckets` to `/v1/projects/{pid}/views/{vid}/tasks`. Vikunja v0.21+ split these: `/buckets` returns columns with `tasks=null`, while `/tasks` returns the same columns shape but with each bucket's `tasks` field populated. Result before this fix: clicking on a project showed the Kanban frame with column titles, but every column was empty even when tasks existed.
 
-### Backend (the backend service, deployed separately on the backend host)
+### Backend (deployed separately)
 
-- **`routes_tasks.py`** — `/v1/tasks/all` now forwards to Vikunja `/api/v1/tasks` (not `/api/v1/tasks/all`, which was removed in Vikunja v0.21+ and returned `400 Invalid model`). Bridge route name unchanged for extension compatibility.
-- **`routes_projects.py`** — added `GET /v1/projects/{pid}/views/{vid}/tasks` route, forwards to Vikunja's `/api/v1/projects/{pid}/views/{vid}/tasks`. Companion to the `panels_board.py` switch above.
+- **Task listing** — the backend's task-list route now forwards to Vikunja's current tasks endpoint (the older `/tasks/all` endpoint was removed in Vikunja v0.21+ and returned `400 Invalid model`). The backend route name is unchanged for extension compatibility.
+- **Project views** — added a backend route to fetch the tasks of a project's view. Companion to the `panels_board.py` switch above.
 
 ---
 
@@ -761,10 +753,10 @@
 
 - **`panels.py` + `panels_task.py`** — every `ui.ListItem(...)` now passes the required `id` positional. `ui.ListItem` from `imperal_sdk.ui.data` has `id: str` as the first required arg; calling it without `id` raised `TypeError: ListItem() missing 1 required positional argument: 'id'` and broke the entire `__panel__sidebar` render path right after a successful Vikunja connect — visible in the worker as an infinite spinner on the left sidebar. IDs added: `smart_today` / `smart_upcoming` / `smart_overdue` for the smart-views card, `project_{pid}` for projects, `comment_{id}` for task comments.
 
-### Backend (the backend service, deployed separately on the backend host)
+### Backend (deployed separately)
 
-- **`routes_connection.py:_mint_pat`** — payload now includes `expires_at` (now + 10 years, RFC3339). Vikunja v0.20+ requires this field on PAT creation; without it Vikunja returns `412 {"code":2002,"message":"Invalid Data","invalid_fields":["expires_at: non zero value required"]}`, which surfaced to users as `Vikunja PAT mint failed (HTTP 412)`.
-- **`routes_connection.py:connect`** — post-mint user lookup (`_fetch_self`) now uses the JWT we already obtained from `/api/v1/login` instead of the freshly minted PAT. `/api/v1/user` is not in any PAT permission scope on Vikunja, so probing it with the PAT always returned 401 ("The token is not accepted by Vikunja"). The PAT itself is fine; the validation step was the bug.
+- **Token minting** — the create-token payload now includes an expiry timestamp. Vikunja v0.20+ requires this field on token creation; without it the request failed, surfacing to users as a token-mint error.
+- **Connect flow** — the post-mint user lookup now uses the session token already obtained from login instead of the freshly minted access token. The user-info endpoint is not in the access token's permission scope, so probing it with that token always failed. The token itself is fine; the validation step was the bug.
 
 ---
 
@@ -780,7 +772,7 @@
 
 ### Fixed
 
-- **`panels.py`** — drop `confirm=` kwarg from the Disconnect `ui.Button`. The parameter was never part of `imperal_sdk.ui.Button` (silently ignored on prod since 2.0.0), and the new V14 validator hard-fails on it. Disconnect now fires immediately on click — same effective behavior as today, just no fake-confirmation string in the props payload. Followup: wire a real `ui.Dialog`-based confirm flow once the frontend Dialog rendering contract has a reference implementation in another extension.
+- **`panels.py`** — drop `confirm=` kwarg from the Disconnect `ui.Button`. The parameter was never part of `imperal_sdk.ui.Button` (silently ignored since 2.0.0), and a newer manifest validator hard-fails on it. Disconnect now fires immediately on click — same effective behavior as before, just no fake-confirmation string in the props payload. Followup: wire a real `ui.Dialog`-based confirm flow once the frontend Dialog rendering contract has a reference implementation in another extension.
 
 ---
 
@@ -789,7 +781,7 @@
 ### Changed
 
 - **`requirements.txt`** — bump `imperal-sdk==3.0.0` → `==3.4.1`. Pulls in the LLM-FU-1/FU-2 stack (gpt-5 / o-series `max_completion_tokens` rename + `temperature` drop) so chains routed through reasoning models stop falling over to `anthropic/haiku`.
-- **`app.py`** — `ChatExtension(model="claude-haiku-4-5-20251001")` removed (deprecated since SDK 3.3.0, hard-error in SDK 4.0). LLM model resolution now flows through kernel ctx-injection (`ctx._llm_configs`). Mirrors the cleanup done in sql-db 1.4.2 and notes 2.5.2.
+- **`app.py`** — `ChatExtension(model="claude-haiku-4-5-20251001")` removed (deprecated since SDK 3.3.0, hard-error in SDK 4.0). LLM model resolution now flows through platform context injection (`ctx._llm_configs`). Mirrors the cleanup done in sql-db 1.4.2 and notes 2.5.2.
 
 ### Compatibility
 
@@ -799,43 +791,43 @@
 
 ## [2.0.0] — 2026-04-27
 
-**Breaking — Bring-Your-Own Vikunja.** Each user now connects their own Vikunja instance via the tasks panel; their data lives in their Vikunja, not in our shared instance. The shared `md-node1` Vikunja becomes an internal/dogfood-only tool. The `the backend service` backend was refactored from a shared-instance broker into a per-user connection manager (encrypted PAT storage + per-call resolve).
+**Breaking — Bring-Your-Own Vikunja.** Each user now connects their own Vikunja instance via the tasks panel; their data lives in their Vikunja, not in a shared instance. The backend was refactored from a shared-instance broker into a per-user connection manager (encrypted access-token storage + per-call resolve).
 
 ### Why
 
-The shared-instance model meant we held tasks data for every user, which is at odds with our positioning ("Webbee speaks to your tools — your data stays with you"). BYO is the federal-grade posture for an integrations-layer product: encrypted PAT at rest in `the backend service`, plaintext in worker RAM only for the single HTTP request that needs it, revokable from the user's own Vikunja UI at any time. It also unblocks the multi-provider future (Linear, Trello, Asana drop into bridge alongside the Vikunja adapter without touching the extension).
+The shared-instance model meant we held tasks data for every user, which is at odds with our positioning ("Webbee speaks to your tools — your data stays with you"). BYO is the right posture for an integrations-layer product: the access token is encrypted at rest in the backend, held in memory only for the single HTTP request that needs it, and revokable from the user's own Vikunja UI at any time. It also unblocks the multi-provider future (Linear, Trello, Asana can drop into the backend alongside the Vikunja adapter without touching the extension).
 
-### Backend (the backend service v1.0.0, the backend host)
+### Backend
 
-- **New endpoints** — `POST /v1/connect` (login → mint PAT → encrypt → store), `POST /v1/connect/with-pat` (advanced: paste an existing token), `DELETE /v1/connect` (revoke remote + delete local row), `GET /v1/connection` (status, never echoes the PAT).
-- **New table** — `vikunja_connections`: `imperal_id` PK + `base_url` + `username` + `vikunja_user_id` (in their instance) + `pat_encrypted` (Fernet ciphertext) + `pat_token_id` (for revoke) + `agency_id` + timestamps. Migration `001_byo_connections.sql`.
-- **New module** — `pat.py` (Fernet encrypt/decrypt). Key in `/home/the backend service/.env` as `the encryption key`. Plaintext PAT only ever lives in stack-local handler frames.
-- **`vikunja_client.call_as_user`** — per-call: load connection → decrypt PAT → call user's `base_url` with `Authorization: Bearer {pat}`. No more shared-instance JWT minting.
-- **Deprecated** — `routes_provision.py` (shared-instance auto-provisioning) is no longer mounted in `app.py`. File kept for 30-day decom window.
-- **Bridge bumped 0.4.0 → 1.0.0** to mark the BYO contract.
+- **New endpoints** — connect (login → mint access token → encrypt → store), connect-with-token (advanced: paste an existing token), disconnect (revoke remote + delete local record), connection status (never echoes the token).
+- **New storage** — a per-user connection record: `imperal_id` + Vikunja base URL + username + Vikunja user id + the encrypted access token + a token id for revoke + timestamps.
+- **New module** — token encrypt/decrypt. The encryption key is supplied via an environment variable. The plaintext token only ever lives in a single request's stack frame.
+- **Per-call resolution** — load connection → decrypt token → call the user's Vikunja with it. No more shared-instance token minting.
+- **Deprecated** — the shared-instance auto-provisioning route is no longer mounted. File kept for a decommission window.
+- **Backend bumped to 1.0.0** to mark the BYO contract.
 
 ### Extension (this commit)
 
 - **New** — `handlers_connection.py` with chat functions `connect_vikunja`, `connect_vikunja_with_pat`, `disconnect_vikunja`, `get_connection_status`.
 - **`panels.py`** rewritten — connect-first UX: empty/connect/error/connected/broken states. Empty state shows the connect form + "What is Vikunja?" help (vikunja.io self-host link, try.vikunja.io hosted link). Connected state shows smart views + projects + footer with disconnect button.
-- **`panels_board.py`, `panels_task.py`, `skeleton.py`** — gracefully handle the bridge's HTTP 412 "no connection" response: render a "Connect your Vikunja in the sidebar" empty state instead of crashing or returning zero counts.
+- **`panels_board.py`, `panels_task.py`, `skeleton.py`** — gracefully handle the backend's "no connection" response: render a "Connect your Vikunja in the sidebar" empty state instead of crashing or returning zero counts.
 - **`app.py`** — dropped `on_install` (auto-provisioning) and `on_uninstall` (cascade delete). Added `is_no_connection_error(resp)` helper for 412 detection. Added `require_imperal_id(ctx)` fail-loud helper.
-- **All handler files (`handlers_crud/_organize/_search/_structure/_collab.py`)** — Russian `ActionResult.error` strings flipped to English (workspace UI policy 2026-04-27). New `_bridge_error_msg(resp, default_prefix)` helper surfaces the bridge's 412 "Connect your Vikunja first" specifically rather than a generic CRUD error.
+- **All handler files (`handlers_crud/_organize/_search/_structure/_collab.py`)** — Russian `ActionResult.error` strings flipped to English. New `_bridge_error_msg(resp, default_prefix)` helper surfaces the backend's "Connect your Vikunja first" message specifically rather than a generic CRUD error.
 - **`system_prompt.txt`** rewritten with BYO context — "if no connection, ask user to connect via the panel; never request password in chat".
 - **`imperal.json`** — version 2.0.0, top-level tool description mentions BYO, `signals` add `connection.created`/`connection.deleted`.
 - **`main.py`** — purge list updated for `handlers_connection`.
 
 ### Removed
 
-- Shared-instance auto-provisioning. `imperal_id → vikunja_user_id` mapping (`vikunja_accounts` table) is no longer the routing source. The legacy table stays in the DB schema for the 30-day decom window; new code path doesn't read or write it.
+- Shared-instance auto-provisioning. The old `imperal_id → vikunja_user_id` mapping is no longer the routing source. The legacy data is retained for a decommission window; the new code path doesn't read or write it.
 - `on_install` / `on_uninstall` lifecycle hooks. There's nothing to provision (each user connects on demand) and nothing to cascade-delete (their data lives in their Vikunja).
 
 ### Operational notes
 
-- **Required env on the backend host** — `the encryption key` in `/home/the backend service/.env`. Generate once via `python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`. Bridge will refuse to start (or the first /v1/connect will fail loudly) without it.
-- **Migration** — apply `001_byo_connections.sql` before restarting bridge. Existing `vikunja_accounts` data is left untouched.
-- **Bridge restart** is required to pick up the new code. Old code keeps running on shared instance until restart.
-- **Existing prod users on shared instance** — there is no automatic data migration. Provide an export tool / amnesty period before decommissioning the shared instance.
+- **Required env** — the backend needs the token-encryption key supplied via an environment variable, or it will refuse to start (or the first connect attempt will fail loudly).
+- **Migration** — apply the new connections-table migration before restarting the backend. Existing legacy data is left untouched.
+- **Backend restart** is required to pick up the new code.
+- **Existing users on the shared instance** — there is no automatic data migration. Provide an export tool / amnesty period before decommissioning the shared instance.
 
 ---
 
@@ -845,7 +837,7 @@ SDK migration: `imperal-sdk==2.0.1` → `imperal-sdk==3.0.0` (Identity Contract 
 
 ### Why
 
-SDK 3.0.0 deletes `imperal_sdk.auth.user.User`, makes `User`/`UserContext` frozen Pydantic v2 models with `extra="forbid"`, and renames `.id` → `.imperal_id` on user objects. `ctx.user.id` raises `AttributeError` on 3.x with no alias. Production worker venv was upgraded to 3.0.0 — any 2.x-pinned extension breaks on identity reads.
+SDK 3.0.0 removes the old user class, makes `User`/`UserContext` frozen Pydantic v2 models with `extra="forbid"`, and renames `.id` → `.imperal_id` on user objects. `ctx.user.id` raises `AttributeError` on 3.x with no alias, so any 2.x-pinned extension breaks on identity reads once the runtime moves to 3.0.0.
 
 ### Changed
 
@@ -864,7 +856,7 @@ Pin bump only: `imperal-sdk==1.6.2` → `imperal-sdk==2.0.1`. Also corrects a pr
 
 ### Why
 
-`imperal-sdk` 2.0.1 supersedes the rolled-back 2.0.0 with the v1.6.2 contract restored plus two kernel-internal ICNLI Action Authority hotfixes (`chat/guards.py` destructive `BLOCK` → `ESCALATE`, `core/intent.action_plan.args` JSON-encoded string for OpenAI strict mode). The SDK API surface remains identical to 1.6.2. Per the team's release note: *"v1.6.2 extensions upgrade by pin bump only."*
+`imperal-sdk` 2.0.1 supersedes the rolled-back 2.0.0 with the v1.6.2 contract restored plus two internal runtime hotfixes. The SDK API surface remains identical to 1.6.2, so v1.6.2 extensions upgrade by pin bump only.
 
 ### Changed
 
@@ -887,9 +879,9 @@ Pin `imperal-sdk==1.6.2` after rolling back the v2.0.0 / SDK v2.0 / Webbee Singl
 
 ### Added
 - Extension scaffold (main.py, app.py, imperal.json, requirements.txt).
-- Bridge HTTP client via `VIKUNJA_BRIDGE_URL` + `VIKUNJA_BRIDGE_KEY` env.
-- `@ext.on_install` / `@ext.on_uninstall` — auto-provision + cascade delete via bridge.
-- Health check through bridge `/health`.
+- Backend HTTP client via `VIKUNJA_BRIDGE_URL` + `VIKUNJA_BRIDGE_KEY` env.
+- `@ext.on_install` / `@ext.on_uninstall` — auto-provision + cascade delete via backend.
+- Health check through backend `/health`.
 - System prompt guiding LLM tool selection.
 
 ## [1.0.0] — TBD

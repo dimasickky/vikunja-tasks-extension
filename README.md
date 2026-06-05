@@ -1,6 +1,6 @@
 # Tasks — Imperal Kanban Manager
 
-**Trello-class task manager inside Imperal Platform.** Powered by Vikunja v2.2.2 with the database-backed HA storage. AI-augmented for breakdown, planning, and estimation.
+**Trello-class task manager inside Imperal Platform.** Powered by Vikunja, with AI augmentation for breakdown, planning, and estimation.
 
 **Slogan:** _«Kanban бесплатный. Плати только за AI-работу.»_
 
@@ -36,21 +36,21 @@ Implementation — `@ext.panel` duplicates ensure free-in-panel for deterministi
 ## Architecture
 
 ```
-tasks ext (the backend host)  ──▶  the backend service (the backend host:8102)  ──▶  Vikunja :3456
-                                     │                                      │
-                                     └──── the database (vikunja_db) ◀────────────┘
+Tasks extension  ──▶  backend API  ──▶  Vikunja
 ```
 
-Upstream service (Vikunja) and bridge co-located on the backend host. Data in the database EU master with async slaves in US/IN/SG. Extension communicates with bridge via x-api-key; bridge mints per-request HS256 JWT to act on behalf of the user.
+The extension talks to a backend API, which in turn talks to a Vikunja instance on
+the user's behalf. The extension authenticates to the backend with an API key; the
+backend holds the per-user credentials needed to act against Vikunja.
 
-**UX stays inside Imperal Panel** — no external redirects, Vikunja web UI is admin-only.
+**UX stays inside Imperal Panel** — no external redirects; the Vikunja web UI is not used by end users.
 
 ---
 
 ## Secrets (set in Developer Portal)
 
-- `VIKUNJA_BRIDGE_URL` — bridge endpoint (e.g. `http://REDACTED_HOST:8102`)
-- `VIKUNJA_BRIDGE_KEY` — API key for extension → bridge
+- `VIKUNJA_BRIDGE_URL` — backend API endpoint (e.g. `http://your-backend-host:PORT`)
+- `VIKUNJA_BRIDGE_KEY` — API key for the extension → backend
 
 ---
 

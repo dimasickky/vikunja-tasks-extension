@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.33.1] — 2026-06-11
+
+### Changed
+
+- Maintenance release — rebuilt against the latest platform SDK. No functional or behavioral changes.
+
 ## [3.33.0] — 2026-06-05
 
 ### Changed

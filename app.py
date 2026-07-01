@@ -29,12 +29,13 @@ def _bridge_url() -> str:
     return url.rstrip("/")
 
 
-def _bridge_key() -> str:
-    return os.getenv("VIKUNJA_BRIDGE_KEY", "")
+async def _bridge_key(ctx) -> str:
+    # App-scope secret from Vault (Developer Portal → Secrets). No value in code.
+    return (await ctx.secrets.get("vikunja_bridge_key")) or ""
 
 
-def _auth_headers() -> dict:
-    key = _bridge_key()
+async def _auth_headers(ctx) -> dict:
+    key = await _bridge_key(ctx)
     return {"x-api-key": key} if key else {}
 
 
@@ -71,7 +72,7 @@ def _extract_error(resp) -> dict:
 
 
 async def api_post(ctx, path: str, data: dict) -> dict:
-    r = await ctx.http.post(f"{_bridge_url()}{path}", json=data, headers=_auth_headers())
+    r = await ctx.http.post(f"{_bridge_url()}{path}", json=data, headers=await _auth_headers(ctx))
     if not r.ok:
         return _extract_error(r)
     body = r.body
@@ -79,7 +80,7 @@ async def api_post(ctx, path: str, data: dict) -> dict:
 
 
 async def api_get(ctx, path: str, params: dict | None = None) -> dict | list:
-    r = await ctx.http.get(f"{_bridge_url()}{path}", params=params or {}, headers=_auth_headers())
+    r = await ctx.http.get(f"{_bridge_url()}{path}", params=params or {}, headers=await _auth_headers(ctx))
     if not r.ok:
         return _extract_error(r)
     body = r.body
@@ -87,7 +88,7 @@ async def api_get(ctx, path: str, params: dict | None = None) -> dict | list:
 
 
 async def api_delete(ctx, path: str, params: dict | None = None) -> dict:
-    r = await ctx.http.delete(f"{_bridge_url()}{path}", params=params or {}, headers=_auth_headers())
+    r = await ctx.http.delete(f"{_bridge_url()}{path}", params=params or {}, headers=await _auth_headers(ctx))
     if not r.ok:
         return _extract_error(r)
     body = r.body
@@ -120,7 +121,7 @@ async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | N
 
 ext = Extension(
     "tasks",
-    version="3.33.2",
+    version="3.34.0",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Tasks",
     description=(
@@ -142,12 +143,26 @@ chat = ChatExtension(
 )
 
 
+# ─── Secrets (app-scope: one developer-owned key, shared by all users) ────── #
+
+ext.secret(
+    name="vikunja_bridge_key",
+    description=(
+        "API key the tasks backend (Vikunja bridge) authenticates with. "
+        "Shared across all users; set once in Developer Portal → Secrets."
+    ),
+    scope="app",
+    required=True,
+    max_bytes=256,
+)(lambda: None)
+
+
 # ─── Lifecycle ────────────────────────────────────────────────────────────── #
 
 @ext.health_check
 async def health(ctx) -> dict:
     try:
-        r = await ctx.http.get(f"{_bridge_url()}/health", headers=_auth_headers())
+        r = await ctx.http.get(f"{_bridge_url()}/health", headers=await _auth_headers(ctx))
         if not r.ok:
             return {"status": "degraded", "version": ext.version, "bridge": "unreachable"}
         body = r.body if isinstance(r.body, dict) else {}

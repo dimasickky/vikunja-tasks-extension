@@ -1,8 +1,8 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.3.0",
+  "sdk_version": "5.9.2",
   "app_id": "tasks",
-  "version": "3.33.2",
+  "version": "3.34.0",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -8993,5 +8993,35 @@
     "health_check": {
       "interval_sec": 60
     }
-  }
+  },
+  "secrets": [
+    {
+      "name": "vikunja_bridge_key",
+      "description": "API key the tasks backend (Vikunja bridge) authenticates with. Shared across all users; set once in Developer Portal → Secrets.",
+      "required": true,
+      "write_mode": "user",
+      "max_bytes": 256,
+      "scope": "app"
+    }
+  ],
+  "panels": [
+    {
+      "panel_id": "secrets",
+      "slot": "right",
+      "title": "Secrets",
+      "tree": {}
+    },
+    {
+      "panel_id": "sidebar",
+      "slot": "left",
+      "title": "Tasks",
+      "tree": {}
+    },
+    {
+      "panel_id": "editor",
+      "slot": "center",
+      "title": "Board",
+      "tree": {}
+    }
+  ]
 }

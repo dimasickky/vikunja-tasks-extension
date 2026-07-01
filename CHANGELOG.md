@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.34.0] — 2026-07-01
+
+### Changed
+
+- **Backend credentials are now managed as an encrypted secret.** The backend API key is declared as
+  an app-scoped `@ext.secret` and read from encrypted secret storage at runtime instead of a plaintext
+  environment variable — set it once in the Developer Portal → Secrets tab. No value ever lives in the
+  source. Rebuilt against the latest platform SDK.
+
 ## [3.33.2] — 2026-06-16
 
 ### Changed

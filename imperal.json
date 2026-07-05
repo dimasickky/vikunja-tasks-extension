@@ -1,6 +1,6 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.9.2",
+  "sdk_version": "5.9.3",
   "app_id": "tasks",
   "version": "3.34.0",
   "name": "Tasks",

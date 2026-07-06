@@ -121,7 +121,7 @@ async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | N
 
 ext = Extension(
     "tasks",
-    version="3.34.0",
+    version="3.34.1",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Tasks",
     description=(

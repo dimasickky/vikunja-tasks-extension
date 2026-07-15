@@ -1,8 +1,8 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.9.3",
+  "sdk_version": "5.9.6",
   "app_id": "tasks",
-  "version": "3.34.1",
+  "version": "3.34.2",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -9009,19 +9009,31 @@
       "panel_id": "secrets",
       "slot": "right",
       "title": "Secrets",
-      "tree": {}
+      "tree": {},
+      "icon": "KeyRound",
+      "refresh": "manual",
+      "center_overlay": false
     },
     {
       "panel_id": "sidebar",
       "slot": "left",
       "title": "Tasks",
-      "tree": {}
+      "tree": {},
+      "icon": "Kanban",
+      "refresh": "on_event:tasks.connection.created,tasks.connection.deleted,tasks.task.created,tasks.task.updated,tasks.task.completed,tasks.task.uncompleted,tasks.task.deleted,tasks.project.created,tasks.project.updated,tasks.project.archived,tasks.project.deleted",
+      "center_overlay": false,
+      "default_width": 280,
+      "min_width": 240,
+      "max_width": 420
     },
     {
       "panel_id": "editor",
       "slot": "center",
       "title": "Board",
-      "tree": {}
+      "tree": {},
+      "icon": "Kanban",
+      "refresh": "on_event:tasks.task.created,tasks.task.updated,tasks.task.completed,tasks.task.uncompleted,tasks.task.deleted,tasks.task.moved,tasks.task.bucket_changed,tasks.task.due_changed,tasks.task.priority_changed,tasks.task.commented,tasks.task.mentioned,tasks.task.labeled,tasks.task.unlabeled,tasks.task.assigned,tasks.task.unassigned,tasks.project.created,tasks.project.updated,tasks.project.archived,tasks.project.deleted",
+      "center_overlay": false
     }
   ]
 }

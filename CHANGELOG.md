@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.34.2] — 2026-07-15
+
+### Changed
+
+- Maintenance release — rebuilt against `imperal-sdk==5.9.6` (picks up upstream fixes for
+  app-scoped secret manifest validation and panel metadata roundtrip parity). No functional or
+  behavioral changes.
+
 ## [3.34.1] — 2026-07-07
 
 ### Changed

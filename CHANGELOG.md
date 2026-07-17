@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.34.4] — 2026-07-18
+
+### Fixed
+
+- README slogan translated from Russian to English, for consistency with the platform's
+  English-first documentation.
+- Replaced leftover Russian example values (`'вафоя'`, `'гидроцефалище2'`) with English
+  placeholders in `task_titles` description on `DeleteTasksParams`. Cosmetic only.
+
 ## [3.34.3] — 2026-07-17
 
 ### Changed

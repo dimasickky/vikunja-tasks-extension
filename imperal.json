@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.9.9",
   "app_id": "tasks",
-  "version": "3.34.3",
+  "version": "3.34.4",
   "name": "Tasks",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -916,7 +916,7 @@
               }
             ],
             "default": null,
-            "description": "List of task titles to find and delete (e.g. ['вафоя', 'гидроцефалище2']). Auto-resolved to task IDs.",
+            "description": "List of task titles to find and delete (e.g. ['Buy milk', 'Fix login bug']). Auto-resolved to task IDs.",
             "title": "Task Titles"
           },
           "project_id": {

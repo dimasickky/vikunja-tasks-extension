@@ -2,7 +2,7 @@
 
 **Trello-class task manager inside Imperal Platform.** Powered by Vikunja, with AI augmentation for breakdown, planning, and estimation.
 
-**Slogan:** _«Kanban бесплатный. Плати только за AI-работу.»_
+**Slogan:** _"Kanban is free. Only pay for the AI work."_
 
 ---
 

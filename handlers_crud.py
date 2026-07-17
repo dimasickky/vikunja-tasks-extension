@@ -394,7 +394,7 @@ class DeleteTasksParams(BaseModel):
     )
     task_titles: Optional[List[str]] = Field(
         None,
-        description="List of task titles to find and delete (e.g. ['вафоя', 'гидроцефалище2']). Auto-resolved to task IDs.",
+        description="List of task titles to find and delete (e.g. ['Buy milk', 'Fix login bug']). Auto-resolved to task IDs.",
     )
     project_id: Optional[int] = Field(
         None,

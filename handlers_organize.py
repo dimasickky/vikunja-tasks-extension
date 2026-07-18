@@ -15,6 +15,8 @@ from handlers_crud import (
     _bridge_error_msg,
     UpdateTaskParams,
 )
+from imperal_sdk.chat.error_codes import VALIDATION_MISSING_FIELD
+from error_codes import TASKS_BRIDGE_ERROR, TASKS_BUCKET_NOT_FOUND, TASKS_PROJECT_NOT_FOUND, TASKS_TASK_AMBIGUOUS, TASKS_TASK_NOT_FOUND
 from models_return import (
     SearchUsersResult,
     ProjectMembersResult,
@@ -140,7 +142,7 @@ async def _search_users_impl(ctx, params: SearchUsersParams) -> ActionResult:
 
     resp = await api_get(ctx, "/v1/users", {"imperal_id": imperal_id, "s": params.query})
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't search users"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't search users"), code=TASKS_BRIDGE_ERROR)
 
     users = resp if isinstance(resp, list) else []
     if not users:
@@ -177,13 +179,13 @@ async def _list_project_members_impl(ctx, params: ListProjectMembersParams) -> A
     if project_id is None and params.project_name:
         project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
         if project_id is None:
-            return ActionResult.error(f"No project found matching '{params.project_name}'.")
+            return ActionResult.error(f"No project found matching '{params.project_name}'.", code=TASKS_PROJECT_NOT_FOUND)
     if project_id is None:
-        return ActionResult.error("Pass project_id or project_name to list its members.")
+        return ActionResult.error("Pass project_id or project_name to list its members.", code=VALIDATION_MISSING_FIELD)
 
     resp = await api_get(ctx, f"/v1/projects/{project_id}/users", {"imperal_id": imperal_id})
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't list project members"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't list project members"), code=TASKS_BRIDGE_ERROR)
 
     members = resp if isinstance(resp, list) else []
     proj_label = params.project_name or f"#{project_id}"
@@ -287,7 +289,8 @@ async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
         tasks = search_resp if isinstance(search_resp, list) else []
         if not tasks:
             return ActionResult.error(
-                f"Task '{params.task_name}' not found. Check the spelling or call list_my_tasks() to browse."
+                f"Task '{params.task_name}' not found. Check the spelling or call list_my_tasks() to browse.",
+                code=TASKS_TASK_NOT_FOUND,
             )
         if len(tasks) > 1 and params.bucket_name:
             tasks = await _filter_tasks_by_bucket(ctx, imperal_id, tasks, params.bucket_name)
@@ -295,19 +298,21 @@ async def _assign_task_impl(ctx, params: AssignTaskParams) -> ActionResult:
             matches = ", ".join(f"#{t['id']} '{t.get('title', '?')}'" for t in tasks[:5])
             return ActionResult.error(
                 f"Multiple tasks match '{params.task_name}': {matches}. "
-                "Pass bucket_name to narrow down, or pass task_id directly."
+                "Pass bucket_name to narrow down, or pass task_id directly.",
+                code=TASKS_TASK_AMBIGUOUS,
             )
         task_id = tasks[0]["id"]
 
     if not task_id:
         return ActionResult.error(
-            "task_id is required. Pass task_name to let assign_task auto-resolve by title."
+            "task_id is required. Pass task_name to let assign_task auto-resolve by title.",
+            code=VALIDATION_MISSING_FIELD,
         )
 
     resp = await api_post(ctx, f"/v1/tasks/{task_id}/assign",
                           {"imperal_id": imperal_id, "assignee_query": params.assignee_query})
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't assign user"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't assign user"), code=TASKS_BRIDGE_ERROR)
     resolved_id = resp.get("_resolved_user_id")
     resolved_name = resp.get("_resolved_username", params.assignee_query)
     return ActionResult.success(
@@ -324,7 +329,7 @@ async def _unassign_task_impl(ctx, params: UnassignTaskParams) -> ActionResult:
     resp = await api_delete(ctx, f"/v1/tasks/{params.task_id}/assign/{params.assignee_vikunja_user_id}",
                             params={"imperal_id": imperal_id})
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't unassign user"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't unassign user"), code=TASKS_BRIDGE_ERROR)
     return ActionResult.success(
         summary=f"Unassigned user {params.assignee_vikunja_user_id} from task #{params.task_id}.",
         data={"task_id": params.task_id, "assignee_vikunja_user_id": params.assignee_vikunja_user_id,
@@ -339,7 +344,7 @@ async def _add_label_impl(ctx, params: AddLabelParams) -> ActionResult:
     resp = await api_post(ctx, f"/v1/tasks/{params.task_id}/labels",
                           {"imperal_id": imperal_id, "label_id": params.label_id})
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't attach label"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't attach label"), code=TASKS_BRIDGE_ERROR)
     return ActionResult.success(
         summary=f"Attached label #{params.label_id} to task #{params.task_id}.",
         data={"task_id": params.task_id, "label_id": params.label_id, "refresh_panels": ["sidebar", "editor"]},
@@ -353,7 +358,7 @@ async def _detach_label_impl(ctx, params: DetachLabelParams) -> ActionResult:
     resp = await api_delete(ctx, f"/v1/tasks/{params.task_id}/labels/{params.label_id}",
                             params={"imperal_id": imperal_id})
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't detach label"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't detach label"), code=TASKS_BRIDGE_ERROR)
     return ActionResult.success(
         summary=f"Detached label #{params.label_id} from task #{params.task_id}.",
         data={"task_id": params.task_id, "label_id": params.label_id, "refresh_panels": ["sidebar", "editor"]},
@@ -479,9 +484,9 @@ async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
     if params.project_id is None and params.project_name:
         params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
         if params.project_id is None:
-            return ActionResult.error(f"Project '{params.project_name}' not found.")
+            return ActionResult.error(f"Project '{params.project_name}' not found.", code=TASKS_PROJECT_NOT_FOUND)
     if params.project_id is None:
-        return ActionResult.error("Pass project_id or project_name.")
+        return ActionResult.error("Pass project_id or project_name.", code=VALIDATION_MISSING_FIELD)
 
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, project_id=params.project_id))
 
@@ -509,7 +514,7 @@ async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
         if params.project_name:
             project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
             if project_id is None:
-                return ActionResult.error(f"Project '{params.project_name}' not found.")
+                return ActionResult.error(f"Project '{params.project_name}' not found.", code=TASKS_PROJECT_NOT_FOUND)
         else:
             # Fall back: get project_id from the task itself
             task_resp = await api_get(ctx, f"/v1/tasks/{params.task_id}", {"imperal_id": imperal_id})
@@ -517,17 +522,19 @@ async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
                 project_id = task_resp.get("project_id")
         if project_id is None:
             return ActionResult.error(
-                "Pass bucket_id directly, or pass bucket_name + project_name to resolve automatically."
+                "Pass bucket_id directly, or pass bucket_name + project_name to resolve automatically.",
+                code=VALIDATION_MISSING_FIELD,
             )
         params.bucket_id = await _resolve_bucket_id_by_name(ctx, imperal_id, project_id, params.bucket_name)
         if params.bucket_id is None:
             return ActionResult.error(
                 f"Bucket '{params.bucket_name}' not found in project. "
-                "Call list_project_buckets() to see available buckets."
+                "Call list_project_buckets() to see available buckets.",
+                code=TASKS_BUCKET_NOT_FOUND,
             )
 
     if params.bucket_id is None:
-        return ActionResult.error("Pass bucket_id or bucket_name + project_name.")
+        return ActionResult.error("Pass bucket_id or bucket_name + project_name.", code=VALIDATION_MISSING_FIELD)
 
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, bucket_id=params.bucket_id))
 

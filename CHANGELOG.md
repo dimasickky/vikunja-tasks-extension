@@ -1,5 +1,30 @@
 # Changelog
 
+## [3.35.0] — 2026-07-18
+
+### Changed
+- **display_name**: renamed from generic "Tasks" to explicit "Vikunja Tasks
+  Connector" — the old generic name was getting confused with/reverting to
+  a different generic "Tasks" app in the catalog.
+- Bumped `imperal-sdk` pin `5.9.9` → `5.9.11` (no breaking changes affect
+  this extension — module imports verified clean under the new pin).
+- Every `ActionResult.error(...)` call site (88 total across
+  handlers_ai.py, handlers_collab.py, handlers_connection.py,
+  handlers_crud.py, handlers_organize.py, handlers_search.py,
+  handlers_structure.py) now carries a structured `code=` (SDK 5.9.7+,
+  validator rule V32): platform taxonomy codes where they fit
+  (`VALIDATION_MISSING_FIELD`, `PERMISSION_DENIED`, `INTERNAL`), plus a
+  small new app-declared set in `error_codes.py` for Vikunja-specific
+  failures the platform taxonomy doesn't cover (`TASKS_BRIDGE_ERROR`,
+  `TASKS_CONNECT_FAILED`, `TASKS_PROJECT_NOT_FOUND`, `TASKS_TASK_NOT_FOUND`,
+  `TASKS_TASK_AMBIGUOUS`, `TASKS_BUCKET_NOT_FOUND`,
+  `TASKS_CHECKLIST_ITEM_NOT_FOUND`, `TASKS_KANBAN_VIEW_MISSING`).
+- No behavior change for users — this is diagnosability-only (plus the
+  display name fix above).
+
+All handler modules import clean under the new pin; pyflakes clean on
+every edited file (0 undefined names).
+
 ## [3.34.4] — 2026-07-18
 
 ### Fixed

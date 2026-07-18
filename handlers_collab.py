@@ -7,6 +7,7 @@ from imperal_sdk.chat import ActionResult
 from app import api_post, api_get, api_delete, chat
 from handlers_crud import _require_user, _bridge_error_msg
 from models_return import CommentResult, MentionCommentResult, ListCommentsResult, CommentRefResult
+from error_codes import TASKS_BRIDGE_ERROR
 
 
 class AddCommentParams(BaseModel):
@@ -49,7 +50,7 @@ async def _add_comment_impl(ctx, params: AddCommentParams) -> ActionResult:
     resp = await api_post(ctx, f"/v1/tasks/{params.task_id}/comments",
                           {"imperal_id": imperal_id, "comment": params.comment})
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't add comment"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't add comment"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Comment added to task #{params.task_id}.",
@@ -116,7 +117,7 @@ async def list_comments(ctx, params: ListCommentsParams) -> ActionResult:
 
     resp = await api_get(ctx, f"/v1/tasks/{params.task_id}/comments", {"imperal_id": imperal_id})
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch comments"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch comments"), code=TASKS_BRIDGE_ERROR)
 
     comments = resp if isinstance(resp, list) else []
     return ActionResult.success(
@@ -157,7 +158,7 @@ async def update_comment(ctx, params: UpdateCommentParams) -> ActionResult:
         {"imperal_id": imperal_id, "comment": params.comment},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update comment"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update comment"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Comment #{params.comment_id} on task #{params.task_id} updated.",
@@ -185,7 +186,7 @@ async def delete_comment(ctx, params: DeleteCommentParams) -> ActionResult:
         {"imperal_id": imperal_id},
     )
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete comment"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete comment"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Comment #{params.comment_id} deleted from task #{params.task_id}.",

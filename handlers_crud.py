@@ -26,6 +26,8 @@ from models_return import (
     vikunja_priority,
     vikunja_date,
 )
+from imperal_sdk.chat.error_codes import VALIDATION_MISSING_FIELD, PERMISSION_DENIED
+from error_codes import TASKS_BRIDGE_ERROR, TASKS_PROJECT_NOT_FOUND, TASKS_CHECKLIST_ITEM_NOT_FOUND
 
 
 log = logging.getLogger("tasks")
@@ -123,7 +125,7 @@ class ToggleChecklistItemParams(BaseModel):
 def _require_user(ctx) -> str | ActionResult:
     imperal_id = imperal_id_of(ctx)
     if not imperal_id:
-        return ActionResult.error("No authenticated user on context.")
+        return ActionResult.error("No authenticated user on context.", code=PERMISSION_DENIED)
     return imperal_id
 
 
@@ -146,9 +148,9 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
     if params.project_id is None and params.project_name:
         params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
         if params.project_id is None:
-            return ActionResult.error(f"Project '{params.project_name}' not found.")
+            return ActionResult.error(f"Project '{params.project_name}' not found.", code=TASKS_PROJECT_NOT_FOUND)
     if params.project_id is None:
-        return ActionResult.error("Pass project_id or project_name.")
+        return ActionResult.error("Pass project_id or project_name.", code=VALIDATION_MISSING_FIELD)
 
     # Resolve bucket_name → bucket_id if caller passed a name instead of ID.
     if params.bucket_name and not params.bucket_id:
@@ -186,7 +188,7 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
 
     resp = await api_post(ctx, "/v1/tasks", payload)
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create task"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create task"), code=TASKS_BRIDGE_ERROR)
 
     task_id = resp["id"]
     assigned_name: Optional[str] = None
@@ -237,11 +239,11 @@ async def _update_task_impl(ctx, params: UpdateTaskParams) -> ActionResult:
             payload[field] = v
 
     if len(payload) == 1:
-        return ActionResult.error("No fields to update — pass at least one field.")
+        return ActionResult.error("No fields to update — pass at least one field.", code=VALIDATION_MISSING_FIELD)
 
     resp = await api_post(ctx, f"/v1/tasks/{params.task_id}", payload)
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update task"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update task"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Task updated: {resp.get('title', params.task_id)}.",
@@ -267,7 +269,7 @@ async def _complete_task_impl(ctx, params: CompleteTaskParams) -> ActionResult:
         {"imperal_id": imperal_id, "done": True, "percent_done": 1.0},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't complete task"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't complete task"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Task completed: {resp.get('title', params.task_id)}.",
@@ -286,7 +288,7 @@ async def _uncomplete_task_impl(ctx, params: UncompleteTaskParams) -> ActionResu
         {"imperal_id": imperal_id, "done": False, "percent_done": 0.0},
     )
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't reopen task"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't reopen task"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Task reopened: {resp.get('title', params.task_id)}.",
@@ -302,7 +304,7 @@ async def _delete_task_impl(ctx, params: DeleteTaskParams) -> ActionResult:
 
     resp = await api_delete(ctx, f"/v1/tasks/{params.task_id}", params={"imperal_id": imperal_id})
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete task"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete task"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Task #{params.task_id} deleted.",
@@ -425,7 +427,7 @@ async def delete_tasks(ctx, params: DeleteTasksParams) -> ActionResult:
         return imperal_id
 
     if not params.task_ids and not params.task_titles:
-        return ActionResult.error("Pass task_ids or task_titles.")
+        return ActionResult.error("Pass task_ids or task_titles.", code=VALIDATION_MISSING_FIELD)
 
     # Resolve project_name → project_id if needed
     if params.project_name and not params.project_id:
@@ -504,7 +506,7 @@ async def create_subtask(ctx, params: CreateSubtaskParams) -> ActionResult:
         "description": params.description,
     })
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create subtask"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create subtask"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Subtask created: {resp.get('title')}.",
@@ -530,7 +532,7 @@ async def list_subtasks(ctx, params: ListSubtasksParams) -> ActionResult:
 
     resp = await api_get(ctx, f"/v1/tasks/{params.task_id}/subtasks", {"imperal_id": imperal_id})
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch subtasks"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch subtasks"), code=TASKS_BRIDGE_ERROR)
 
     subtasks = resp if isinstance(resp, list) else []
     done_ct = sum(1 for s in subtasks if s.get("done"))
@@ -567,13 +569,14 @@ async def toggle_checklist_item(ctx, params: ToggleChecklistItemParams) -> Actio
 
     task = await api_get(ctx, f"/v1/tasks/{params.task_id}", {"imperal_id": imperal_id})
     if isinstance(task, dict) and task.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(task, "Couldn't fetch task"))
+        return ActionResult.error(_bridge_error_msg(task, "Couldn't fetch task"), code=TASKS_BRIDGE_ERROR)
 
     desc = task.get("description") or ""
     new_desc = _toggle_checklist_item(desc, params.item_index, params.checked)
     if new_desc == desc:
         return ActionResult.error(
-            f"Checklist item #{params.item_index} not found in task description."
+            f"Checklist item #{params.item_index} not found in task description.",
+            code=TASKS_CHECKLIST_ITEM_NOT_FOUND,
         )
 
     resp = await api_post(ctx, f"/v1/tasks/{params.task_id}", {
@@ -581,7 +584,7 @@ async def toggle_checklist_item(ctx, params: ToggleChecklistItemParams) -> Actio
         "description": new_desc,
     })
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update checklist item"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update checklist item"), code=TASKS_BRIDGE_ERROR)
 
     state = "done" if params.checked else "unchecked"
     return ActionResult.success(
@@ -616,7 +619,7 @@ async def get_task(ctx, params: GetTaskParams) -> ActionResult:
 
     resp = await api_get(ctx, f"/v1/tasks/{params.task_id}", {"imperal_id": imperal_id})
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch task"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch task"), code=TASKS_BRIDGE_ERROR)
 
     t = resp
     entity = TaskEntity(

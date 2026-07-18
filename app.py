@@ -121,9 +121,9 @@ async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | N
 
 ext = Extension(
     "tasks",
-    version="3.34.4",
+    version="3.35.0",
     capabilities=["tasks:read", "tasks:write"],
-    display_name="Tasks",
+    display_name="Vikunja Tasks Connector",
     description=(
         "Kanban task manager connecting to your own Vikunja instance — "
         "create, assign, filter tasks and manage projects and labels."

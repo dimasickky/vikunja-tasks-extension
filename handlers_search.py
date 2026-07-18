@@ -7,6 +7,7 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_get, chat, NoParams, fetch_all_pages
 from handlers_crud import _require_user, _bridge_error_msg
+from error_codes import TASKS_BRIDGE_ERROR
 from models_return import (
     TaskListResult,
     FindTaskResult,
@@ -71,12 +72,12 @@ async def _list_my_tasks_impl(ctx, params: ListMyTasksParams) -> ActionResult:
         if not tasks:
             resp = await api_get(ctx, "/v1/tasks/all", {**base, "page": 1, "per_page": 50})
             if isinstance(resp, dict) and resp.get("status") == "error":
-                return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"))
+                return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"), code=TASKS_BRIDGE_ERROR)
     else:
         q = {**base, "page": params.page, "per_page": params.per_page}
         resp = await api_get(ctx, "/v1/tasks/all", q)
         if isinstance(resp, dict) and resp.get("status") == "error":
-            return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"))
+            return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch tasks"), code=TASKS_BRIDGE_ERROR)
         tasks = resp if isinstance(resp, list) else []
     items = [
         TaskItem(

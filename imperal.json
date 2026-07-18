@@ -1,9 +1,9 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.9.9",
+  "sdk_version": "5.9.11",
   "app_id": "tasks",
-  "version": "3.34.4",
-  "name": "Tasks",
+  "version": "3.35.0",
+  "name": "Vikunja Tasks Connector",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
   "actions_explicit": true,

@@ -10,6 +10,8 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_get, api_post, chat, imperal_id_of, is_no_connection_error
 from models_return import AiBreakdownResult
+from imperal_sdk.chat.error_codes import PERMISSION_DENIED, INTERNAL
+from error_codes import TASKS_BRIDGE_ERROR, TASKS_TASK_NOT_FOUND
 
 log = logging.getLogger("tasks")
 
@@ -17,7 +19,7 @@ log = logging.getLogger("tasks")
 def _require_user(ctx) -> str | ActionResult:
     iid = imperal_id_of(ctx)
     if not iid:
-        return ActionResult.error("No authenticated user on context.")
+        return ActionResult.error("No authenticated user on context.", code=PERMISSION_DENIED)
     return iid
 
 
@@ -81,14 +83,14 @@ async def ai_breakdown_task(ctx, params: AiBreakdownParams) -> ActionResult:
         # 1. Fetch parent task details.
         task = await api_get(ctx, f"/v1/tasks/{params.task_id}", {"imperal_id": imperal_id})
         if isinstance(task, dict) and task.get("status") == "error":
-            return ActionResult.error(_bridge_error_msg(task, "Couldn't fetch task"))
+            return ActionResult.error(_bridge_error_msg(task, "Couldn't fetch task"), code=TASKS_BRIDGE_ERROR)
 
         title = task.get("title", "")
         description = (task.get("description") or "").strip()
         project_id = task.get("project_id")
 
         if not title:
-            return ActionResult.error("Task not found or has no title.")
+            return ActionResult.error("Task not found or has no title.", code=TASKS_TASK_NOT_FOUND)
 
         # 2. Ask AI to generate subtask titles.
         context_block = f"\nAdditional context: {params.context}" if params.context else ""
@@ -115,6 +117,7 @@ async def ai_breakdown_task(ctx, params: AiBreakdownParams) -> ActionResult:
             return ActionResult.error(
                 "AI didn't return a valid subtask list. Try rephrasing the task description.",
                 retryable=True,
+                code=INTERNAL,
             )
 
         # 3. Create subtasks via bridge.
@@ -137,6 +140,7 @@ async def ai_breakdown_task(ctx, params: AiBreakdownParams) -> ActionResult:
                 f"AI generated {len(titles)} subtask titles but all creates failed. "
                 "Check your Vikunja connection.",
                 retryable=True,
+                code=TASKS_BRIDGE_ERROR,
             )
 
         failed_note = f" ({len(failed)} failed)" if failed else ""
@@ -158,4 +162,4 @@ async def ai_breakdown_task(ctx, params: AiBreakdownParams) -> ActionResult:
 
     except Exception as e:
         log.error("ai_breakdown_task: %s", e)
-        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True)
+        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True, code=INTERNAL)

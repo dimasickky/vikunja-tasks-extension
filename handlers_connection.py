@@ -8,6 +8,8 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_post, api_delete, api_get, chat, require_imperal_id, NoParams
 from models_return import VikunjaConnectionResult, DisconnectResult, ConnectionStatusResult
+from imperal_sdk.chat.error_codes import VALIDATION_MISSING_FIELD, INTERNAL
+from error_codes import TASKS_CONNECT_FAILED
 
 log = logging.getLogger("tasks")
 
@@ -76,11 +78,11 @@ def _format_connect_error(resp: dict, default: str) -> str:
 async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
     try:
         if not params.base_url.strip():
-            return ActionResult.error("Vikunja URL is required (e.g. https://vikunja.example.com).")
+            return ActionResult.error("Vikunja URL is required (e.g. https://vikunja.example.com).", code=VALIDATION_MISSING_FIELD)
         if not params.username.strip():
-            return ActionResult.error("Username is required.")
+            return ActionResult.error("Username is required.", code=VALIDATION_MISSING_FIELD)
         if not params.password:
-            return ActionResult.error("Password is required.")
+            return ActionResult.error("Password is required.", code=VALIDATION_MISSING_FIELD)
 
         resp = await api_post(ctx, "/v1/connect", {
             "imperal_id": require_imperal_id(ctx),
@@ -89,7 +91,7 @@ async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
             "password":   params.password,
         })
         if resp.get("status") == "error":
-            return ActionResult.error(_format_connect_error(resp, "Couldn't connect to Vikunja."))
+            return ActionResult.error(_format_connect_error(resp, "Couldn't connect to Vikunja."), code=TASKS_CONNECT_FAILED)
         return ActionResult.success(
             data={
                 "base_url":          resp.get("base_url"),
@@ -101,7 +103,7 @@ async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
         )
     except Exception as e:
         log.error("connect_vikunja: %s", e)
-        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True)
+        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True, code=INTERNAL)
 
 
 @chat.function(
@@ -120,9 +122,9 @@ async def connect_vikunja(ctx, params: ConnectVikunjaParams) -> ActionResult:
 async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> ActionResult:
     try:
         if not params.base_url.strip():
-            return ActionResult.error("Vikunja URL is required.")
+            return ActionResult.error("Vikunja URL is required.", code=VALIDATION_MISSING_FIELD)
         if not params.pat.strip():
-            return ActionResult.error("API token is required.")
+            return ActionResult.error("API token is required.", code=VALIDATION_MISSING_FIELD)
 
         resp = await api_post(ctx, "/v1/connect/with-pat", {
             "imperal_id": require_imperal_id(ctx),
@@ -130,7 +132,7 @@ async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> 
             "pat":        params.pat.strip(),
         })
         if resp.get("status") == "error":
-            return ActionResult.error(_format_connect_error(resp, "The token is not accepted by Vikunja."))
+            return ActionResult.error(_format_connect_error(resp, "The token is not accepted by Vikunja."), code=TASKS_CONNECT_FAILED)
         return ActionResult.success(
             data={
                 "base_url":        resp.get("base_url"),
@@ -142,7 +144,7 @@ async def connect_vikunja_with_pat(ctx, params: ConnectVikunjaWithPatParams) -> 
         )
     except Exception as e:
         log.error("connect_vikunja_with_pat: %s", e)
-        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True)
+        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True, code=INTERNAL)
 
 
 @chat.function(
@@ -161,14 +163,14 @@ async def disconnect_vikunja(ctx, params: NoParams) -> ActionResult:
     try:
         resp = await api_delete(ctx, "/v1/connect", {"imperal_id": require_imperal_id(ctx)})
         if resp.get("status") == "error":
-            return ActionResult.error(_format_connect_error(resp, "Couldn't disconnect."))
+            return ActionResult.error(_format_connect_error(resp, "Couldn't disconnect."), code=TASKS_CONNECT_FAILED)
         return ActionResult.success(
             data={"deleted": resp.get("deleted", True), "refresh_panels": ["sidebar", "editor"]},
             summary="Disconnected from Vikunja.",
         )
     except Exception as e:
         log.error("disconnect_vikunja: %s", e)
-        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True)
+        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True, code=INTERNAL)
 
 
 @chat.function(
@@ -185,7 +187,7 @@ async def get_connection_status(ctx, params: NoParams) -> ActionResult:
     try:
         resp = await api_get(ctx, "/v1/connection", {"imperal_id": require_imperal_id(ctx)})
         if isinstance(resp, dict) and resp.get("status") == "error":
-            return ActionResult.error(_format_connect_error(resp, "Couldn't read connection status."))
+            return ActionResult.error(_format_connect_error(resp, "Couldn't read connection status."), code=TASKS_CONNECT_FAILED)
         return ActionResult.success(
             data={
                 "connected":       resp.get("connected", False),
@@ -201,4 +203,4 @@ async def get_connection_status(ctx, params: NoParams) -> ActionResult:
         )
     except Exception as e:
         log.error("get_connection_status: %s", e)
-        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True)
+        return ActionResult.error("An unexpected error occurred. Please try again.", retryable=True, code=INTERNAL)

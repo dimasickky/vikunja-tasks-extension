@@ -8,6 +8,8 @@ from imperal_sdk.chat import ActionResult
 
 from app import api_get, api_post, api_delete, chat, NoParams, resolve_project_id, fetch_all_pages
 from handlers_crud import _require_user, _bridge_error_msg
+from imperal_sdk.chat.error_codes import VALIDATION_MISSING_FIELD
+from error_codes import TASKS_BRIDGE_ERROR, TASKS_BUCKET_NOT_FOUND, TASKS_KANBAN_VIEW_MISSING, TASKS_PROJECT_NOT_FOUND
 from models_return import (
     CreateProjectResult,
     UpdateProjectResult,
@@ -87,7 +89,7 @@ async def _create_project_impl(ctx, params: CreateProjectParams) -> ActionResult
 
     resp = await api_post(ctx, "/v1/projects", payload)
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create project"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create project"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Project created: {resp['title']}.",
@@ -110,11 +112,11 @@ async def _update_project_impl(ctx, params: UpdateProjectParams) -> ActionResult
             payload[field] = v
 
     if len(payload) == 1:
-        return ActionResult.error("No fields to update.")
+        return ActionResult.error("No fields to update.", code=VALIDATION_MISSING_FIELD)
 
     resp = await api_post(ctx, f"/v1/projects/{params.project_id}", payload)
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update project"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't update project"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Project updated: {resp.get('title', params.project_id)}.",
@@ -131,7 +133,7 @@ async def _archive_project_impl(ctx, params: ArchiveProjectParams) -> ActionResu
     resp = await api_post(ctx, f"/v1/projects/{params.project_id}",
                           {"imperal_id": imperal_id, "is_archived": True})
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't archive project"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't archive project"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Project #{params.project_id} archived.",
@@ -147,7 +149,7 @@ async def _delete_project_impl(ctx, params: DeleteProjectParams) -> ActionResult
 
     resp = await api_delete(ctx, f"/v1/projects/{params.project_id}", params={"imperal_id": imperal_id})
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete project"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete project"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Project #{params.project_id} deleted (cascade).",
@@ -162,7 +164,7 @@ async def _list_labels_impl(ctx) -> ActionResult:
 
     resp = await api_get(ctx, "/v1/labels", {"imperal_id": imperal_id})
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch labels"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch labels"), code=TASKS_BRIDGE_ERROR)
 
     labels = resp if isinstance(resp, list) else []
     return ActionResult.success(
@@ -192,7 +194,7 @@ async def _create_label_impl(ctx, params: CreateLabelParams) -> ActionResult:
 
     resp = await api_post(ctx, "/v1/labels", payload)
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create label"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create label"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Label created: {resp['title']}.",
@@ -208,7 +210,7 @@ async def _delete_label_impl(ctx, params: DeleteLabelParams) -> ActionResult:
 
     resp = await api_delete(ctx, f"/v1/labels/{params.label_id}", params={"imperal_id": imperal_id})
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete label"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete label"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Label #{params.label_id} deleted.",
@@ -223,7 +225,7 @@ async def _list_projects_impl(ctx) -> ActionResult:
 
     resp = await api_get(ctx, "/v1/projects", {"imperal_id": imperal_id})
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch projects"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch projects"), code=TASKS_BRIDGE_ERROR)
 
     projects = resp if isinstance(resp, list) else []
     # Return ALL projects with is_archived/is_favorite flags — let the narrator
@@ -395,7 +397,7 @@ async def _get_kanban_view_id(ctx, imperal_id: str, project_id: int) -> tuple[in
     """Return (view_id, None) or (None, error ActionResult)."""
     views_resp = await api_get(ctx, f"/v1/projects/{project_id}/views", {"imperal_id": imperal_id})
     if isinstance(views_resp, dict) and views_resp.get("status") == "error":
-        return None, ActionResult.error(_bridge_error_msg(views_resp, "Couldn't fetch project views"))
+        return None, ActionResult.error(_bridge_error_msg(views_resp, "Couldn't fetch project views"), code=TASKS_BRIDGE_ERROR)
     views = views_resp if isinstance(views_resp, list) else []
     kanban = next((v for v in views if v.get("view_kind") in _KANBAN_VIEW_KINDS), None)
     if kanban is None:
@@ -403,7 +405,8 @@ async def _get_kanban_view_id(ctx, imperal_id: str, project_id: int) -> tuple[in
         return None, ActionResult.error(
             f"Project #{project_id} has no kanban (board) view. "
             f"Available view types: {', '.join(kinds) or 'none'}. "
-            "Open Vikunja and add a Board view to this project first."
+            "Open Vikunja and add a Board view to this project first.",
+            code=TASKS_KANBAN_VIEW_MISSING,
         )
     return kanban["id"], None
 
@@ -437,9 +440,9 @@ async def list_project_buckets(ctx, params: ListProjectBucketsParams) -> ActionR
     if params.project_id is None and params.project_name:
         params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
         if params.project_id is None:
-            return ActionResult.error(f"Project '{params.project_name}' not found.")
+            return ActionResult.error(f"Project '{params.project_name}' not found.", code=TASKS_PROJECT_NOT_FOUND)
     if params.project_id is None:
-        return ActionResult.error("Pass project_id or project_name.")
+        return ActionResult.error("Pass project_id or project_name.", code=VALIDATION_MISSING_FIELD)
 
     view_id, err = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
     if err:
@@ -451,7 +454,7 @@ async def list_project_buckets(ctx, params: ListProjectBucketsParams) -> ActionR
         {"imperal_id": imperal_id},
     )
     if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(buckets_resp, "Couldn't fetch buckets"))
+        return ActionResult.error(_bridge_error_msg(buckets_resp, "Couldn't fetch buckets"), code=TASKS_BRIDGE_ERROR)
 
     buckets = buckets_resp if isinstance(buckets_resp, list) else []
 
@@ -503,7 +506,8 @@ async def get_bucket_tasks(ctx, params: GetBucketTasksParams) -> ActionResult:
     if not params.bucket_name and not params.bucket_id:
         return ActionResult.error(
             "Pass bucket_name (e.g. 'Backlog') or bucket_id. "
-            "Use list_project_buckets to see available buckets."
+            "Use list_project_buckets to see available buckets.",
+            code=VALIDATION_MISSING_FIELD,
         )
 
     # Resolve project_id from project_name if needed
@@ -511,7 +515,7 @@ async def get_bucket_tasks(ctx, params: GetBucketTasksParams) -> ActionResult:
     if project_id is None and params.project_name:
         project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
         if project_id is None:
-            return ActionResult.error(f"Project '{params.project_name}' not found.")
+            return ActionResult.error(f"Project '{params.project_name}' not found.", code=TASKS_PROJECT_NOT_FOUND)
 
     # Build list of project IDs to search
     if project_id is not None:
@@ -586,7 +590,8 @@ async def get_bucket_tasks(ctx, params: GetBucketTasksParams) -> ActionResult:
     proj_ref = f" in '{params.project_name or project_id}'" if (params.project_name or project_id) else " across all projects"
     return ActionResult.error(
         f"Bucket {bucket_ref} not found{proj_ref}. "
-        "Call list_project_buckets to see available buckets."
+        "Call list_project_buckets to see available buckets.",
+        code=TASKS_BUCKET_NOT_FOUND,
     )
 
 
@@ -635,9 +640,9 @@ async def count_tasks_per_bucket(ctx, params: CountTasksParams) -> ActionResult:
     if params.project_id is None and params.project_name:
         params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
         if params.project_id is None:
-            return ActionResult.error(f"Project '{params.project_name}' not found.")
+            return ActionResult.error(f"Project '{params.project_name}' not found.", code=TASKS_PROJECT_NOT_FOUND)
     if params.project_id is None:
-        return ActionResult.error("Pass project_id or project_name.")
+        return ActionResult.error("Pass project_id or project_name.", code=VALIDATION_MISSING_FIELD)
 
     view_id, err = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
     if err:
@@ -650,7 +655,7 @@ async def count_tasks_per_bucket(ctx, params: CountTasksParams) -> ActionResult:
         {"imperal_id": imperal_id},
     )
     if isinstance(counts_resp, dict) and counts_resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(counts_resp, "Couldn't fetch bucket counts"))
+        return ActionResult.error(_bridge_error_msg(counts_resp, "Couldn't fetch bucket counts"), code=TASKS_BRIDGE_ERROR)
 
     proj_resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
     proj_title = proj_resp.get("title", f"#{params.project_id}") if isinstance(proj_resp, dict) else f"#{params.project_id}"
@@ -730,7 +735,7 @@ async def rename_bucket(ctx, params: RenameBucketParams) -> ActionResult:
         payload,
     )
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't rename bucket"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't rename bucket"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Bucket renamed to '{params.title}'.",
@@ -776,7 +781,7 @@ async def create_bucket(ctx, params: CreateBucketParams) -> ActionResult:
         payload,
     )
     if resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create bucket"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't create bucket"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Created bucket '{params.title}' in project #{params.project_id}.",
@@ -818,7 +823,7 @@ async def delete_bucket(ctx, params: DeleteBucketParams) -> ActionResult:
         {"imperal_id": imperal_id},
     )
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete bucket"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete bucket"), code=TASKS_BRIDGE_ERROR)
 
     return ActionResult.success(
         summary=f"Deleted bucket #{params.bucket_id} from project #{params.project_id}.",
@@ -866,9 +871,9 @@ async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResul
     if params.project_id is None and params.project_name:
         params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
         if params.project_id is None:
-            return ActionResult.error(f"Project '{params.project_name}' not found.")
+            return ActionResult.error(f"Project '{params.project_name}' not found.", code=TASKS_PROJECT_NOT_FOUND)
     if params.project_id is None:
-        return ActionResult.error("Pass project_id or project_name.")
+        return ActionResult.error("Pass project_id or project_name.", code=VALIDATION_MISSING_FIELD)
 
     # Fetch project title for summary
     proj_resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
@@ -885,12 +890,12 @@ async def list_project_tasks(ctx, params: ListProjectTasksParams) -> ActionResul
         if not tasks:
             resp_check = await api_get(ctx, "/v1/tasks/all", {**base_params, "page": 1, "per_page": 50})
             if isinstance(resp_check, dict) and resp_check.get("status") == "error":
-                return ActionResult.error(_bridge_error_msg(resp_check, "Couldn't fetch project tasks"))
+                return ActionResult.error(_bridge_error_msg(resp_check, "Couldn't fetch project tasks"), code=TASKS_BRIDGE_ERROR)
     else:
         query_params = {**base_params, "page": params.page, "per_page": params.per_page}
         tasks_resp = await api_get(ctx, "/v1/tasks/all", query_params)
         if isinstance(tasks_resp, dict) and tasks_resp.get("status") == "error":
-            return ActionResult.error(_bridge_error_msg(tasks_resp, "Couldn't fetch project tasks"))
+            return ActionResult.error(_bridge_error_msg(tasks_resp, "Couldn't fetch project tasks"), code=TASKS_BRIDGE_ERROR)
         tasks = tasks_resp if isinstance(tasks_resp, list) else []
 
     def _task_entry(t: dict) -> TaskItem:
@@ -949,13 +954,13 @@ async def get_project(ctx, params: GetProjectParams) -> ActionResult:
     if params.project_id is None and params.project_name:
         params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
         if params.project_id is None:
-            return ActionResult.error(f"Project '{params.project_name}' not found.")
+            return ActionResult.error(f"Project '{params.project_name}' not found.", code=TASKS_PROJECT_NOT_FOUND)
     if params.project_id is None:
-        return ActionResult.error("Pass project_id or project_name.")
+        return ActionResult.error("Pass project_id or project_name.", code=VALIDATION_MISSING_FIELD)
 
     resp = await api_get(ctx, f"/v1/projects/{params.project_id}", {"imperal_id": imperal_id})
     if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch project"))
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't fetch project"), code=TASKS_BRIDGE_ERROR)
 
     entity = ProjectEntity(
         id=resp.get("id", params.project_id),

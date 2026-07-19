@@ -62,13 +62,23 @@ def require_imperal_id(ctx) -> str:
 def _extract_error(resp) -> dict:
     """Normalise non-2xx SDK HTTPResponse from bridge."""
     body = resp.body
+    code = None
     if isinstance(body, dict):
         detail = body.get("detail", str(body))
+        if isinstance(detail, dict):
+            # Bridge wraps its own "no working Vikunja connection" 412s as
+            # {"code": "no_connection", "message": ...}; a passthrough of
+            # Vikunja's own error (e.g. 412 "cannot remove last bucket of
+            # view") is also a dict but never carries that sentinel — only
+            # trust our own code, never leak Vikunja's own error shape here.
+            if detail.get("code") == "no_connection":
+                code = "no_connection"
+            detail = detail.get("message") or detail.get("detail") or detail.get("error") or str(detail)
     elif isinstance(body, str):
         detail = body or f"HTTP {resp.status_code}"
     else:
         detail = f"HTTP {resp.status_code}"
-    return {"status": "error", "detail": detail, "http_status": resp.status_code}
+    return {"status": "error", "detail": detail, "http_status": resp.status_code, "code": code}
 
 
 async def api_post(ctx, path: str, data: dict) -> dict:
@@ -96,8 +106,14 @@ async def api_delete(ctx, path: str, params: dict | None = None) -> dict:
 
 
 def is_no_connection_error(resp: dict) -> bool:
-    """Bridge returns HTTP 412 when the user has no Vikunja connection."""
-    return isinstance(resp, dict) and resp.get("http_status") == 412
+    """True only for the bridge's own "no working Vikunja connection" signal.
+
+    NOT a bare `http_status == 412` check: Vikunja itself uses 412 for
+    generic precondition failures too (e.g. "cannot remove the last bucket
+    of a view"), which must surface as the real error, not get relabeled
+    "no Vikunja connected".
+    """
+    return isinstance(resp, dict) and resp.get("code") == "no_connection"
 
 
 async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | None:
@@ -121,7 +137,7 @@ async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | N
 
 ext = Extension(
     "tasks",
-    version="3.35.0",
+    version="3.36.0",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Vikunja Tasks Connector",
     description=(

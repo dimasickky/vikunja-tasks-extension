@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.36.0] — 2026-07-19
+
+### Fixed
+- **Every Vikunja HTTP 412 was misreported as "No Vikunja connected"**
+  (`is_no_connection_error()` matched on bare `http_status == 412`).
+  Vikunja itself returns 412 for generic precondition failures too — e.g.
+  deleting a kanban view's last bucket — so a real, unrelated Vikunja error
+  was being relabeled as a lost connection, sending users on pointless
+  reconnect attempts. The bridge (`vikunja-bridge`, coordinated change, not
+  in this repo) now tags its own "no working connection" 412s with
+  `{"code": "no_connection", ...}`; a passthrough of Vikunja's own error
+  never carries that code. `is_no_connection_error()` now matches on that
+  `code`, not on the status alone — genuine Vikunja error detail (e.g. "a
+  kanban view must keep at least one bucket") now reaches the user via
+  `_bridge_error_msg()` instead of being swallowed by the connection-lost
+  message.
+- `delete_bucket`: pre-checks the project's bucket count before calling
+  Vikunja, returning a clean `TASKS_LAST_BUCKET` error up front instead of
+  hitting Vikunja's 412 and re-deriving the same fact from its error detail.
+
+### Changed
+- Bumped `imperal-sdk` pin `5.9.11` → `5.9.12` (5.9.10 file_sinks manifest
+  contract, 5.9.11 `ui.FileUpload` widget, 5.9.12 internal shared-httpx-pool
+  refactor for gateway-facing clients — none of this extension's code paths
+  use `ctx.http` differently or declare file sinks, so this is a pure pin
+  bump; no source changes needed for the bump itself).
+- New app-declared error code `TASKS_LAST_BUCKET` in `error_codes.py`.
+
 ## [3.35.0] — 2026-07-18
 
 ### Changed

@@ -19,3 +19,4 @@ TASKS_TASK_AMBIGUOUS = "TASKS_TASK_AMBIGUOUS"                      # task_name m
 TASKS_BUCKET_NOT_FOUND = "TASKS_BUCKET_NOT_FOUND"                  # bucket (kanban column) name/id didn't resolve
 TASKS_CHECKLIST_ITEM_NOT_FOUND = "TASKS_CHECKLIST_ITEM_NOT_FOUND"  # checklist item index not present in task description
 TASKS_KANBAN_VIEW_MISSING = "TASKS_KANBAN_VIEW_MISSING"            # project has no kanban/board view configured in Vikunja
+TASKS_LAST_BUCKET = "TASKS_LAST_BUCKET"                            # can't delete the only remaining bucket of a kanban view

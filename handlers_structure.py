@@ -9,7 +9,13 @@ from imperal_sdk.chat import ActionResult
 from app import api_get, api_post, api_delete, chat, NoParams, resolve_project_id, fetch_all_pages
 from handlers_crud import _require_user, _bridge_error_msg
 from imperal_sdk.chat.error_codes import VALIDATION_MISSING_FIELD
-from error_codes import TASKS_BRIDGE_ERROR, TASKS_BUCKET_NOT_FOUND, TASKS_KANBAN_VIEW_MISSING, TASKS_PROJECT_NOT_FOUND
+from error_codes import (
+    TASKS_BRIDGE_ERROR,
+    TASKS_BUCKET_NOT_FOUND,
+    TASKS_KANBAN_VIEW_MISSING,
+    TASKS_LAST_BUCKET,
+    TASKS_PROJECT_NOT_FOUND,
+)
 from models_return import (
     CreateProjectResult,
     UpdateProjectResult,
@@ -816,6 +822,25 @@ async def delete_bucket(ctx, params: DeleteBucketParams) -> ActionResult:
     view_id, err = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
     if err:
         return err
+
+    # Pre-check the >=1-bucket invariant ourselves — Vikunja rejects removing
+    # a view's last bucket with a 412, and surfacing that as a clean fact up
+    # front reads better than letting the call fail and re-deriving the same
+    # thing from the bridge's error detail.
+    buckets_resp = await api_get(
+        ctx,
+        f"/v1/projects/{params.project_id}/views/{view_id}/buckets",
+        {"imperal_id": imperal_id},
+    )
+    if isinstance(buckets_resp, dict) and buckets_resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(buckets_resp, "Couldn't fetch buckets"), code=TASKS_BRIDGE_ERROR)
+    buckets = buckets_resp if isinstance(buckets_resp, list) else []
+    if len(buckets) <= 1:
+        return ActionResult.error(
+            "Can't delete this bucket — a kanban view must keep at least one bucket. "
+            "Create another bucket first if you want to remove it.",
+            code=TASKS_LAST_BUCKET,
+        )
 
     resp = await api_delete(
         ctx,

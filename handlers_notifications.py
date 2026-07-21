@@ -1,42 +1,57 @@
 """tasks · Live notifications from the user's own Vikunja (webhook-driven).
 
-Design (BYO architecture makes this simpler than github-connector's shared
-GitHub App): every tasks user connects their OWN Vikunja instance
-(vikunja_connections, one row per imperal_id — see handlers_connection.py).
-A Vikunja *user-level* webhook (`PUT /user/settings/webhooks`, distinct from
-the per-project kind) fires for every project on THAT instance alone — so,
-unlike github-connector's shared installation, there is no cross-user event
-leakage to guard against: every delivery to a given registration is
-inherently about the one user who registered it.
+v1.1.0 shipped this against Vikunja's *user-level* webhook endpoint
+(`/user/settings/webhooks`) — a dead end discovered during live smoke-testing
+right after deploy: Vikunja's own route registration puts the ENTIRE
+`/user/...` group outside the API-token permission system
+(`CollectRoutesForAPITokenUsage` skips any route under the `user_` group
+unconditionally), so no Personal Access Token can ever call it, no matter
+what scopes are granted. This bridge only ever holds a PAT, never a full
+login JWT (see routes_connection.py) — a session-based redesign was ruled
+out as far riskier than switching primitives.
+
+v1.2.0 (this version) uses *project-level* webhooks instead
+(`/projects/{id}/webhooks`), which DO live under the plain, token-permitted
+routes group. The trade-off: there's no single "whole account" registration
+anymore, so `enable_task_notifications` fans out — it registers one webhook
+per project the user currently owns, all pointed at the same
+`ctx.webhook_url(...)` target with the same opaque token + secret. The user
+still only sees ONE toggle; the fan-out is entirely hidden in this handler.
+New projects created *after* enabling won't auto-get a webhook — a known v1
+limitation, noted in get_notification_status's response.
 
 Flow:
-1. `enable_task_notifications` (authenticated) generates an opaque token
-   (embedded in the target URL query string, e.g. `?t=<token>`) and a
-   separate HMAC secret, asks vikunja-bridge to register a user-level
-   webhook pointed at `ctx.webhook_url("vikunja_events")?t=<token>`, then
-   saves {webhook_id, token, secret, events} in the user's OWN store
-   partition (so the panel can show/disable it later) AND a token -> real
-   imperal_id reverse index under the shared "__webhook__" partition — the
-   same two-collection trick github-connector's storage.py uses for its
-   install-flow state, needed here because the inbound webhook handler has
-   no identity of its own (`ctx.user.imperal_id == "__webhook__"`).
-2. Vikunja POSTs to that target URL on every subscribed event, signing the
-   raw body with the secret we gave it (`X-Vikunja-Signature`, HMAC-SHA256,
-   per vikunja.io/docs/webhooks). `vikunja_events` resolves `t` from
-   query_params against the reverse index to find (imperal_id, secret),
-   verifies the signature, and — only for a small notification-worthy
-   subset of event names — calls `ctx.notify(...)` rescoped to that real
-   user (same `_notify_for` rebuild trick as github-connector).
-3. `disable_task_notifications` unregisters the webhook on Vikunja's side
-   and deletes both store rows.
+1. `enable_task_notifications` (authenticated) lists the user's projects,
+   generates one opaque token + one HMAC secret, and registers a webhook on
+   EACH project via vikunja-bridge's routes_webhooks.py, collecting
+   {project_id, webhook_id} pairs. Saves {registrations, token, events} in
+   the user's OWN store partition (so the panel can show/disable it later)
+   AND a token -> real imperal_id + secret reverse index under the shared
+   "__webhook__" partition — the same two-collection trick github-connector's
+   storage.py uses for its install-flow state, needed here because the
+   inbound webhook handler has no identity of its own
+   (`ctx.user.imperal_id == "__webhook__"`).
+2. Vikunja POSTs to that target URL on every subscribed event on any of
+   those projects, signing the raw body with the secret we gave it
+   (`X-Vikunja-Signature`, HMAC-SHA256, per vikunja.io/docs/webhooks).
+   `vikunja_events` resolves `t` from query_params against the reverse
+   index to find (imperal_id, secret), verifies the signature, and — only
+   for a small notification-worthy subset of event names — calls
+   `ctx.notify(...)` rescoped to that real user (same `_notify_for` rebuild
+   trick as github-connector).
+3. `disable_task_notifications` unregisters every stored (project_id,
+   webhook_id) pair and deletes both store rows. Best-effort: a project
+   deleted in the meantime just 404s on unregister, which is logged and
+   skipped rather than blocking the rest of the cleanup.
 
 Non-goals (v1): no per-event-type toggle UI (a fixed sensible default set —
 assigned + commented — ships; the full curated list Vikunja allows is
 visible via `events` in the enable response for anyone who wants to see
-what's subscribed). No filtering "did I do this to myself" — since this is
-the user's own private Vikunja, every event genuinely is about them, so
-that self-action noise concern (real for github-connector's shared repos)
-doesn't apply here the same way.
+what's subscribed). No auto-registration on newly created projects after
+enabling (documented limitation above). No filtering "did I do this to
+myself" — since this is the user's own private Vikunja, every event
+genuinely is about them, so that self-action noise concern (real for
+github-connector's shared repos) doesn't apply here the same way.
 """
 
 import hashlib
@@ -131,9 +146,13 @@ async def get_notification_status(ctx, params: NoParams) -> ActionResult:
     doc = await _get_own_state(ctx)
     if not doc:
         return ActionResult.success(summary="Live task notifications are off.", data={"enabled": False})
+    regs = doc.data.get("registrations", [])
     return ActionResult.success(
-        summary=f"Live task notifications are on ({', '.join(doc.data.get('events', []))}).",
-        data={"enabled": True, "webhook_id": doc.data.get("webhook_id"), "events": doc.data.get("events", [])},
+        summary=(
+            f"Live task notifications are on ({', '.join(doc.data.get('events', []))}), "
+            f"covering {len(regs)} project(s) as of when you enabled them."
+        ),
+        data={"enabled": True, "webhook_id": None, "events": doc.data.get("events", [])},
     )
 
 
@@ -145,12 +164,14 @@ async def get_notification_status(ctx, params: NoParams) -> ActionResult:
     description=(
         "Turn on live notifications from your Vikunja — get notified in Imperal (bell/telegram, "
         "per your notification settings) when someone assigns you a task or comments on one. "
-        "Registers a webhook on your own Vikunja instance automatically — no manual setup needed."
+        "Registers a webhook on every one of your current Vikunja projects automatically — "
+        "no manual setup needed. Projects created after enabling won't be covered until you "
+        "disable and re-enable."
     ),
     data_model=EnableNotificationsResult,
 )
 async def enable_task_notifications(ctx, params: EnableNotificationsParams) -> ActionResult:
-    """Register a user-level Vikunja webhook pointed at this extension."""
+    """Register a webhook on every current project, pointed at this extension."""
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
@@ -162,30 +183,57 @@ async def enable_task_notifications(ctx, params: EnableNotificationsParams) -> A
             code=TASKS_NOTIFICATIONS_ALREADY_ENABLED,
         )
 
+    projects_resp = await api_get(ctx, "/v1/projects", {"imperal_id": imperal_id})
+    projects = projects_resp if isinstance(projects_resp, list) else []
+    if not projects:
+        return ActionResult.error(
+            "You don't have any Vikunja projects yet — create one first.", code=TASKS_BRIDGE_ERROR,
+        )
+
     token = _secrets_mod.token_urlsafe(24)
     secret = _secrets_mod.token_urlsafe(32)
     target_url = f"{ctx.webhook_url('vikunja_events')}?t={token}"
 
-    resp = await api_post(ctx, "/v1/webhooks", {
-        "imperal_id": imperal_id, "target_url": target_url,
-        "events": params.events, "secret": secret,
-    })
-    if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't register Vikunja webhook"), code=TASKS_BRIDGE_ERROR)
+    registrations = []
+    failures = []
+    for proj in projects:
+        project_id = proj.get("id")
+        if project_id is None:
+            continue
+        resp = await api_post(ctx, f"/v1/webhooks/projects/{project_id}", {
+            "imperal_id": imperal_id, "target_url": target_url,
+            "events": params.events, "secret": secret,
+        })
+        if isinstance(resp, dict) and resp.get("status") == "error":
+            failures.append(project_id)
+            continue
+        webhook_id = resp.get("id") if isinstance(resp, dict) else None
+        if webhook_id is not None:
+            registrations.append({"project_id": project_id, "webhook_id": webhook_id})
 
-    webhook_id = resp.get("id") if isinstance(resp, dict) else None
+    if not registrations:
+        return ActionResult.error(
+            _bridge_error_msg({}, "Couldn't register a webhook on any project"), code=TASKS_BRIDGE_ERROR,
+        )
 
     await ctx.store.create(_STATE_COLLECTION, {
-        "webhook_id": webhook_id, "token": token, "events": params.events,
+        "registrations": registrations, "token": token, "events": params.events,
     })
     index_store = _store_for(ctx, "__webhook__")
     await index_store.create(_INDEX_COLLECTION, {
         "token": token, "imperal_id": imperal_id, "secret": secret,
     })
 
+    summary = f"Live task notifications are on ({', '.join(params.events)}) for {len(registrations)} project(s)."
+    if failures:
+        summary += f" ({len(failures)} project(s) failed to register and were skipped.)"
+
     return ActionResult.success(
-        summary=f"Live task notifications are on ({', '.join(params.events)}).",
-        data={"enabled": True, "webhook_id": webhook_id, "events": params.events, "refresh_panels": ["sidebar"]},
+        summary=summary,
+        data={
+            "enabled": True, "webhook_id": registrations[0]["webhook_id"] if registrations else 0,
+            "events": params.events, "refresh_panels": ["sidebar"],
+        },
     )
 
 
@@ -194,11 +242,11 @@ async def enable_task_notifications(ctx, params: EnableNotificationsParams) -> A
     action_type="write",
     effects=["update:notification_settings"],
     event="task.notifications_disabled",
-    description="Turn off live Vikunja notifications and remove the webhook from your Vikunja instance.",
+    description="Turn off live Vikunja notifications and remove the webhooks from your Vikunja projects.",
     data_model=DisableNotificationsResult,
 )
 async def disable_task_notifications(ctx, params: NoParams) -> ActionResult:
-    """Unregister the Vikunja webhook and clear stored notification state."""
+    """Unregister every stored per-project webhook and clear notification state."""
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
@@ -207,13 +255,22 @@ async def disable_task_notifications(ctx, params: NoParams) -> ActionResult:
     if not doc:
         return ActionResult.error("Notifications are not currently enabled.", code=TASKS_NOTIFICATIONS_NOT_ENABLED)
 
-    webhook_id = doc.data.get("webhook_id")
+    registrations = doc.data.get("registrations", [])
     token = doc.data.get("token")
 
-    if webhook_id:
-        resp = await api_delete(ctx, f"/v1/webhooks/{webhook_id}", params={"imperal_id": imperal_id})
+    for reg in registrations:
+        project_id = reg.get("project_id")
+        webhook_id = reg.get("webhook_id")
+        if project_id is None or webhook_id is None:
+            continue
+        resp = await api_delete(
+            ctx, f"/v1/webhooks/projects/{project_id}/{webhook_id}", params={"imperal_id": imperal_id},
+        )
         if isinstance(resp, dict) and resp.get("status") == "error":
-            log.warning("disable_task_notifications: bridge delete failed, clearing local state anyway: %s", resp)
+            log.warning(
+                "disable_task_notifications: bridge delete failed for project %s webhook %s, "
+                "continuing cleanup anyway: %s", project_id, webhook_id, resp,
+            )
 
     await ctx.store.delete(_STATE_COLLECTION, doc.id)
 
@@ -259,7 +316,9 @@ async def vikunja_events(ctx, headers: dict, body: str, query_params: dict) -> d
     (against the per-registration secret found via the opaque `t` token) is
     the only trust boundary. `ctx.notify` here is "__webhook__"-scoped;
     `_notify_for` rebuilds it for the real recipient, same as
-    github-connector's handlers_webhook_events.
+    github-connector's handlers_webhook_events. One delivery can come from
+    any of the user's projects (fan-out registration) but always carries
+    the same `t` token, so identity resolution is unchanged either way.
     """
     import json
 

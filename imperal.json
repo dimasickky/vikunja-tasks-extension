@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.9.12",
   "app_id": "tasks",
-  "version": "3.37.0",
+  "version": "3.37.1",
   "name": "Vikunja Tasks Connector",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -9317,7 +9317,7 @@
     },
     {
       "name": "enable_task_notifications",
-      "description": "Turn on live notifications from your Vikunja — get notified in Imperal (bell/telegram, per your notification settings) when someone assigns you a task or comments on one. Registers a webhook on your own Vikunja instance automatically — no manual setup needed.",
+      "description": "Turn on live notifications from your Vikunja — get notified in Imperal (bell/telegram, per your notification settings) when someone assigns you a task or comments on one. Registers a webhook on every one of your current Vikunja projects automatically — no manual setup needed. Projects created after enabling won't be covered until you disable and re-enable.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -9380,7 +9380,7 @@
     },
     {
       "name": "disable_task_notifications",
-      "description": "Turn off live Vikunja notifications and remove the webhook from your Vikunja instance.",
+      "description": "Turn off live Vikunja notifications and remove the webhooks from your Vikunja projects.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [

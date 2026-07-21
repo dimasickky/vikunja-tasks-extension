@@ -1,5 +1,39 @@
 # Changelog
 
+## [3.37.1] — 2026-07-21
+
+### Fixed
+- **`enable_task_notifications` was completely broken end-to-end** — caught by
+  live smoke-testing right after the 3.37.0 deploy, before any real user hit
+  it. Two independent issues, both now fixed:
+  1. HTTP method mismatch between the extension (`POST /v1/webhooks`) and
+     `vikunja-bridge`'s route (`PUT`) — a plain wiring bug, 405 on every call.
+  2. **Architectural dead end**: the *user-level* Vikunja webhook endpoint
+     (`PUT /user/settings/webhooks`) that 3.37.0 targeted lives entirely
+     outside Vikunja's own API-token permission system — its route
+     registration puts the whole `/user/...` group beyond
+     `CollectRoutesForAPITokenUsage`'s reach, so literally no Personal
+     Access Token can ever call it, regardless of granted scopes. This
+     bridge only ever holds a PAT (never a full login JWT, by design), so
+     no scope change could have fixed this.
+  **Redesigned onto *project-level* webhooks** (`/projects/{id}/webhooks`),
+  which DO live under the plain, token-permitted routes group. Trade-off:
+  `enable_task_notifications` now fans out — it registers one webhook per
+  project the user currently owns (all sharing the same opaque token +
+  secret), instead of one whole-account registration. The user still only
+  sees ONE toggle; new projects created after enabling aren't auto-covered
+  until disable+re-enable (documented as a known v1 limitation).
+- Confirmed via live testing (not just unit-level) that `tasks_attachments`
+  scope IS honored by the PAT the connect flow already mints — the
+  attachment feature itself needed no permission fix, only the notification
+  redesign above.
+
+### Backend (vikunja-bridge, coordinated change, not in this repo)
+- v1.2.0 — `routes_webhooks.py` rewritten for per-project registration
+  (`/v1/webhooks/projects/{project_id}[/{webhook_id}]`, method fixed to
+  POST for create). `routes_connection.py`'s PAT-minting fallback scope
+  list gained a `"webhooks"` group.
+
 ## [3.37.0] — 2026-07-21
 
 ### Added

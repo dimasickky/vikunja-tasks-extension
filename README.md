@@ -13,6 +13,8 @@
 - **Kanban buckets** — drag-to-bucket emulation via "Move to →" dropdown
 - **Labels** with colors, attach/detach on tasks
 - **Comments** with @mentions
+- **Attachments** — attach files/photos to tasks (Vikunja stores them, 20MB cap)
+- **Live notifications** — get pinged in Imperal (bell/telegram) when assigned or commented on, via a webhook auto-registered on your own Vikunja
 - **Smart views** — Today, Upcoming (7d), Overdue
 - **✨ AI** — breakdown, duration estimation, day planning, semantic search, project summary
 

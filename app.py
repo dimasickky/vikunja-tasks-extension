@@ -105,6 +105,25 @@ async def api_delete(ctx, path: str, params: dict | None = None) -> dict:
     return body if isinstance(body, dict) else {}
 
 
+async def api_upload(ctx, path: str, params: dict, filename: str, data: bytes, content_type: str) -> dict:
+    """PUT with multipart file(s) — used by attachment upload only.
+
+    Vikunja's own PUT /tasks/{id}/attachments field name is `files` (plural,
+    repeatable) — matches the bridge's routes_attachments.py which forwards
+    the same field name straight through via call_as_user_multipart.
+    """
+    r = await ctx.http.put(
+        f"{_bridge_url()}{path}",
+        params=params,
+        headers=await _auth_headers(ctx),
+        files={"files": (filename, data, content_type)},
+    )
+    if not r.ok:
+        return _extract_error(r)
+    body = r.body
+    return body if isinstance(body, dict) else {}
+
+
 def is_no_connection_error(resp: dict) -> bool:
     """True only for the bridge's own "no working Vikunja connection" signal.
 
@@ -137,7 +156,7 @@ async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | N
 
 ext = Extension(
     "tasks",
-    version="3.36.0",
+    version="3.37.0",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Vikunja Tasks Connector",
     description=(

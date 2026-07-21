@@ -436,3 +436,52 @@ class AiBreakdownResult(BaseModel):
     subtasks_created: List[AiSubtaskCreated]
     count: int
     refresh_panels: List[str]
+
+
+# ─── handlers_attachments ──────────────────────────────────────────────────── #
+
+class AttachmentItem(BaseModel):
+    attachment_id: int
+    task_id: int
+    filename: str
+    size: Optional[int] = None
+    created: Optional[str] = None
+
+
+class UploadTaskAttachmentResult(BaseModel):
+    task_id: int
+    uploaded: List[AttachmentItem]
+    refresh_panels: List[str]
+
+
+class ListTaskAttachmentsResult(BaseModel):
+    task_id: int
+    count: int
+    attachments: List[AttachmentItem]
+
+
+class DeleteTaskAttachmentResult(BaseModel):
+    task_id: int
+    attachment_id: int
+    deleted: bool
+    refresh_panels: List[str]
+
+
+# ─── handlers_notifications ────────────────────────────────────────────────── #
+
+class NotificationStatusResult(BaseModel):
+    enabled: bool
+    webhook_id: Optional[int] = None
+    events: List[str] = []
+
+
+class EnableNotificationsResult(BaseModel):
+    enabled: bool
+    webhook_id: int
+    events: List[str]
+    refresh_panels: List[str]
+
+
+class DisableNotificationsResult(BaseModel):
+    enabled: bool
+    refresh_panels: List[str]

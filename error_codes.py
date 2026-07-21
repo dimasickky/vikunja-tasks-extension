@@ -20,3 +20,7 @@ TASKS_BUCKET_NOT_FOUND = "TASKS_BUCKET_NOT_FOUND"                  # bucket (kan
 TASKS_CHECKLIST_ITEM_NOT_FOUND = "TASKS_CHECKLIST_ITEM_NOT_FOUND"  # checklist item index not present in task description
 TASKS_KANBAN_VIEW_MISSING = "TASKS_KANBAN_VIEW_MISSING"            # project has no kanban/board view configured in Vikunja
 TASKS_LAST_BUCKET = "TASKS_LAST_BUCKET"                            # can't delete the only remaining bucket of a kanban view
+TASKS_ATTACHMENT_NOT_FOUND = "TASKS_ATTACHMENT_NOT_FOUND"          # attachment_id didn't resolve to a real Vikunja attachment
+TASKS_ATTACHMENT_TOO_LARGE = "TASKS_ATTACHMENT_TOO_LARGE"          # file exceeds Vikunja's configured max_file_size
+TASKS_NOTIFICATIONS_ALREADY_ENABLED = "TASKS_NOTIFICATIONS_ALREADY_ENABLED"  # webhook already registered for this user
+TASKS_NOTIFICATIONS_NOT_ENABLED = "TASKS_NOTIFICATIONS_NOT_ENABLED"          # disable called with nothing registered

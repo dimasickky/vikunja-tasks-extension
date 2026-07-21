@@ -1,5 +1,38 @@
 # Changelog
 
+## [3.37.0] — 2026-07-21
+
+### Added
+- **Task attachments** (`upload_task_attachment`, `list_task_attachments`,
+  `delete_task_attachment`) — attach files/photos directly to a task.
+  Vikunja itself stores the bytes (`task_attachments_enabled=true`, 20MB
+  cap per its own `/info`); the extension and `vikunja-bridge` are a pure
+  multipart passthrough — no file ever touches our disk or database.
+  Mirrors the notes extension's `upload_attachment`/`delete_attachment`
+  pattern, adapted for Vikunja's `files` (plural) field and numeric
+  attachment IDs. Download is intentionally not a chat.function (binary
+  content doesn't round-trip through chat usefully) — same call notes made.
+- **Live Vikunja notifications** (`enable_task_notifications`,
+  `disable_task_notifications`, `get_notification_status`) — one toggle
+  registers a *user-level* Vikunja webhook (fires for every project on the
+  user's own instance, not per-project) pointed at a new
+  `@ext.webhook("vikunja_events")` receiver. Notification-worthy events
+  (assigned, comment, due-date reminder — a fixed v1 set, not yet user-
+  configurable) are forwarded to `ctx.notify(...)`, routed through the
+  platform's existing bell/telegram/email preferences — nothing new to
+  configure there. Identity resolution uses an opaque per-registration
+  token embedded in the target URL plus an HMAC secret (`X-Vikunja-
+  Signature`, verified constant-time) — same two-collection reverse-index
+  pattern github-connector's webhook uses, adapted for BYO Vikunja (no
+  shared-installation cross-user leakage to guard against here, since each
+  webhook registration is already scoped to one user's own instance).
+
+### Backend (vikunja-bridge, coordinated change, not in this repo)
+- v1.1.0 — new `routes_attachments.py` (multipart proxy to Vikunja's task
+  attachment endpoints) and `routes_webhooks.py` (proxies user-level
+  webhook registration; does NOT receive deliveries — those go straight
+  from Vikunja to the extension's own public webhook URL).
+
 ## [3.36.0] — 2026-07-19
 
 ### Fixed

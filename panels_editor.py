@@ -14,6 +14,7 @@ Board views:
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from imperal_sdk import ui
@@ -84,19 +85,40 @@ def _task_card(task: dict) -> Any:
     if sub_total:
         meta_parts.append(f"☑ {sub_done}/{sub_total}")
 
+    is_overdue = False
+    if due and not done:
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        is_overdue = due < today_str
+    if is_overdue:
+        meta_parts.insert(0, "🔴 overdue")
+
     badge = None
-    if sub_total and not done:
+    if is_overdue:
+        badge = ui.Badge(label="OVERDUE", color="red")
+    elif sub_total and not done:
         color = "green" if sub_done == sub_total else "blue"
         badge = ui.Badge(label=f"{sub_done}/{sub_total}", color=color)
     elif not done and pct > 0:
         badge = ui.Badge(label=f"{int(pct * 100)}%", color="blue")
 
+    assignees = task.get("assignees") or []
+    avatar = None
+    if assignees:
+        first = assignees[0].get("username", "?")
+        avatar = ui.Avatar(fallback=first[:1].upper())
+        if len(assignees) > 1:
+            meta_parts.append(f"👥 {first}+{len(assignees) - 1}")
+        else:
+            meta_parts.append(f"👤 {first}")
+
     return ui.ListItem(
-        id=f"task_{tid}",
+        id=str(tid),
         title=("✓ " if done else "") + title,
         subtitle=" · ".join(meta_parts) if meta_parts else None,
-        icon="CheckCircle2" if done else "Circle",
+        icon="AlertTriangle" if is_overdue else ("CheckCircle2" if done else "Circle"),
         badge=badge,
+        avatar=avatar,
+        draggable=True,
         on_click=ui.Call("__panel__editor", note_id=str(tid), task_id=str(tid),
                          mode="", bucket_id="", view=""),
     )
@@ -213,7 +235,14 @@ async def _render_smart_view(ctx, imperal_id: str, view: str) -> Any:
 
     body_children: list[Any] = []
     if top:
-        body_children.append(ui.Stack(children=[_task_card(t) for t in top], gap=1))
+        body_children.append(ui.List(
+            items=[_task_card(t) for t in top], searchable=True,
+            selectable=True,
+            bulk_actions=[
+                {"label": "Delete", "icon": "Trash2",
+                 "action": ui.Call("delete_tasks")},
+            ],
+        ))
     if children:
         body_children.append(_subtasks_section(children))
 
@@ -249,6 +278,9 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
             icon="AlertCircle",
         )
     view_id = kanban["id"]
+
+    members_resp = await api_get(ctx, f"/v1/projects/{project_id}/users", {"imperal_id": imperal_id})
+    members = members_resp if isinstance(members_resp, list) else []
 
     # Fetch buckets WITH embedded tasks. Vikunja v0.21+ splits this:
     # /views/{vid}/buckets returns columns only (tasks=null), while
@@ -318,8 +350,23 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
         ], direction="h", gap=1, wrap=True)
 
         bucket_body: list[Any] = [action_row]
+        drop_target = ui.ListItem(
+            id=f"dropzone_{bid}",
+            title=f"Drop here → {btitle}",
+            icon="MoveDown",
+            droppable=True,
+            on_drop=ui.Call("move_to_bucket", bucket_id=bid),
+        )
+        bucket_body.append(ui.List(items=[drop_target]))
         if top:
-            bucket_body.append(ui.List(items=[_task_card(t) for t in top]))
+            bucket_body.append(ui.List(
+                items=[_task_card(t) for t in top], searchable=True,
+                selectable=True,
+                bulk_actions=[
+                    {"label": "Delete", "icon": "Trash2",
+                     "action": ui.Call("delete_tasks")},
+                ],
+            ))
         elif not children:
             bucket_body.append(ui.Text("—", variant="caption"))
         if children:
@@ -341,15 +388,28 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
         body = ui.Stack(children=columns, direction="h", gap=2, wrap=False, className="overflow-x-auto")
 
     return ui.Stack([
-        _header(proj_title, imperal_id, project_id=project_id),
+        _header(proj_title, imperal_id, project_id=project_id, members=members),
         body,
     ], gap=2)
 
 
 # ─── Header action bar ─────────────────────────────────────────────────── #
 
-def _header(title: str, imperal_id: str, project_id: int | None = None, count: int | None = None) -> Any:
+def _header(
+    title: str,
+    imperal_id: str,
+    project_id: int | None = None,
+    count: int | None = None,
+    members: list[dict] | None = None,
+) -> Any:
     label = title if count is None else f"{title} ({count})"
+
+    header_row: list[Any] = [ui.Text(label, variant="h3")]
+    if members:
+        header_row.append(ui.Stack(
+            [ui.Avatar(fallback=(m.get("username") or "?")[:1].upper()) for m in members[:8]],
+            direction="h", gap=1,
+        ))
 
     actions = []
     if project_id is not None:
@@ -388,7 +448,7 @@ def _header(title: str, imperal_id: str, project_id: int | None = None, count: i
     )
 
     return ui.Stack([
-        ui.Text(label, variant="h3"),
+        ui.Stack(header_row, direction="h", gap=2),
         ui.Stack(actions, direction="h", gap=1, wrap=True),
     ], direction="h", sticky=True)
 

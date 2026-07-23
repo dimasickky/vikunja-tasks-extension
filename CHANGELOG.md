@@ -1,5 +1,36 @@
 # Changelog
 
+## [3.38.0] — 2026-07-23
+
+### Added
+Ten UI/UX improvements to the panel, all built directly on existing
+`@chat.function` handlers (no new backend endpoints):
+
+- **Assignees on task detail** — assign/unassign right from the panel
+  (`ListItem` + `Avatar`, unassign inline, assign via search input).
+- **Labels on task detail** — attach/detach existing labels, pick from
+  the full label list via `ui.Select`.
+- **Attachments on task detail** — upload (`ui.FileUpload`), list, and
+  delete files directly on a task.
+- **Live-notifications toggle** in the sidebar footer — one button that
+  calls `enable_task_notifications` / `disable_task_notifications`
+  depending on current state (read from the extension's own store).
+- **Drag-and-drop** on the Kanban board — drag a task card onto a
+  bucket's drop-zone to call `move_to_bucket` (same pattern as notes'
+  folder drag-and-drop). `MoveToBucketParams.task_id` now also accepts
+  the bare `id` alias the frontend injects on drop.
+- **Searchable lists** — board columns and smart views (`today`,
+  `upcoming`, `overdue`) are now `ui.List(searchable=True)`.
+- **Assignee avatars** on task cards.
+- **Overdue highlighting** — task cards past due (and not done) get a
+  red "OVERDUE" badge and a warning icon.
+- **Bulk delete** — multi-select + bulk delete on board columns and
+  smart-view lists (`ui.List(selectable=True, bulk_actions=[...])`,
+  wired to `delete_tasks`, which now also accepts the `message_ids`
+  alias the frontend's bulk-select injects).
+- **Project members** in the board header — small avatar row fetched
+  from `/v1/projects/{id}/users`.
+
 ## [3.37.1] — 2026-07-21
 
 ### Fixed

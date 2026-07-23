@@ -1,7 +1,7 @@
 """tasks · CRUD lifecycle functions (create / update / complete / delete)."""
 
 from typing import Optional, List
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from imperal_sdk import sdl
 from imperal_sdk.chat import ActionResult
@@ -390,9 +390,12 @@ async def delete_task(ctx, params: DeleteTaskParams) -> ActionResult:
 
 
 class DeleteTasksParams(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     task_ids: Optional[List[int]] = sdl.field(
         role="ref.target_id",
         description="List of integer task IDs to delete. Use this if you already have the IDs.",
+        validation_alias=AliasChoices("task_ids", "message_ids", "ids"),
     )
     task_titles: Optional[List[str]] = Field(
         None,

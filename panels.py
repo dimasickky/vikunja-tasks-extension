@@ -80,7 +80,14 @@ async def tasks_sidebar(ctx, view: str = "main", active_project_id: str = "", **
 
     projects = projects_resp if isinstance(projects_resp, list) else []
     children.append(_projects_card(projects, active_project_id))
-    children.append(_footer(conn))
+
+    notif_enabled = False
+    try:
+        notif_page = await ctx.store.query("tasks_notify_state", limit=1)
+        notif_enabled = bool(notif_page.data)
+    except Exception:
+        pass  # store unreachable — default to "off", never crash the board over a cosmetic toggle
+    children.append(_footer(conn, notifications_enabled=notif_enabled))
 
     root = ui.Stack(children=children, gap=2)
 
@@ -284,16 +291,26 @@ def _projects_card(projects: list, active_project_id: str) -> ui.Card:
     return ui.Card(title="Projects", content=ui.List(items=items))
 
 
-def _footer(conn: dict) -> ui.Stack:
+def _footer(conn: dict, notifications_enabled: bool = False) -> ui.Stack:
     base = conn.get("base_url") or "?"
     user = conn.get("username") or "?"
+    notif_button = (
+        ui.Button("Notifications: On", icon="BellRing", variant="secondary", size="sm",
+                  on_click=ui.Call("disable_task_notifications"))
+        if notifications_enabled else
+        ui.Button("Notifications: Off", icon="BellOff", variant="ghost", size="sm",
+                  on_click=ui.Call("enable_task_notifications"))
+    )
     return ui.Stack([
         ui.Text(f"Connected to {base} as {user}", variant="caption"),
-        ui.Button(
-            "Disconnect",
-            icon="LogOut",
-            variant="ghost",
-            size="sm",
-            on_click=ui.Call("disconnect_vikunja"),
-        ),
-    ], direction="h", gap=2, sticky=True)
+        ui.Stack([
+            notif_button,
+            ui.Button(
+                "Disconnect",
+                icon="LogOut",
+                variant="ghost",
+                size="sm",
+                on_click=ui.Call("disconnect_vikunja"),
+            ),
+        ], direction="h", gap=1, wrap=True),
+    ], direction="v", gap=1, sticky=True)

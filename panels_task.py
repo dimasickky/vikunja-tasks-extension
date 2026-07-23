@@ -66,15 +66,26 @@ async def render_task_detail(
     comments_raw = await api_get(ctx, f"/v1/tasks/{tid}/comments", {"imperal_id": imperal_id})
     comments = comments_raw if isinstance(comments_raw, list) else []
 
+    attachments_raw = await api_get(ctx, f"/v1/tasks/{tid}/attachments", {"imperal_id": imperal_id})
+    attachments = attachments_raw if isinstance(attachments_raw, list) else []
+
+    all_labels_raw = await api_get(ctx, "/v1/labels", {"imperal_id": imperal_id})
+    all_labels = all_labels_raw if isinstance(all_labels_raw, list) else []
+
     if not (task.get("related_tasks") or {}).get("subtask"):
         fallback = await api_get(ctx, f"/v1/tasks/{tid}/subtasks", {"imperal_id": imperal_id})
         if isinstance(fallback, list) and fallback:
             task.setdefault("related_tasks", {})["subtask"] = fallback
 
-    return _render_edit_form(task, comments)
+    return _render_edit_form(task, comments, attachments, all_labels)
 
 
-def _render_edit_form(task: dict, comments: list[dict]) -> Any:
+def _render_edit_form(
+    task: dict,
+    comments: list[dict],
+    attachments: list[dict] | None = None,
+    all_labels: list[dict] | None = None,
+) -> Any:
     tid = task["id"]
     title = task.get("title") or "?"
     desc = task.get("description") or ""
@@ -215,12 +226,136 @@ def _render_edit_form(task: dict, comments: list[dict]) -> Any:
                     else [ui.Text("No description.", variant="caption")])
     desc_content += [ui.Divider(), desc_edit_form]
 
+    assignees_card = _assignees_section(tid, task.get("assignees") or [])
+    labels_card = _labels_section(tid, task.get("labels") or [], all_labels or [])
+    attachments_card = _attachments_section(tid, attachments or [])
+
     sections: list = [
         _header_bar(title, actions=actions),
         ui.Card(title="Details", content=edit_form),
+        assignees_card,
+        labels_card,
         ui.Card(title="Description", content=ui.Stack(desc_content, gap=2)),
         *checklist_nodes,
+        attachments_card,
         subtasks_card,
         comments_card,
     ]
     return ui.Stack(sections, gap=2)
+
+
+def _assignees_section(tid: int, assignees: list[dict]) -> Any:
+    """Assign/unassign card — shows current assignees with a remove action and
+    a query input that resolves to a Vikunja user via assign_task's own
+    server-side lookup (same as chat: pass assignee_query, no id needed)."""
+    items = [
+        ui.ListItem(
+            id=f"assignee_{a.get('id')}",
+            title=a.get("username", "?"),
+            icon="User",
+            avatar=ui.Avatar(fallback=(a.get("username") or "?")[:1].upper()),
+            actions=[{
+                "icon": "X",
+                "label": "Unassign",
+                "on_click": ui.Call("unassign_task", task_id=tid, assignee_vikunja_user_id=a.get("id")),
+                "confirm": f"Unassign {a.get('username', 'this user')}?",
+            }],
+        )
+        for a in assignees if a.get("id")
+    ]
+    return ui.Card(
+        title=f"Assignees ({len(items)})",
+        content=ui.Stack([
+            ui.List(items=items) if items else ui.Text("Unassigned.", variant="caption"),
+            ui.Input(
+                placeholder="Assign by name or email, press Enter…",
+                param_name="assignee_query",
+                on_submit=ui.Call("assign_task", task_id=tid, assignee_query="{{value}}"),
+            ),
+        ], gap=2),
+    )
+
+
+def _labels_section(tid: int, labels: list[dict], all_labels: list[dict]) -> Any:
+    """Label attach/detach card. Detach is a direct button per chip; attach is a
+    Select of every label on the instance that isn't already on this task —
+    friendlier than typing a numeric label_id, while still calling add_label
+    with the real label_id under the hood (Vikunja addresses labels by id)."""
+    items = [
+        ui.ListItem(
+            id=f"label_{l.get('id')}",
+            title=l.get("title", "?"),
+            icon="Tag",
+            badge=ui.Badge(label=l.get("title", "?"), color="blue"),
+            actions=[{
+                "icon": "X",
+                "label": "Remove label",
+                "on_click": ui.Call("remove_label", task_id=tid, label_id=l.get("id")),
+                "confirm": f"Remove label '{l.get('title', '?')}'?",
+            }],
+        )
+        for l in labels if l.get("id")
+    ]
+    attached_ids = {l.get("id") for l in labels}
+    available = [l for l in all_labels if l.get("id") not in attached_ids]
+    footer: list = []
+    if available:
+        footer.append(ui.Select(
+            options=[{"value": str(l["id"]), "label": l.get("title", "?")} for l in available],
+            placeholder="Attach a label…",
+            param_name="label_id",
+            on_change=ui.Call("add_label", task_id=tid, label_id="{{value}}"),
+        ))
+    elif not items:
+        footer.append(ui.Text("No labels exist yet — create one via chat (create_label).", variant="caption"))
+    return ui.Card(
+        title=f"Labels ({len(items)})",
+        content=ui.Stack([
+            ui.List(items=items) if items else ui.Text("No labels.", variant="caption"),
+            *footer,
+        ], gap=2),
+    )
+
+
+def _attachments_section(tid: int, attachments: list[dict]) -> Any:
+    """Upload/list/delete card — thin panel wrapper over upload_task_attachment/
+    list_task_attachments/delete_task_attachment. Files stream straight to the
+    user's own Vikunja instance; this extension never persists file bytes."""
+    def _fmt_size(n) -> str:
+        if not isinstance(n, (int, float)) or n <= 0:
+            return ""
+        for unit in ("B", "KB", "MB", "GB"):
+            if n < 1024:
+                return f"{n:.0f}{unit}"
+            n /= 1024
+        return f"{n:.0f}TB"
+
+    items = [
+        ui.ListItem(
+            id=f"attachment_{a.get('attachment_id')}",
+            title=a.get("filename", "file"),
+            subtitle=_fmt_size(a.get("size")),
+            icon="Paperclip",
+            actions=[{
+                "icon": "Trash2",
+                "label": "Delete",
+                "on_click": ui.Call("delete_task_attachment", task_id=tid, attachment_id=a.get("attachment_id")),
+                "confirm": f"Delete attachment '{a.get('filename', 'file')}'?",
+            }],
+        )
+        for a in attachments if a.get("attachment_id")
+    ]
+    return ui.Card(
+        title=f"Attachments ({len(items)})",
+        content=ui.Stack([
+            ui.List(items=items) if items else ui.Text("No attachments yet.", variant="caption"),
+            ui.FileUpload(
+                param_name="files",
+                multiple=True,
+                max_size_mb=20,
+                title="Attach files",
+                hint="Up to 20MB each — stored on your own Vikunja instance.",
+                on_upload=ui.Call("upload_task_attachment", task_id=tid),
+            ),
+        ], gap=2),
+    )

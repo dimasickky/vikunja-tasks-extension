@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 
 from imperal_sdk.chat import ActionResult
 
@@ -118,7 +118,13 @@ class MoveToProjectParams(BaseModel):
 
 
 class MoveToBucketParams(BaseModel):
-    task_id: int = Field(..., description="Integer task ID. Never UUID.")
+    model_config = ConfigDict(populate_by_name=True)
+
+    task_id: int = Field(
+        ...,
+        description="Integer task ID. Never UUID.",
+        validation_alias=AliasChoices("task_id", "id"),
+    )
     bucket_id: Optional[int] = Field(
         None,
         description="Integer bucket ID from list_buckets response. Pass bucket_name + project_name instead if unknown.",

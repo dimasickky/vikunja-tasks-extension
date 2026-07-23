@@ -349,12 +349,11 @@ def _attachments_section(tid: int, attachments: list[dict]) -> Any:
         title=f"Attachments ({len(items)})",
         content=ui.Stack([
             ui.List(items=items) if items else ui.Text("No attachments yet.", variant="caption"),
+            ui.Text("Attach files — up to 20MB each, stored on your own Vikunja instance.", variant="caption"),
             ui.FileUpload(
                 param_name="files",
                 multiple=True,
                 max_size_mb=20,
-                title="Attach files",
-                hint="Up to 20MB each — stored on your own Vikunja instance.",
                 on_upload=ui.Call("upload_task_attachment", task_id=tid),
             ),
         ], gap=2),

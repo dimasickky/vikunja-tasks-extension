@@ -1,5 +1,44 @@
 # Changelog
 
+## [3.38.1] — 2026-07-27
+
+### Fixed
+
+- **`delete_tasks` was strictly sequential and could time out mid-batch.** Each
+  title was resolved with its own search round trip, then each task deleted with
+  its own DELETE, every one awaited before the next began. For "delete these 3"
+  that is invisible; for a real cleanup of 40 tasks it is ~80 serialised round
+  trips, which at ordinary Vikunja latency walks into the 180s a normal tool
+  call gets. A timeout half way through a *destructive* batch is the worst case
+  there is: some tasks are already gone, and the user is told it all failed.
+
+  Both phases now fan out concurrently behind a semaphore (`_BULK_CONCURRENCY`,
+  8). Measured on a 40-task batch at 50ms latency: 0.42s versus 3.0s serial,
+  with peak in-flight requests never exceeding the cap. Bounded deliberately —
+  an unbounded gather over 200 deletes would be a thundering herd against the
+  small self-hosted instances most of these users run.
+
+  Result ordering, the `BulkDeleteResult` shape and per-item error reporting are
+  unchanged (`asyncio.gather` preserves input order): resolved titles first,
+  then explicit ids, exactly as before.
+
+- **Version drift:** `app.py` still declared 3.37.1 while the changelog had
+  already moved to 3.38.0. `app.py` is the source of truth the manifest is
+  generated from, so the manifest had been shipping the older number.
+
+### Added
+
+- Progress reporting on multi-task deletes (`ctx.progress`), so a long cleanup
+  is visibly moving. Treated as advisory: it is called *after* the row is gone,
+  and a `TaskCancelled` from a user cancellation can never turn a completed
+  delete into a reported failure.
+
+### Notes
+
+- No `ctx.background_task` here on purpose. With the fan-out there is no
+  long-running work left to hand off, and a background task would only delay an
+  answer that now returns inline in well under a second.
+
 ## [3.38.0] — 2026-07-23
 
 ### Added

@@ -6,6 +6,7 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 from imperal_sdk import sdl
 from imperal_sdk.chat import ActionResult
 
+import asyncio
 import logging
 
 from app import api_get, api_post, api_delete, chat, imperal_id_of, is_no_connection_error, resolve_project_id
@@ -31,6 +32,16 @@ from error_codes import TASKS_BRIDGE_ERROR, TASKS_PROJECT_NOT_FOUND, TASKS_CHECK
 
 
 log = logging.getLogger("tasks")
+
+# How many Vikunja requests a bulk operation may have in flight at once.
+#
+# The users of this extension mostly run small self-hosted Vikunja instances, so
+# an unbounded asyncio.gather over a 200-task delete would be a self-inflicted
+# thundering herd: refused connections or rate-limiting, and on a DESTRUCTIVE
+# operation a partial result is genuinely expensive. Eight is enough to turn a
+# 40-task cleanup from ~80 serial round trips into ~10 rounds (comfortably
+# inside the 180s a normal tool call gets) while staying polite to the backend.
+_BULK_CONCURRENCY = 8
 
 
 class CreateTaskParams(BaseModel):
@@ -436,40 +447,85 @@ async def delete_tasks(ctx, params: DeleteTasksParams) -> ActionResult:
     if params.project_name and not params.project_id:
         params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
 
+    # Both phases below fan out CONCURRENTLY, bounded by a semaphore.
+    #
+    # They used to be plain sequential for-loops: one search round trip per
+    # title, then one DELETE per task, each awaited before the next began. For
+    # "delete these 3" that is invisible; for a real cleanup of 40 tasks it is
+    # 80 serialised round trips, which at a typical Vikunja latency walks
+    # straight into the 180s a normal tool call gets — and a timeout half way
+    # through a DESTRUCTIVE batch is the worst possible outcome, because some
+    # tasks are already gone and the user is told the whole thing failed.
+    #
+    # Bounded, not unbounded: gathering 200 DELETEs at once would hammer what is
+    # usually a small self-hosted Vikunja and risk rate-limiting or refused
+    # connections. A cap of 8 turns 80 serial round trips into ~10 rounds, which
+    # fits inline comfortably — which is also why this deliberately does NOT go
+    # through ctx.background_task: with the fan-out there is no long-running work
+    # left to hand off, and a background task would only delay the answer.
+    sem = asyncio.Semaphore(_BULK_CONCURRENCY)
+
+    async def _resolve_title(title: str) -> tuple[int, str]:
+        """Find one task by title. Returns (-1, title) when nothing matches."""
+        q: dict = {"imperal_id": imperal_id, "s": title, "per_page": 10, "page": 1}
+        if params.project_id:
+            q["filter"] = f"project_id = {params.project_id}"
+        async with sem:
+            resp = await api_get(ctx, "/v1/tasks/all", q)
+        tasks = resp if isinstance(resp, list) else []
+        title_lower = title.strip().lower()
+        match = next(
+            (t for t in tasks if t.get("title", "").strip().lower() == title_lower),
+            next((t for t in tasks if title_lower in t.get("title", "").strip().lower()), None),
+        )
+        if match:
+            return match["id"], match.get("title", title)
+        return -1, title  # not found marker
+
     task_ids_to_delete: List[tuple[int, str]] = []  # (task_id, title)
 
-    # Resolve titles → IDs via search
+    # Resolve titles → IDs via search. gather preserves input order, so the
+    # order of `results` below stays exactly what it was before: resolved
+    # titles first, then explicit ids.
     if params.task_titles:
-        for title in params.task_titles:
-            q: dict = {"imperal_id": imperal_id, "s": title, "per_page": 10, "page": 1}
-            if params.project_id:
-                q["filter"] = f"project_id = {params.project_id}"
-            resp = await api_get(ctx, "/v1/tasks/all", q)
-            tasks = resp if isinstance(resp, list) else []
-            title_lower = title.strip().lower()
-            match = next(
-                (t for t in tasks if t.get("title", "").strip().lower() == title_lower),
-                next((t for t in tasks if title_lower in t.get("title", "").strip().lower()), None),
-            )
-            if match:
-                task_ids_to_delete.append((match["id"], match.get("title", title)))
-            else:
-                task_ids_to_delete.append((-1, title))  # not found marker
+        task_ids_to_delete.extend(
+            await asyncio.gather(*[_resolve_title(t) for t in params.task_titles])
+        )
 
     if params.task_ids:
         for tid in params.task_ids:
             task_ids_to_delete.append((tid, f"#{tid}"))
 
-    results = []
-    for tid, title in task_ids_to_delete:
+    total = len(task_ids_to_delete)
+    done = 0
+
+    async def _delete_one(tid: int, title: str) -> dict:
+        nonlocal done
         if tid == -1:
-            results.append({"task_id": -1, "title": title, "deleted": False, "error": "Task not found"})
-            continue
-        resp = await api_delete(ctx, f"/v1/tasks/{tid}", params={"imperal_id": imperal_id})
-        if resp.get("status") == "error":
-            results.append({"task_id": tid, "title": title, "deleted": False, "error": _bridge_error_msg(resp, "Delete failed")})
+            outcome = {"task_id": -1, "title": title, "deleted": False, "error": "Task not found"}
         else:
-            results.append({"task_id": tid, "title": title, "deleted": True})
+            async with sem:
+                resp = await api_delete(ctx, f"/v1/tasks/{tid}", params={"imperal_id": imperal_id})
+            if resp.get("status") == "error":
+                outcome = {"task_id": tid, "title": title, "deleted": False,
+                           "error": _bridge_error_msg(resp, "Delete failed")}
+            else:
+                outcome = {"task_id": tid, "title": title, "deleted": True}
+
+        # Progress is advisory and must never turn a completed delete into a
+        # failure: ctx.progress raises TaskCancelled if the user cancelled, and
+        # by this point the row is already gone on Vikunja's side.
+        done += 1
+        if total > 1:
+            try:
+                await ctx.progress(min(0.95, done / total), f"Deleted {done} of {total}…")
+            except Exception:
+                pass
+        return outcome
+
+    results = list(await asyncio.gather(*[
+        _delete_one(tid, title) for tid, title in task_ids_to_delete
+    ]))
 
     deleted_count = sum(1 for r in results if r["deleted"])
     failed_count = len(results) - deleted_count

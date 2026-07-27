@@ -1,13 +1,19 @@
 """tasks · Structure operations — projects, labels, and kanban buckets."""
 
+import asyncio
 import logging
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from imperal_sdk.chat import ActionResult
 
 from app import api_get, api_post, api_delete, chat, NoParams, resolve_project_id, fetch_all_pages
-from handlers_crud import _require_user, _bridge_error_msg
+from handlers_crud import (
+    _require_user,
+    _bridge_error_msg,
+    _check_batch_size,
+    _BULK_CONCURRENCY,
+)
 from imperal_sdk.chat.error_codes import VALIDATION_MISSING_FIELD
 from error_codes import (
     TASKS_BRIDGE_ERROR,
@@ -21,6 +27,7 @@ from models_return import (
     UpdateProjectResult,
     ArchiveProjectResult,
     DeleteProjectResult,
+    BulkProjectResult,
     LabelItem,
     ListLabelsResult,
     CreateLabelResult,
@@ -998,4 +1005,131 @@ async def get_project(ctx, params: GetProjectParams) -> ActionResult:
     return ActionResult.success(
         summary=f"Project '{entity.title}' (id={entity.id}).",
         data=entity,
+    )
+
+
+class DeleteProjectsParams(BaseModel):
+    project_ids: Optional[List[int]] = Field(
+        None,
+        description="List of integer project IDs to delete. Use this if you already have the IDs.",
+    )
+    project_names: Optional[List[str]] = Field(
+        None,
+        description="List of project names to find and delete (e.g. ['Old board', 'Test']). Auto-resolved to IDs.",
+    )
+    confirm: bool = Field(
+        default=False,
+        description="Set true on a second call to actually delete. First call (default) only previews which projects would go.",
+    )
+
+
+@chat.function(
+    "delete_projects",
+    action_type="destructive",
+    effects=["delete:project"],
+    event="projects.deleted",
+    description=(
+        "Permanently delete MULTIPLE projects at once, each with ALL its tasks. Pass project_ids "
+        "(list of integers) OR project_names (list of names). Requires an explicit confirm=true on "
+        "a second call; the first call only previews which projects would be deleted. Cannot be undone."
+    ),
+    data_model=BulkProjectResult,
+)
+async def delete_projects(ctx, params: DeleteProjectsParams) -> ActionResult:
+    """Delete a set of projects, each cascading to all of its tasks.
+
+    This one carries a preview gate that `delete_tasks` does not, and the
+    asymmetry is deliberate. Deleting a task loses a task; deleting a project
+    silently takes every task inside it with no way back. When the caller
+    passed *names*, the risk is sharper still — a fuzzy match resolves 'Test'
+    to whatever it finds first, so naming the resolved projects back before
+    touching anything is the difference between a cleanup and an accident.
+    """
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    if not params.project_ids and not params.project_names:
+        return ActionResult.error("Pass project_ids or project_names.", code=VALIDATION_MISSING_FIELD)
+
+    oversized = _check_batch_size(
+        (params.project_ids or []) + (params.project_names or []), "projects")
+    if oversized:
+        return oversized
+
+    sem = asyncio.Semaphore(_BULK_CONCURRENCY)
+
+    async def _resolve(name: str) -> tuple[int, str]:
+        async with sem:
+            pid = await resolve_project_id(ctx, imperal_id, name)
+        return (pid if pid is not None else -1), name
+
+    refs: List[tuple[int, str]] = []
+    if params.project_names:
+        refs.extend(await asyncio.gather(*(_resolve(n) for n in params.project_names)))
+    if params.project_ids:
+        refs.extend((pid, f"#{pid}") for pid in params.project_ids)
+
+    found = [(pid, title) for pid, title in refs if pid != -1]
+    missing = [title for pid, title in refs if pid == -1]
+
+    if not params.confirm:
+        listed = ", ".join(f"{title} (#{pid})" for pid, title in found) or "nothing resolved"
+        note = f" Not found, will be skipped: {', '.join(missing)}." if missing else ""
+        await ctx.log(
+            f"delete_projects: preview only (awaiting confirm) — {len(found)} project(s)",
+            level="info",
+        )
+        return ActionResult.success(
+            summary=(
+                f"This will permanently delete {len(found)} project(s) AND every task inside "
+                f"them: {listed}.{note} This cannot be undone — call again with confirm=true "
+                "to go ahead."
+            ),
+            data={
+                "deleted_count": 0,
+                "failed_count": 0,
+                "results": [
+                    {"project_id": pid, "title": title, "deleted": False,
+                     "error": "awaiting confirmation"}
+                    for pid, title in found
+                ],
+                "refresh_panels": [],
+            },
+        )
+
+    async def _delete_one(pid: int, title: str) -> dict:
+        async with sem:
+            resp = await api_delete(ctx, f"/v1/projects/{pid}", params={"imperal_id": imperal_id})
+        if isinstance(resp, dict) and resp.get("status") == "error":
+            return {"project_id": pid, "title": title, "deleted": False,
+                    "error": _bridge_error_msg(resp, "Couldn't delete project")}
+        return {"project_id": pid, "title": title, "deleted": True}
+
+    results = list(await asyncio.gather(*(_delete_one(pid, t) for pid, t in found)))
+    results.extend(
+        {"project_id": -1, "title": title, "deleted": False, "error": "project not found"}
+        for title in missing
+    )
+
+    deleted_count = sum(1 for r in results if r["deleted"])
+    failed_count = len(results) - deleted_count
+
+    if failed_count == 0:
+        summary = f"Deleted {deleted_count} project(s) and all their tasks."
+    else:
+        broken = ", ".join(f"{r['title']} ({r['error']})" for r in results if not r["deleted"])
+        summary = (
+            f"Deleted {deleted_count} of {len(results)} project(s) — "
+            f"{failed_count} failed: {broken}"
+        )
+
+    return ActionResult.success(
+        summary=summary,
+        data={
+            "deleted_count": deleted_count,
+            "failed_count": failed_count,
+            "results": results,
+            "refresh_panels": ["sidebar", "editor"],
+        },
     )

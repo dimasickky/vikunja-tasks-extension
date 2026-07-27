@@ -163,6 +163,37 @@ class BulkDeleteResult(BaseModel):
     refresh_panels: List[str]
 
 
+class BulkTaskItem(BaseModel):
+    """One row of a non-delete batch. Deliberately says `ok` rather than
+    `deleted`: BulkDeleteItem's wording only fits removal, and reusing it for
+    'completed' or 'moved' would make the payload lie about what happened."""
+    task_id: int
+    title: str
+    ok: bool
+    error: Optional[str] = None
+
+
+class BulkTaskResult(BaseModel):
+    succeeded_count: int
+    failed_count: int
+    results: List[BulkTaskItem]
+    refresh_panels: List[str]
+
+
+class BulkProjectItem(BaseModel):
+    project_id: int
+    title: str
+    deleted: bool
+    error: Optional[str] = None
+
+
+class BulkProjectResult(BaseModel):
+    deleted_count: int
+    failed_count: int
+    results: List[BulkProjectItem]
+    refresh_panels: List[str]
+
+
 class CreateSubtaskResult(BaseModel):
     subtask_id: int
     parent_task_id: int

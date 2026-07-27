@@ -1,6 +1,7 @@
 """tasks · Organize operations (assign, label, due, priority, move)."""
 
-from typing import Optional
+import asyncio
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 
@@ -13,12 +14,16 @@ from handlers_crud import (
     _require_user,
     _update_task_impl,
     _bridge_error_msg,
+    _check_batch_size,
+    _resolve_task_refs,
+    _BULK_CONCURRENCY,
     UpdateTaskParams,
 )
 from imperal_sdk.chat.error_codes import VALIDATION_MISSING_FIELD
 from error_codes import TASKS_BRIDGE_ERROR, TASKS_BUCKET_NOT_FOUND, TASKS_PROJECT_NOT_FOUND, TASKS_TASK_AMBIGUOUS, TASKS_TASK_NOT_FOUND
 from models_return import (
     SearchUsersResult,
+    BulkTaskResult,
     ProjectMembersResult,
     AssignResult,
     UnassignResult,
@@ -576,3 +581,132 @@ async def search_vikunja_users(ctx, params: SearchUsersParams) -> ActionResult:
 )
 async def list_project_members(ctx, params: ListProjectMembersParams) -> ActionResult:
     return await _list_project_members_impl(ctx, params)
+
+
+class MoveTasksToBucketParams(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    task_ids: Optional[List[int]] = Field(
+        None,
+        description="List of integer task IDs to move. Use this if you already have the IDs.",
+        validation_alias=AliasChoices("task_ids", "ids"),
+    )
+    task_titles: Optional[List[str]] = Field(
+        None,
+        description="List of task titles to find and move (e.g. ['Buy milk', 'Fix login']). Auto-resolved to IDs.",
+    )
+    bucket_id: Optional[int] = Field(
+        None,
+        description="Target kanban bucket ID. Pass bucket_name + project_name instead if unknown.",
+    )
+    bucket_name: Optional[str] = Field(
+        None,
+        description="Target bucket name (e.g. 'Done', 'In Progress'). Requires project_name to resolve.",
+    )
+    project_id: Optional[int] = Field(
+        None,
+        description="Project the bucket belongs to, and the scope for title lookups.",
+    )
+    project_name: Optional[str] = Field(
+        None,
+        description="Project name (e.g. 'WebHostMost Tasks') — resolves both the bucket and the title search scope.",
+    )
+
+
+@chat.function(
+    "move_tasks_to_bucket",
+    action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
+    event="tasks.bucket_changed",
+    description=(
+        "Move MULTIPLE tasks to the same kanban bucket (column) at once. Pass task_ids (list of "
+        "integers) OR task_titles (list of names), plus bucket_id OR bucket_name + project_name. "
+        "Use when the user asks to move 2+ tasks to a column in one request."
+    ),
+    data_model=BulkTaskResult,
+)
+async def move_tasks_to_bucket(ctx, params: MoveTasksToBucketParams) -> ActionResult:
+    """Move a set of tasks into one bucket, reported per task.
+
+    The board-level case: "push all of these to Done". Note the bucket is
+    resolved ONCE for the whole batch rather than per task — the single-task
+    tool has to resolve it every call, and repeating that N times would add N
+    lookups for an answer that cannot change between them.
+
+    Non-destructive: a move is trivially reversible by moving back, so this
+    goes straight through without a preview gate, unlike delete_projects.
+    """
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    if not params.task_ids and not params.task_titles:
+        return ActionResult.error("Pass task_ids or task_titles.", code=VALIDATION_MISSING_FIELD)
+
+    oversized = _check_batch_size(
+        (params.task_ids or []) + (params.task_titles or []), "tasks")
+    if oversized:
+        return oversized
+
+    project_id = params.project_id
+    if project_id is None and params.project_name:
+        project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+        if project_id is None:
+            return ActionResult.error(
+                f"Project '{params.project_name}' not found.", code=TASKS_PROJECT_NOT_FOUND)
+
+    bucket_id = params.bucket_id
+    if bucket_id is None and params.bucket_name:
+        if project_id is None:
+            return ActionResult.error(
+                "Pass bucket_id directly, or bucket_name + project_name to resolve it.",
+                code=VALIDATION_MISSING_FIELD,
+            )
+        bucket_id = await _resolve_bucket_id_by_name(ctx, imperal_id, project_id, params.bucket_name)
+        if bucket_id is None:
+            return ActionResult.error(
+                f"Bucket '{params.bucket_name}' not found in project. "
+                "Call list_project_buckets() to see available buckets.",
+                code=TASKS_BUCKET_NOT_FOUND,
+            )
+
+    if bucket_id is None:
+        return ActionResult.error(
+            "Pass bucket_id or bucket_name + project_name.", code=VALIDATION_MISSING_FIELD)
+
+    sem = asyncio.Semaphore(_BULK_CONCURRENCY)
+    refs = await _resolve_task_refs(
+        ctx, imperal_id, sem, params.task_ids, params.task_titles, project_id)
+
+    async def _move_one(task_id: int, title: str) -> dict:
+        if task_id == -1:
+            return {"task_id": -1, "title": title, "ok": False, "error": "task not found"}
+        async with sem:
+            res = await _update_task_impl(
+                ctx, UpdateTaskParams(task_id=task_id, bucket_id=bucket_id))
+        if res.status == "error":
+            return {"task_id": task_id, "title": title, "ok": False,
+                    "error": res.summary or "move failed"}
+        return {"task_id": task_id, "title": title, "ok": True}
+
+    results = list(await asyncio.gather(*(_move_one(tid, t) for tid, t in refs)))
+
+    succeeded = sum(1 for r in results if r["ok"])
+    failed = len(results) - succeeded
+
+    if failed == 0:
+        summary = f"Moved {succeeded} task(s)."
+    else:
+        broken = ", ".join(f"{r['title']} ({r['error']})" for r in results if not r["ok"])
+        summary = f"Moved {succeeded} of {len(results)} task(s) — {failed} failed: {broken}"
+
+    return ActionResult.success(
+        summary=summary,
+        data={
+            "succeeded_count": succeeded,
+            "failed_count": failed,
+            "results": results,
+            "refresh_panels": ["sidebar", "editor"],
+        },
+    )

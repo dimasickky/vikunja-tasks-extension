@@ -1,5 +1,49 @@
 # Changelog
 
+## [3.39.0] — 2026-07-27
+
+### Added
+
+- **`complete_tasks`** — mark several tasks done in one call. The end-of-day
+  "close all of today's" case was N separate calls until now.
+- **`move_tasks_to_bucket`** — move several tasks into one kanban column. The
+  target bucket is resolved **once** for the whole batch, not per task: the
+  single-task tool has to resolve it every call, and repeating that N times
+  would add N lookups for an answer that cannot change in between.
+- **`delete_projects`** — delete several projects, each cascading to all of
+  its tasks. Carries a preview gate that `delete_tasks` deliberately does not
+  (see below).
+
+### Changed
+
+- **The bulk machinery `delete_tasks` grew inline is now shared.**
+  `_resolve_task_refs` (titles → ids, fanned out under the semaphore) and
+  `_run_task_batch` (bounded fan-out + `ctx.progress` + per-item rows) are
+  extracted and reused by all four batch tools. Behaviour of `delete_tasks` is
+  unchanged — same ordering, same `BulkDeleteResult` shape, same per-item
+  error reporting; it just no longer owns a private copy of the pattern.
+- **A 100-item ceiling** now applies to every batch here, checked before any
+  network call. These are mostly small self-hosted Vikunja instances, and a
+  500-item batch is far likelier to be a mis-selection than a real intent:
+  refusing up front costs one corrected call, discovering it half way through a
+  destructive run costs data.
+
+### Notes
+
+- **Why only `delete_projects` previews.** Deleting a task loses a task;
+  deleting a project silently takes every task inside it with no way back. The
+  gate matters most when the caller passed *names* — a fuzzy match resolves
+  'Test' to whatever it finds first, so the preview names each resolved project
+  (and lists the ones that did not resolve) before anything is touched.
+  `complete_tasks` and `move_tasks_to_bucket` skip the gate on purpose: both
+  are trivially reversible.
+- Non-delete batches report `ok` per row (`BulkTaskItem`) rather than reusing
+  `BulkDeleteItem`'s `deleted` — reusing it would make the payload describe a
+  completion or a move as a deletion.
+- Partial failure is never fatal: unresolved titles and rejected items come
+  back as their own rows with a reason, and both counts appear in the summary
+  so a partial run cannot read as a clean one.
+
 ## [3.38.1] — 2026-07-27
 
 ### Fixed

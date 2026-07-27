@@ -16,6 +16,7 @@ from models_return import (
     UpdateTaskResult,
     TaskStatusResult,
     BulkDeleteResult,
+    BulkTaskResult,
     DeleteTaskResult,
     CreateSubtaskResult,
     ListSubtasksResult,
@@ -149,6 +150,125 @@ def _bridge_error_msg(resp: dict, default_prefix: str) -> str:
     if not detail:
         return default_prefix
     return f"{default_prefix}: {detail}"
+
+
+# ─── shared bulk machinery ──────────────────────────────────────────────── #
+#
+# `delete_tasks` grew all of this inline first. Pulling it out is what makes
+# the next batch tool cheap to write and, more importantly, keeps every batch
+# behaving the same way — the concern `extensions/batching.md` §7 raises about
+# bulk handlers each ending up "на свой вкус".
+#
+# The ceiling is the one piece that is new here rather than extracted. It is
+# not bureaucracy: these are mostly small self-hosted Vikunja instances, and a
+# 500-item batch is far likelier to be a mistaken selection than a real intent.
+# Refusing up front costs the caller one corrected call; discovering it half
+# way through a destructive run costs them data.
+MAX_BULK_ITEMS = 100
+
+
+def _check_batch_size(items: list, noun: str) -> Optional[ActionResult]:
+    """Reject an empty or oversized batch before any network call happens."""
+    if not items:
+        return ActionResult.error(f"No {noun} given.", code=VALIDATION_MISSING_FIELD)
+    if len(items) > MAX_BULK_ITEMS:
+        return ActionResult.error(
+            f"That's {len(items)} {noun} in one call — the limit is {MAX_BULK_ITEMS}. "
+            "Split it into smaller batches.",
+            code=VALIDATION_MISSING_FIELD,
+        )
+    return None
+
+
+async def _resolve_task_refs(
+    ctx,
+    imperal_id: str,
+    sem: "asyncio.Semaphore",
+    task_ids: Optional[List[int]],
+    task_titles: Optional[List[str]],
+    project_id: Optional[int],
+) -> List[tuple[int, str]]:
+    """Turn ids and/or titles into [(task_id, label)], -1 marking 'not found'.
+
+    Title lookups fan out concurrently under the caller's semaphore: one search
+    round trip each, serialised, is half the cost of a large batch. asyncio.gather
+    preserves input order, so resolved titles come first and explicit ids after,
+    exactly as the previous inline version ordered them.
+    """
+    resolved: List[tuple[int, str]] = []
+
+    async def _resolve_title(title: str) -> tuple[int, str]:
+        q: dict = {"imperal_id": imperal_id, "s": title, "per_page": 10, "page": 1}
+        if project_id:
+            q["filter"] = f"project_id = {project_id}"
+        async with sem:
+            resp = await api_get(ctx, "/v1/tasks/all", q)
+        tasks = resp if isinstance(resp, list) else []
+        title_lower = title.strip().lower()
+        match = next(
+            (t for t in tasks if t.get("title", "").strip().lower() == title_lower),
+            next((t for t in tasks if title_lower in t.get("title", "").strip().lower()), None),
+        )
+        if match:
+            return match["id"], match.get("title", title)
+        return -1, title
+
+    if task_titles:
+        resolved.extend(await asyncio.gather(*[_resolve_title(t) for t in task_titles]))
+
+    if task_ids:
+        for tid in task_ids:
+            resolved.append((tid, f"#{tid}"))
+
+    return resolved
+
+
+async def _run_task_batch(
+    ctx,
+    refs: List[tuple[int, str]],
+    sem: "asyncio.Semaphore",
+    verb: str,
+    apply_one,
+) -> List[dict]:
+    """Apply `apply_one(task_id) -> resp dict` across refs, bounded, with progress.
+
+    Returns one row per input in input order: {task_id, title, ok, error?}.
+    A single failure never sinks the batch — on a bulk operation "18 of 20 went,
+    these two didn't and here's why" is strictly more useful than a blanket
+    failure, and for destructive work it is the difference between a recoverable
+    state and a mystery.
+    """
+    total = len(refs)
+    done = 0
+
+    async def _one(tid: int, title: str) -> dict:
+        nonlocal done
+        if tid == -1:
+            outcome = {"task_id": -1, "title": title, "ok": False, "error": "Task not found"}
+        else:
+            async with sem:
+                resp = await apply_one(tid)
+            if isinstance(resp, dict) and resp.get("status") == "error":
+                outcome = {"task_id": tid, "title": title, "ok": False,
+                           "error": _bridge_error_msg(resp, f"{verb.capitalize()} failed")}
+            else:
+                label = title
+                if isinstance(resp, dict) and resp.get("title"):
+                    label = resp["title"]
+                outcome = {"task_id": tid, "title": label, "ok": True}
+
+        # Progress is advisory: ctx.progress raises TaskCancelled if the user
+        # cancelled, and by then the write has already landed on Vikunja's side.
+        # Letting that surface would report a completed action as a failure.
+        done += 1
+        if total > 1:
+            try:
+                await ctx.progress(min(0.95, done / total), f"{verb.capitalize()} {done} of {total}…")
+            except Exception:
+                pass
+        return outcome
+
+    return list(await asyncio.gather(*[_one(tid, title) for tid, title in refs]))
 
 
 async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
@@ -443,89 +563,44 @@ async def delete_tasks(ctx, params: DeleteTasksParams) -> ActionResult:
     if not params.task_ids and not params.task_titles:
         return ActionResult.error("Pass task_ids or task_titles.", code=VALIDATION_MISSING_FIELD)
 
+    oversized = _check_batch_size((params.task_ids or []) + (params.task_titles or []), "tasks")
+    if oversized:
+        return oversized
+
     # Resolve project_name → project_id if needed
     if params.project_name and not params.project_id:
         params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
 
-    # Both phases below fan out CONCURRENTLY, bounded by a semaphore.
+    # Both phases below fan out CONCURRENTLY, bounded by a semaphore — see
+    # _resolve_task_refs / _run_task_batch, which this and the other batch
+    # tools share. Sequential loops here meant ~80 serialised round trips for a
+    # 40-task cleanup, walking into the 180s a normal tool call gets, and a
+    # timeout half way through a DESTRUCTIVE batch is the worst outcome there
+    # is: some tasks are already gone while the caller is told it all failed.
     #
-    # They used to be plain sequential for-loops: one search round trip per
-    # title, then one DELETE per task, each awaited before the next began. For
-    # "delete these 3" that is invisible; for a real cleanup of 40 tasks it is
-    # 80 serialised round trips, which at a typical Vikunja latency walks
-    # straight into the 180s a normal tool call gets — and a timeout half way
-    # through a DESTRUCTIVE batch is the worst possible outcome, because some
-    # tasks are already gone and the user is told the whole thing failed.
-    #
-    # Bounded, not unbounded: gathering 200 DELETEs at once would hammer what is
-    # usually a small self-hosted Vikunja and risk rate-limiting or refused
-    # connections. A cap of 8 turns 80 serial round trips into ~10 rounds, which
-    # fits inline comfortably — which is also why this deliberately does NOT go
-    # through ctx.background_task: with the fan-out there is no long-running work
-    # left to hand off, and a background task would only delay the answer.
+    # Bounded, not unbounded: 200 concurrent DELETEs would hammer what is
+    # usually a small self-hosted Vikunja. A cap of 8 fits inline comfortably —
+    # which is also why this deliberately does NOT go through
+    # ctx.background_task: there is no long-running work left to hand off.
     sem = asyncio.Semaphore(_BULK_CONCURRENCY)
 
-    async def _resolve_title(title: str) -> tuple[int, str]:
-        """Find one task by title. Returns (-1, title) when nothing matches."""
-        q: dict = {"imperal_id": imperal_id, "s": title, "per_page": 10, "page": 1}
-        if params.project_id:
-            q["filter"] = f"project_id = {params.project_id}"
-        async with sem:
-            resp = await api_get(ctx, "/v1/tasks/all", q)
-        tasks = resp if isinstance(resp, list) else []
-        title_lower = title.strip().lower()
-        match = next(
-            (t for t in tasks if t.get("title", "").strip().lower() == title_lower),
-            next((t for t in tasks if title_lower in t.get("title", "").strip().lower()), None),
-        )
-        if match:
-            return match["id"], match.get("title", title)
-        return -1, title  # not found marker
+    refs = await _resolve_task_refs(
+        ctx, imperal_id, sem, params.task_ids, params.task_titles, params.project_id,
+    )
 
-    task_ids_to_delete: List[tuple[int, str]] = []  # (task_id, title)
+    rows = await _run_task_batch(
+        ctx, refs, sem, "deleted",
+        lambda tid: api_delete(ctx, f"/v1/tasks/{tid}", params={"imperal_id": imperal_id}),
+    )
 
-    # Resolve titles → IDs via search. gather preserves input order, so the
-    # order of `results` below stays exactly what it was before: resolved
-    # titles first, then explicit ids.
-    if params.task_titles:
-        task_ids_to_delete.extend(
-            await asyncio.gather(*[_resolve_title(t) for t in params.task_titles])
-        )
-
-    if params.task_ids:
-        for tid in params.task_ids:
-            task_ids_to_delete.append((tid, f"#{tid}"))
-
-    total = len(task_ids_to_delete)
-    done = 0
-
-    async def _delete_one(tid: int, title: str) -> dict:
-        nonlocal done
-        if tid == -1:
-            outcome = {"task_id": -1, "title": title, "deleted": False, "error": "Task not found"}
-        else:
-            async with sem:
-                resp = await api_delete(ctx, f"/v1/tasks/{tid}", params={"imperal_id": imperal_id})
-            if resp.get("status") == "error":
-                outcome = {"task_id": tid, "title": title, "deleted": False,
-                           "error": _bridge_error_msg(resp, "Delete failed")}
-            else:
-                outcome = {"task_id": tid, "title": title, "deleted": True}
-
-        # Progress is advisory and must never turn a completed delete into a
-        # failure: ctx.progress raises TaskCancelled if the user cancelled, and
-        # by this point the row is already gone on Vikunja's side.
-        done += 1
-        if total > 1:
-            try:
-                await ctx.progress(min(0.95, done / total), f"Deleted {done} of {total}…")
-            except Exception:
-                pass
-        return outcome
-
-    results = list(await asyncio.gather(*[
-        _delete_one(tid, title) for tid, title in task_ids_to_delete
-    ]))
+    # The stored contract for this tool calls the per-row flag `deleted`
+    # (BulkDeleteItem), while the shared helper speaks in a neutral `ok`.
+    # Translate rather than rename the model: the panel reads `deleted`.
+    results = [
+        {"task_id": r["task_id"], "title": r["title"], "deleted": r["ok"],
+         **({"error": r["error"]} if r.get("error") else {})}
+        for r in rows
+    ]
 
     deleted_count = sum(1 for r in results if r["deleted"])
     failed_count = len(results) - deleted_count
@@ -538,6 +613,95 @@ async def delete_tasks(ctx, params: DeleteTasksParams) -> ActionResult:
         data={
             "deleted_count": deleted_count,
             "failed_count": failed_count,
+            "results": results,
+            "refresh_panels": ["sidebar", "editor"],
+        },
+    )
+
+
+class CompleteTasksParams(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    task_ids: Optional[List[int]] = sdl.field(
+        role="ref.target_id",
+        description="List of integer task IDs to complete. Use this if you already have the IDs.",
+        validation_alias=AliasChoices("task_ids", "message_ids", "ids"),
+    )
+    task_titles: Optional[List[str]] = Field(
+        None,
+        description="List of task titles to find and complete (e.g. ['Buy milk', 'Fix login bug']). Auto-resolved to task IDs.",
+    )
+    project_id: Optional[int] = Field(
+        None,
+        description="Narrow title search to a specific project. Recommended when using task_titles.",
+    )
+    project_name: Optional[str] = Field(
+        None,
+        description="Project name to narrow title search (e.g. 'WebHostMost Tasks').",
+    )
+
+
+@chat.function(
+    "complete_tasks",
+    action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
+    event="tasks.completed",
+    description=(
+        "Mark MULTIPLE tasks as done at once. Pass task_ids (list of integers) OR task_titles "
+        "(list of names). When using task_titles, optionally pass project_name to narrow the "
+        "search. Use when the user asks to complete/close 2+ tasks in one request."
+    ),
+    data_model=BulkTaskResult,
+)
+async def complete_tasks(ctx, params: CompleteTasksParams) -> ActionResult:
+    """Complete a set of tasks concurrently, reported per task.
+
+    The end-of-day case this exists for — "mark all of today's done" — was
+    previously N separate calls. Non-destructive, so unlike the delete batch it
+    needs no confirm gate: completing the wrong task is undone by
+    uncomplete_task, which is why the ceiling and the per-item report are
+    sufficient protection here.
+    """
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    if not params.task_ids and not params.task_titles:
+        return ActionResult.error("Pass task_ids or task_titles.", code=VALIDATION_MISSING_FIELD)
+
+    oversized = _check_batch_size((params.task_ids or []) + (params.task_titles or []), "tasks")
+    if oversized:
+        return oversized
+
+    if params.project_name and not params.project_id:
+        params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+
+    sem = asyncio.Semaphore(_BULK_CONCURRENCY)
+
+    refs = await _resolve_task_refs(
+        ctx, imperal_id, sem, params.task_ids, params.task_titles, params.project_id,
+    )
+
+    results = await _run_task_batch(
+        ctx, refs, sem, "completed",
+        lambda tid: api_post(
+            ctx, f"/v1/tasks/{tid}",
+            {"imperal_id": imperal_id, "done": True, "percent_done": 1.0},
+        ),
+    )
+
+    succeeded = sum(1 for r in results if r["ok"])
+    failed = len(results) - succeeded
+    summary = f"Completed {succeeded} task(s)."
+    if failed:
+        summary += f" {failed} failed."
+
+    return ActionResult.success(
+        summary=summary,
+        data={
+            "succeeded_count": succeeded,
+            "failed_count": failed,
             "results": results,
             "refresh_panels": ["sidebar", "editor"],
         },

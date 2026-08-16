@@ -159,13 +159,12 @@ def _render_edit_form(
             # for the other card to attach a file while commenting. The hint
             # says exactly what really happens: it lands on the task, not
             # tied to one specific comment.
+            ui.Text("Attach a file — Vikunja stores it on the task itself (see Attachments below), not tied to one comment.", variant="caption"),
             ui.FileUpload(
                 param_name="files",
                 multiple=False,
                 max_size_mb=20,
                 on_upload=ui.Call("upload_task_attachment", task_id=tid),
-                title="Attach a file with this comment",
-                hint="Vikunja attaches files to the task itself (shown in Attachments below), not to a single comment.",
             ),
         ], gap=2),
     )

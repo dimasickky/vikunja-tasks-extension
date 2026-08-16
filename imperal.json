@@ -9724,6 +9724,115 @@
       "owner_chat_tool": "tool_tasks_chat"
     },
     {
+      "name": "delete_task_attachments",
+      "description": "Remove SEVERAL file attachments from a task at once. Pass task_id and attachment_ids (list of integers from list_task_attachments). Use when the user wants to remove 2+ attachments in one request. Cannot be undone.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Integer task ID. Never UUID.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "attachment_ids": {
+            "description": "List of integer attachment IDs to delete — from list_task_attachments.",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Attachment Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "attachment_ids"
+        ],
+        "title": "DeleteTaskAttachmentsParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "DeleteTaskAttachmentsItem": {
+            "properties": {
+              "attachment_id": {
+                "title": "Attachment Id",
+                "type": "integer"
+              },
+              "deleted": {
+                "title": "Deleted",
+                "type": "boolean"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Error"
+              }
+            },
+            "required": [
+              "attachment_id",
+              "deleted"
+            ],
+            "title": "DeleteTaskAttachmentsItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "deleted_count": {
+            "title": "Deleted Count",
+            "type": "integer"
+          },
+          "failed_count": {
+            "title": "Failed Count",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/$defs/DeleteTaskAttachmentsItem"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "deleted_count",
+          "failed_count",
+          "results",
+          "refresh_panels"
+        ],
+        "title": "DeleteTaskAttachmentsResult",
+        "type": "object"
+      },
+      "event": "task.attachments_deleted",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
       "name": "get_notification_status",
       "description": "Check whether live Vikunja notifications (assigned/commented) are enabled.",
       "action_type": "read",

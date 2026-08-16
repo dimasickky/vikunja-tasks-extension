@@ -1,8 +1,8 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.9.12",
+  "sdk_version": "5.9.22",
   "app_id": "tasks",
-  "version": "3.39.0",
+  "version": "3.40.0",
   "name": "Vikunja Tasks Connector",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -2074,1260 +2074,6 @@
         "x-sdl": "entity"
       },
       "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "assign_task",
-      "description": "Assign a person to a task. Pass task_name + assignee_query directly — do NOT call find_task or get_named_bucket_tasks first. If multiple tasks share the same name, also pass bucket_name to pick the right one. The bridge resolves assignee_query (name or email) to a Vikunja user ID automatically.",
-      "action_type": "write",
-      "chain_callable": true,
-      "effects": [
-        "update:task"
-      ],
-      "id_projection": "task_id",
-      "params_schema": {
-        "properties": {
-          "task_id": {
-            "default": 0,
-            "description": "Integer task ID. Pass 0 when you only know the task by name — task_name will be used to auto-resolve it. Do NOT call find_task first.",
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "task_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Task title to search for when task_id is unknown. Call assign_task directly with task_name — do NOT pre-search with find_task. If multiple tasks share the same name, also pass bucket_name to disambiguate.",
-            "title": "Task Name"
-          },
-          "bucket_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Bucket/column name to disambiguate when multiple tasks share the same title (e.g. 'Backlog'). Case-insensitive. Used only when task_name is set.",
-            "title": "Bucket Name"
-          },
-          "assignee_query": {
-            "description": "Name or email of the person to assign (e.g. 'ignat', 'ignat@webhostmost.com'). The bridge resolves it to a Vikunja user ID automatically.",
-            "title": "Assignee Query",
-            "type": "string"
-          }
-        },
-        "required": [
-          "assignee_query"
-        ],
-        "title": "AssignTaskParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "properties": {
-          "task_id": {
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "assignee_vikunja_user_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Assignee Vikunja User Id"
-          },
-          "assignee_name": {
-            "default": "",
-            "title": "Assignee Name",
-            "type": "string"
-          },
-          "refresh_panels": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Refresh Panels",
-            "type": "array"
-          }
-        },
-        "required": [
-          "task_id",
-          "refresh_panels"
-        ],
-        "title": "AssignResult",
-        "type": "object"
-      },
-      "event": "task.assigned",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "unassign_task",
-      "description": "Remove a Vikunja user (by integer user ID) from a task's assignee list.",
-      "action_type": "write",
-      "chain_callable": true,
-      "effects": [
-        "update:task"
-      ],
-      "id_projection": "task_id",
-      "params_schema": {
-        "properties": {
-          "task_id": {
-            "description": "Integer task ID. Never UUID.",
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "assignee_vikunja_user_id": {
-            "description": "Integer Vikunja user ID (same one used in assign_task).",
-            "title": "Assignee Vikunja User Id",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "task_id",
-          "assignee_vikunja_user_id"
-        ],
-        "title": "UnassignTaskParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "properties": {
-          "task_id": {
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "assignee_vikunja_user_id": {
-            "title": "Assignee Vikunja User Id",
-            "type": "integer"
-          },
-          "refresh_panels": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Refresh Panels",
-            "type": "array"
-          }
-        },
-        "required": [
-          "task_id",
-          "assignee_vikunja_user_id",
-          "refresh_panels"
-        ],
-        "title": "UnassignResult",
-        "type": "object"
-      },
-      "event": "task.unassigned",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "add_label",
-      "description": "Attach an existing label (by integer label_id) to a task (by integer task_id). If you only know the label name, call create_label or ask the user for the numeric label_id — Vikunja addresses labels by ID, never by name.",
-      "action_type": "write",
-      "chain_callable": true,
-      "effects": [
-        "update:task"
-      ],
-      "id_projection": "task_id",
-      "params_schema": {
-        "properties": {
-          "task_id": {
-            "description": "Integer task ID. Never UUID.",
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "label_id": {
-            "description": "Integer label ID — obtain via create_label response or Vikunja UI. Never label name.",
-            "title": "Label Id",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "task_id",
-          "label_id"
-        ],
-        "title": "AddLabelParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "properties": {
-          "task_id": {
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "label_id": {
-            "title": "Label Id",
-            "type": "integer"
-          },
-          "refresh_panels": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Refresh Panels",
-            "type": "array"
-          }
-        },
-        "required": [
-          "task_id",
-          "label_id",
-          "refresh_panels"
-        ],
-        "title": "TaskLabelResult",
-        "type": "object"
-      },
-      "event": "task.labeled",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "remove_label",
-      "description": "Detach a label (by integer label_id) from a task (by integer task_id).",
-      "action_type": "write",
-      "chain_callable": true,
-      "effects": [
-        "update:task"
-      ],
-      "id_projection": "task_id",
-      "params_schema": {
-        "properties": {
-          "task_id": {
-            "description": "Integer task ID. Never UUID.",
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "label_id": {
-            "description": "Integer label ID currently attached to this task.",
-            "title": "Label Id",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "task_id",
-          "label_id"
-        ],
-        "title": "DetachLabelParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "properties": {
-          "task_id": {
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "label_id": {
-            "title": "Label Id",
-            "type": "integer"
-          },
-          "refresh_panels": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Refresh Panels",
-            "type": "array"
-          }
-        },
-        "required": [
-          "task_id",
-          "label_id",
-          "refresh_panels"
-        ],
-        "title": "TaskLabelResult",
-        "type": "object"
-      },
-      "event": "task.unlabeled",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "set_due_date",
-      "description": "Set or change due date of a task. Pass integer task_id and due_date as ISO 8601 UTC string (e.g. '2026-04-25T12:00:00Z'). Convert relative dates ('Friday', 'tomorrow') in user's timezone first.",
-      "action_type": "write",
-      "chain_callable": true,
-      "effects": [
-        "update:task"
-      ],
-      "id_projection": "task_id",
-      "params_schema": {
-        "properties": {
-          "task_id": {
-            "description": "Integer task ID. Never UUID.",
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "due_date": {
-            "description": "ISO 8601 UTC string, e.g. '2026-04-25T12:00:00Z'.",
-            "title": "Due Date",
-            "type": "string"
-          }
-        },
-        "required": [
-          "task_id",
-          "due_date"
-        ],
-        "title": "SetDueDateParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "properties": {
-          "task_id": {
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Title"
-          },
-          "done": {
-            "default": false,
-            "title": "Done",
-            "type": "boolean"
-          },
-          "due_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Due Date"
-          },
-          "priority": {
-            "default": 0,
-            "title": "Priority",
-            "type": "integer"
-          },
-          "percent_done": {
-            "default": 0.0,
-            "title": "Percent Done",
-            "type": "number"
-          },
-          "refresh_panels": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Refresh Panels",
-            "type": "array"
-          }
-        },
-        "required": [
-          "task_id",
-          "refresh_panels"
-        ],
-        "title": "UpdateTaskResult",
-        "type": "object"
-      },
-      "event": "task.due_changed",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "set_priority",
-      "description": "Set task priority — integer 0 (none) to 5 (critical). Pass integer task_id.",
-      "action_type": "write",
-      "chain_callable": true,
-      "effects": [
-        "update:task"
-      ],
-      "id_projection": "task_id",
-      "params_schema": {
-        "properties": {
-          "task_id": {
-            "description": "Integer task ID. Never UUID.",
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "priority": {
-            "description": "0=none, 1=low, 2=medium, 3=high, 4=urgent, 5=critical.",
-            "maximum": 5,
-            "minimum": 0,
-            "title": "Priority",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "task_id",
-          "priority"
-        ],
-        "title": "SetPriorityParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "properties": {
-          "task_id": {
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Title"
-          },
-          "done": {
-            "default": false,
-            "title": "Done",
-            "type": "boolean"
-          },
-          "due_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Due Date"
-          },
-          "priority": {
-            "default": 0,
-            "title": "Priority",
-            "type": "integer"
-          },
-          "percent_done": {
-            "default": 0.0,
-            "title": "Percent Done",
-            "type": "number"
-          },
-          "refresh_panels": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Refresh Panels",
-            "type": "array"
-          }
-        },
-        "required": [
-          "task_id",
-          "refresh_panels"
-        ],
-        "title": "UpdateTaskResult",
-        "type": "object"
-      },
-      "event": "task.priority_changed",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "move_to_project",
-      "description": "Move a task to another project. Pass integer task_id and integer project_id, or pass project_name (e.g. 'webhostmost tasks') to resolve automatically.",
-      "action_type": "write",
-      "chain_callable": true,
-      "effects": [
-        "update:task"
-      ],
-      "id_projection": "task_id",
-      "params_schema": {
-        "properties": {
-          "task_id": {
-            "description": "Integer task ID. Never UUID.",
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "project_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Integer project ID. Pass project_name instead if unknown.",
-            "title": "Project Id"
-          },
-          "project_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Project name to look up (e.g. 'webhostmost tasks').",
-            "title": "Project Name"
-          }
-        },
-        "required": [
-          "task_id"
-        ],
-        "title": "MoveToProjectParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "properties": {
-          "task_id": {
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Title"
-          },
-          "done": {
-            "default": false,
-            "title": "Done",
-            "type": "boolean"
-          },
-          "due_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Due Date"
-          },
-          "priority": {
-            "default": 0,
-            "title": "Priority",
-            "type": "integer"
-          },
-          "percent_done": {
-            "default": 0.0,
-            "title": "Percent Done",
-            "type": "number"
-          },
-          "refresh_panels": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Refresh Panels",
-            "type": "array"
-          }
-        },
-        "required": [
-          "task_id",
-          "refresh_panels"
-        ],
-        "title": "UpdateTaskResult",
-        "type": "object"
-      },
-      "event": "task.moved",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "move_to_bucket",
-      "description": "Move a task to another kanban bucket (column). Pass integer task_id and integer bucket_id, or pass bucket_name + project_name (e.g. 'To-Do', 'webhostmost tasks') to resolve automatically.",
-      "action_type": "write",
-      "chain_callable": true,
-      "effects": [
-        "update:task"
-      ],
-      "id_projection": "task_id",
-      "params_schema": {
-        "properties": {
-          "task_id": {
-            "description": "Integer task ID. Never UUID.",
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "bucket_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Integer bucket ID from list_buckets response. Pass bucket_name + project_name instead if unknown.",
-            "title": "Bucket Id"
-          },
-          "bucket_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Bucket name (e.g. 'To-Do', 'In Progress'). Used when bucket_id unknown.",
-            "title": "Bucket Name"
-          },
-          "project_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Project name — needed to resolve bucket_name to bucket_id.",
-            "title": "Project Name"
-          }
-        },
-        "required": [
-          "task_id"
-        ],
-        "title": "MoveToBucketParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "properties": {
-          "task_id": {
-            "title": "Task Id",
-            "type": "integer"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Title"
-          },
-          "done": {
-            "default": false,
-            "title": "Done",
-            "type": "boolean"
-          },
-          "due_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Due Date"
-          },
-          "priority": {
-            "default": 0,
-            "title": "Priority",
-            "type": "integer"
-          },
-          "percent_done": {
-            "default": 0.0,
-            "title": "Percent Done",
-            "type": "number"
-          },
-          "refresh_panels": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Refresh Panels",
-            "type": "array"
-          }
-        },
-        "required": [
-          "task_id",
-          "refresh_panels"
-        ],
-        "title": "UpdateTaskResult",
-        "type": "object"
-      },
-      "event": "task.bucket_changed",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "search_vikunja_users",
-      "description": "Search for Vikunja users by name or email fragment — use this before assign_task to discover who is available, or when the user asks who they can assign tasks to. Pass empty query to list all known users on the Vikunja instance.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
-          "query": {
-            "default": "",
-            "description": "Name or email fragment to search for (e.g. 'val', 'ignat', 'denis@'). Pass empty string to list all known users on this Vikunja instance.",
-            "title": "Query",
-            "type": "string"
-          }
-        },
-        "title": "SearchUsersParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "UserEntity": {
-            "description": "Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,\ntitle=username. `connected` marks whether the user has linked their own\nImperal↔Vikunja connection. Mirrors the admin-ext UserRecord pattern.",
-            "properties": {
-              "id": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "integer"
-                  }
-                ],
-                "title": "Id"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "kind": {
-                "default": "",
-                "title": "Kind",
-                "type": "string"
-              },
-              "subtitle": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Subtitle"
-              },
-              "description": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Description"
-              },
-              "status": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Status"
-              },
-              "url": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Url"
-              },
-              "username": {
-                "default": "",
-                "title": "Username",
-                "type": "string"
-              },
-              "connected": {
-                "default": false,
-                "title": "Connected",
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "id",
-              "title"
-            ],
-            "title": "UserEntity",
-            "type": "object",
-            "x-sdl": "entity"
-          }
-        },
-        "description": "search_vikunja_users return — a REAL sdl.EntityList[UserEntity] (items=[...],\nx-sdl='entity-list'). NO legacy {users:[dict]} wrapper.",
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/$defs/UserEntity"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "total": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Total"
-          },
-          "page": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Page"
-          },
-          "has_more": {
-            "default": false,
-            "title": "Has More",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "title": "SearchUsersResult",
-        "type": "object",
-        "x-sdl": "entity-list"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "list_project_members",
-      "description": "List the members of a specific project (its assignable users — owner plus user/team shares). Use this when the user asks who is on a named project, e.g. 'who is on the WebHostMost Tasks team', 'участники проекта X', 'кто работает над проектом'. Pass project_name when you only know the name; it is resolved automatically. Prefer this over search_vikunja_users when the user names a project — it is project-scoped rather than instance-wide.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
-          "project_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Integer project ID. Pass project_name instead if you only know the name.",
-            "title": "Project Id"
-          },
-          "project_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Project title to resolve (e.g. 'WebHostMost Tasks'). Used when project_id is unknown. Case-insensitive.",
-            "title": "Project Name"
-          }
-        },
-        "title": "ListProjectMembersParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "UserEntity": {
-            "description": "Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,\ntitle=username. `connected` marks whether the user has linked their own\nImperal↔Vikunja connection. Mirrors the admin-ext UserRecord pattern.",
-            "properties": {
-              "id": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "integer"
-                  }
-                ],
-                "title": "Id"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "kind": {
-                "default": "",
-                "title": "Kind",
-                "type": "string"
-              },
-              "subtitle": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Subtitle"
-              },
-              "description": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Description"
-              },
-              "status": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Status"
-              },
-              "url": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Url"
-              },
-              "username": {
-                "default": "",
-                "title": "Username",
-                "type": "string"
-              },
-              "connected": {
-                "default": false,
-                "title": "Connected",
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "id",
-              "title"
-            ],
-            "title": "UserEntity",
-            "type": "object",
-            "x-sdl": "entity"
-          }
-        },
-        "description": "list_project_members return — a REAL sdl.EntityList[UserEntity]; project_id\ncarried as an additive typed field (EntityList is a pydantic BaseModel).",
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/$defs/UserEntity"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "total": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Total"
-          },
-          "page": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Page"
-          },
-          "has_more": {
-            "default": false,
-            "title": "Has More",
-            "type": "boolean"
-          },
-          "project_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Project Id"
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "title": "ProjectMembersResult",
-        "type": "object",
-        "x-sdl": "entity-list"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_tasks_chat"
-    },
-    {
-      "name": "move_tasks_to_bucket",
-      "description": "Move MULTIPLE tasks to the same kanban bucket (column) at once. Pass task_ids (list of integers) OR task_titles (list of names), plus bucket_id OR bucket_name + project_name. Use when the user asks to move 2+ tasks to a column in one request.",
-      "action_type": "write",
-      "chain_callable": true,
-      "effects": [
-        "update:task"
-      ],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
-          "task_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "List of integer task IDs to move. Use this if you already have the IDs.",
-            "title": "Task Ids"
-          },
-          "task_titles": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "List of task titles to find and move (e.g. ['Buy milk', 'Fix login']). Auto-resolved to IDs.",
-            "title": "Task Titles"
-          },
-          "bucket_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Target kanban bucket ID. Pass bucket_name + project_name instead if unknown.",
-            "title": "Bucket Id"
-          },
-          "bucket_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Target bucket name (e.g. 'Done', 'In Progress'). Requires project_name to resolve.",
-            "title": "Bucket Name"
-          },
-          "project_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Project the bucket belongs to, and the scope for title lookups.",
-            "title": "Project Id"
-          },
-          "project_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Project name (e.g. 'WebHostMost Tasks') — resolves both the bucket and the title search scope.",
-            "title": "Project Name"
-          }
-        },
-        "title": "MoveTasksToBucketParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "BulkTaskItem": {
-            "description": "One row of a non-delete batch. Deliberately says `ok` rather than\n`deleted`: BulkDeleteItem's wording only fits removal, and reusing it for\n'completed' or 'moved' would make the payload lie about what happened.",
-            "properties": {
-              "task_id": {
-                "title": "Task Id",
-                "type": "integer"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "ok": {
-                "title": "Ok",
-                "type": "boolean"
-              },
-              "error": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Error"
-              }
-            },
-            "required": [
-              "task_id",
-              "title",
-              "ok"
-            ],
-            "title": "BulkTaskItem",
-            "type": "object"
-          }
-        },
-        "properties": {
-          "succeeded_count": {
-            "title": "Succeeded Count",
-            "type": "integer"
-          },
-          "failed_count": {
-            "title": "Failed Count",
-            "type": "integer"
-          },
-          "results": {
-            "items": {
-              "$ref": "#/$defs/BulkTaskItem"
-            },
-            "title": "Results",
-            "type": "array"
-          },
-          "refresh_panels": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Refresh Panels",
-            "type": "array"
-          }
-        },
-        "required": [
-          "succeeded_count",
-          "failed_count",
-          "results",
-          "refresh_panels"
-        ],
-        "title": "BulkTaskResult",
-        "type": "object"
-      },
-      "event": "tasks.bucket_changed",
       "background": false,
       "long_running": false,
       "scopes": [],
@@ -6124,6 +4870,1260 @@
         "type": "object"
       },
       "event": "projects.deleted",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "assign_task",
+      "description": "Assign a person to a task. Pass task_name + assignee_query directly — do NOT call find_task or get_named_bucket_tasks first. If multiple tasks share the same name, also pass bucket_name to pick the right one. The bridge resolves assignee_query (name or email) to a Vikunja user ID automatically.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "default": 0,
+            "description": "Integer task ID. Pass 0 when you only know the task by name — task_name will be used to auto-resolve it. Do NOT call find_task first.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "task_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Task title to search for when task_id is unknown. Call assign_task directly with task_name — do NOT pre-search with find_task. If multiple tasks share the same name, also pass bucket_name to disambiguate.",
+            "title": "Task Name"
+          },
+          "bucket_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bucket/column name to disambiguate when multiple tasks share the same title (e.g. 'Backlog'). Case-insensitive. Used only when task_name is set.",
+            "title": "Bucket Name"
+          },
+          "assignee_query": {
+            "description": "Name or email of the person to assign (e.g. 'ignat', 'ignat@webhostmost.com'). The bridge resolves it to a Vikunja user ID automatically.",
+            "title": "Assignee Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignee_query"
+        ],
+        "title": "AssignTaskParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "assignee_vikunja_user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Assignee Vikunja User Id"
+          },
+          "assignee_name": {
+            "default": "",
+            "title": "Assignee Name",
+            "type": "string"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "refresh_panels"
+        ],
+        "title": "AssignResult",
+        "type": "object"
+      },
+      "event": "task.assigned",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "unassign_task",
+      "description": "Remove a Vikunja user (by integer user ID) from a task's assignee list.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Integer task ID. Never UUID.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "assignee_vikunja_user_id": {
+            "description": "Integer Vikunja user ID (same one used in assign_task).",
+            "title": "Assignee Vikunja User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "assignee_vikunja_user_id"
+        ],
+        "title": "UnassignTaskParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "assignee_vikunja_user_id": {
+            "title": "Assignee Vikunja User Id",
+            "type": "integer"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "assignee_vikunja_user_id",
+          "refresh_panels"
+        ],
+        "title": "UnassignResult",
+        "type": "object"
+      },
+      "event": "task.unassigned",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "add_label",
+      "description": "Attach an existing label (by integer label_id) to a task (by integer task_id). If you only know the label name, call create_label or ask the user for the numeric label_id — Vikunja addresses labels by ID, never by name.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Integer task ID. Never UUID.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "label_id": {
+            "description": "Integer label ID — obtain via create_label response or Vikunja UI. Never label name.",
+            "title": "Label Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "label_id"
+        ],
+        "title": "AddLabelParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "label_id": {
+            "title": "Label Id",
+            "type": "integer"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "label_id",
+          "refresh_panels"
+        ],
+        "title": "TaskLabelResult",
+        "type": "object"
+      },
+      "event": "task.labeled",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "remove_label",
+      "description": "Detach a label (by integer label_id) from a task (by integer task_id).",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Integer task ID. Never UUID.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "label_id": {
+            "description": "Integer label ID currently attached to this task.",
+            "title": "Label Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "label_id"
+        ],
+        "title": "DetachLabelParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "label_id": {
+            "title": "Label Id",
+            "type": "integer"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "label_id",
+          "refresh_panels"
+        ],
+        "title": "TaskLabelResult",
+        "type": "object"
+      },
+      "event": "task.unlabeled",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "set_due_date",
+      "description": "Set or change due date of a task. Pass integer task_id and due_date as ISO 8601 UTC string (e.g. '2026-04-25T12:00:00Z'). Convert relative dates ('Friday', 'tomorrow') in user's timezone first.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Integer task ID. Never UUID.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "due_date": {
+            "description": "ISO 8601 UTC string, e.g. '2026-04-25T12:00:00Z'.",
+            "title": "Due Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "due_date"
+        ],
+        "title": "SetDueDateParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "done": {
+            "default": false,
+            "title": "Done",
+            "type": "boolean"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "priority": {
+            "default": 0,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "percent_done": {
+            "default": 0.0,
+            "title": "Percent Done",
+            "type": "number"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "refresh_panels"
+        ],
+        "title": "UpdateTaskResult",
+        "type": "object"
+      },
+      "event": "task.due_changed",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "set_priority",
+      "description": "Set task priority — integer 0 (none) to 5 (critical). Pass integer task_id.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Integer task ID. Never UUID.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "priority": {
+            "description": "0=none, 1=low, 2=medium, 3=high, 4=urgent, 5=critical.",
+            "maximum": 5,
+            "minimum": 0,
+            "title": "Priority",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task_id",
+          "priority"
+        ],
+        "title": "SetPriorityParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "done": {
+            "default": false,
+            "title": "Done",
+            "type": "boolean"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "priority": {
+            "default": 0,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "percent_done": {
+            "default": 0.0,
+            "title": "Percent Done",
+            "type": "number"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "refresh_panels"
+        ],
+        "title": "UpdateTaskResult",
+        "type": "object"
+      },
+      "event": "task.priority_changed",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "move_to_project",
+      "description": "Move a task to another project. Pass integer task_id and integer project_id, or pass project_name (e.g. 'webhostmost tasks') to resolve automatically.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Integer task ID. Never UUID.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer project ID. Pass project_name instead if unknown.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name to look up (e.g. 'webhostmost tasks').",
+            "title": "Project Name"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "MoveToProjectParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "done": {
+            "default": false,
+            "title": "Done",
+            "type": "boolean"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "priority": {
+            "default": 0,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "percent_done": {
+            "default": 0.0,
+            "title": "Percent Done",
+            "type": "number"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "refresh_panels"
+        ],
+        "title": "UpdateTaskResult",
+        "type": "object"
+      },
+      "event": "task.moved",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "move_to_bucket",
+      "description": "Move a task to another kanban bucket (column). Pass integer task_id and integer bucket_id, or pass bucket_name + project_name (e.g. 'To-Do', 'webhostmost tasks') to resolve automatically.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "description": "Integer task ID. Never UUID.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "bucket_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer bucket ID from list_buckets response. Pass bucket_name + project_name instead if unknown.",
+            "title": "Bucket Id"
+          },
+          "bucket_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bucket name (e.g. 'To-Do', 'In Progress'). Used when bucket_id unknown.",
+            "title": "Bucket Name"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name — needed to resolve bucket_name to bucket_id.",
+            "title": "Project Name"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "MoveToBucketParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "done": {
+            "default": false,
+            "title": "Done",
+            "type": "boolean"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due Date"
+          },
+          "priority": {
+            "default": 0,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "percent_done": {
+            "default": 0.0,
+            "title": "Percent Done",
+            "type": "number"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "refresh_panels"
+        ],
+        "title": "UpdateTaskResult",
+        "type": "object"
+      },
+      "event": "task.bucket_changed",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "search_vikunja_users",
+      "description": "Search for Vikunja users by name or email fragment — use this before assign_task to discover who is available, or when the user asks who they can assign tasks to. Pass empty query to list all known users on the Vikunja instance.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "query": {
+            "default": "",
+            "description": "Name or email fragment to search for (e.g. 'val', 'ignat', 'denis@'). Pass empty string to list all known users on this Vikunja instance.",
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "title": "SearchUsersParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "UserEntity": {
+            "description": "Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,\ntitle=username. `connected` marks whether the user has linked their own\nImperal↔Vikunja connection. Mirrors the admin-ext UserRecord pattern.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "username": {
+                "default": "",
+                "title": "Username",
+                "type": "string"
+              },
+              "connected": {
+                "default": false,
+                "title": "Connected",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "UserEntity",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "description": "search_vikunja_users return — a REAL sdl.EntityList[UserEntity] (items=[...],\nx-sdl='entity-list'). NO legacy {users:[dict]} wrapper.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/UserEntity"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "SearchUsersResult",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "list_project_members",
+      "description": "List the members of a specific project (its assignable users — owner plus user/team shares). Use this when the user asks who is on a named project, e.g. 'who is on the WebHostMost Tasks team', 'участники проекта X', 'кто работает над проектом'. Pass project_name when you only know the name; it is resolved automatically. Prefer this over search_vikunja_users when the user names a project — it is project-scoped rather than instance-wide.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Integer project ID. Pass project_name instead if you only know the name.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project title to resolve (e.g. 'WebHostMost Tasks'). Used when project_id is unknown. Case-insensitive.",
+            "title": "Project Name"
+          }
+        },
+        "title": "ListProjectMembersParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "UserEntity": {
+            "description": "Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,\ntitle=username. `connected` marks whether the user has linked their own\nImperal↔Vikunja connection. Mirrors the admin-ext UserRecord pattern.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "username": {
+                "default": "",
+                "title": "Username",
+                "type": "string"
+              },
+              "connected": {
+                "default": false,
+                "title": "Connected",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "UserEntity",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "description": "list_project_members return — a REAL sdl.EntityList[UserEntity]; project_id\ncarried as an additive typed field (EntityList is a pydantic BaseModel).",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/UserEntity"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Project Id"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ProjectMembersResult",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "move_tasks_to_bucket",
+      "description": "Move MULTIPLE tasks to the same kanban bucket (column) at once. Pass task_ids (list of integers) OR task_titles (list of names), plus bucket_id OR bucket_name + project_name. Use when the user asks to move 2+ tasks to a column in one request.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:task"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "task_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "List of integer task IDs to move. Use this if you already have the IDs.",
+            "title": "Task Ids"
+          },
+          "task_titles": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "List of task titles to find and move (e.g. ['Buy milk', 'Fix login']). Auto-resolved to IDs.",
+            "title": "Task Titles"
+          },
+          "bucket_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Target kanban bucket ID. Pass bucket_name + project_name instead if unknown.",
+            "title": "Bucket Id"
+          },
+          "bucket_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Target bucket name (e.g. 'Done', 'In Progress'). Requires project_name to resolve.",
+            "title": "Bucket Name"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project the bucket belongs to, and the scope for title lookups.",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Project name (e.g. 'WebHostMost Tasks') — resolves both the bucket and the title search scope.",
+            "title": "Project Name"
+          }
+        },
+        "title": "MoveTasksToBucketParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "BulkTaskItem": {
+            "description": "One row of a non-delete batch. Deliberately says `ok` rather than\n`deleted`: BulkDeleteItem's wording only fits removal, and reusing it for\n'completed' or 'moved' would make the payload lie about what happened.",
+            "properties": {
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "ok": {
+                "title": "Ok",
+                "type": "boolean"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Error"
+              }
+            },
+            "required": [
+              "task_id",
+              "title",
+              "ok"
+            ],
+            "title": "BulkTaskItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "succeeded_count": {
+            "title": "Succeeded Count",
+            "type": "integer"
+          },
+          "failed_count": {
+            "title": "Failed Count",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/$defs/BulkTaskItem"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "succeeded_count",
+          "failed_count",
+          "results",
+          "refresh_panels"
+        ],
+        "title": "BulkTaskResult",
+        "type": "object"
+      },
+      "event": "tasks.bucket_changed",
       "background": false,
       "long_running": false,
       "scopes": [],

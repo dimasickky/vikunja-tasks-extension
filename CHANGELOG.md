@@ -1,5 +1,44 @@
 # Changelog
 
+## [3.40.0] — 2026-08-17
+
+### Fixed
+
+- **`move_to_bucket` / `move_tasks_to_bucket` silently did nothing.** Both
+  went through the generic task-update endpoint (`POST /tasks/{id}` with
+  `bucket_id` in the body), same as every other field update. That's wrong
+  specifically for `bucket_id`: Vikunja treats it as a **virtual response
+  field** on that endpoint — it echoes back whatever value you send with
+  HTTP 200, but never writes to the underlying `task_buckets` join table
+  (keyed per `project_view_id`, not per task). So the call reported success
+  and the task never actually moved on the kanban board. This is the same
+  class of bug already fixed once for `create_subtask`'s bucket-detach case
+  (v3.2.0 → v3.2.1) but it was never carried over to this general move path.
+  Both functions now go through a new shared `_move_task_to_bucket_impl`,
+  which calls Vikunja's dedicated bucket-tasks endpoint
+  (`.../views/{view_id}/buckets/{bucket_id}/tasks`) — the bridge
+  (`vikunja-bridge/routes_projects.py`) already had this route implemented
+  and deployed; the extension just wasn't calling it for these two tools.
+  Added `tests/test_move_to_bucket.py` (new — this extension had no test
+  suite before) asserting the correct endpoint is hit and the old
+  `/tasks/{id}` path is never used for a bucket move; a bridge-side
+  regression test was added too (`vikunja-bridge/tests/webbee_unit/`).
+
+## [3.39.1] — 2026-08-16
+
+### Changed
+
+- **Bumped `imperal-sdk` 5.9.12 → 5.9.22.** Diffed both wheels directly before
+  touching the pin: every change on the way (new `StoreClient.for_user()`,
+  `if_match`/`etag` on Store, transparent retry wrapping in the secrets
+  client, new billing fields, CLI fixes) is additive and defaulted. Nothing in
+  this module touches any of those surfaces — zero behavior change. Also
+  confirmed (by reading the platform's own event-catalog builder,
+  `pipeline/executor.py::publish_event_catalog`, on the worker) that
+  automations discovers triggers from each `@chat.function`'s `event=` value
+  directly, not from a separate manifest declaration — this module's existing
+  `event=` coverage was already complete; no code change was needed there.
+
 ## [3.39.0] — 2026-07-27
 
 ### Added

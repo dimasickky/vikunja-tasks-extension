@@ -19,6 +19,7 @@ from handlers_crud import (
     _BULK_CONCURRENCY,
     UpdateTaskParams,
 )
+from handlers_structure import _get_kanban_view_id
 from imperal_sdk.chat.error_codes import VALIDATION_MISSING_FIELD
 from error_codes import TASKS_BRIDGE_ERROR, TASKS_BUCKET_NOT_FOUND, TASKS_PROJECT_NOT_FOUND, TASKS_TASK_AMBIGUOUS, TASKS_TASK_NOT_FOUND
 from models_return import (
@@ -502,6 +503,75 @@ async def move_to_project(ctx, params: MoveToProjectParams) -> ActionResult:
     return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, project_id=params.project_id))
 
 
+async def _move_task_to_bucket_impl(
+    ctx, imperal_id: str, task_id: int, bucket_id: int,
+    view_id: Optional[int] = None, task_project_id: Optional[int] = None,
+    full_result: bool = True,
+) -> ActionResult:
+    """Move ONE task into a bucket via Vikunja's dedicated join-table endpoint.
+
+    `bucket_id` on the regular task-update endpoint (`POST /tasks/{id}`) is a
+    virtual response field, not a writable one: Vikunja echoes back whatever
+    you send but never touches the underlying `task_buckets` join table
+    (keyed per project_view_id) — confirmed against Vikunja's own
+    kanban_task_bucket.go handler. That was already found once, for the
+    bucket_id=0 detach case in create_subtask (v3.2.0 -> v3.2.1 revert), but
+    never carried over to this general move path — which is why move_to_bucket
+    / move_tasks_to_bucket returned success while doing nothing. The bridge's
+    `.../buckets/{bucket}/tasks` route is the actual write path; this always
+    goes through it instead of `_update_task_impl`.
+
+    full_result=True (single-task callers, data_model=UpdateTaskResult) re-fetches
+    the task after a successful move so the response actually carries
+    title/done/due_date/priority/percent_done — matching _update_task_impl's shape.
+    Batch callers pass full_result=False: they already have the title from their
+    own task resolution and only care about res.status, so the extra round trip
+    per task would just be N wasted requests.
+    """
+    project_id = task_project_id
+    if project_id is None:
+        task_resp = await api_get(ctx, f"/v1/tasks/{task_id}", {"imperal_id": imperal_id})
+        if isinstance(task_resp, dict) and task_resp.get("status") == "error":
+            return ActionResult.error(_bridge_error_msg(task_resp, "Couldn't look up task"), code=TASKS_BRIDGE_ERROR)
+        project_id = task_resp.get("project_id") if isinstance(task_resp, dict) else None
+        if project_id is None:
+            return ActionResult.error(f"Task #{task_id} not found.", code=TASKS_TASK_NOT_FOUND)
+
+    if view_id is None:
+        view_id, err = await _get_kanban_view_id(ctx, imperal_id, project_id)
+        if err:
+            return err
+
+    resp = await api_post(
+        ctx, f"/v1/projects/{project_id}/views/{view_id}/buckets/{bucket_id}/tasks",
+        {"imperal_id": imperal_id, "task_id": task_id},
+    )
+    if isinstance(resp, dict) and resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't move task"), code=TASKS_BRIDGE_ERROR)
+
+    if not full_result:
+        return ActionResult.success(summary="moved", data={"task_id": task_id, "bucket_id": bucket_id})
+
+    task_resp = await api_get(ctx, f"/v1/tasks/{task_id}", {"imperal_id": imperal_id})
+    if isinstance(task_resp, dict) and task_resp.get("status") == "error":
+        # Move itself succeeded — just couldn't confirm the read-back. Report success
+        # with what we know rather than turning a completed write into an error.
+        task_resp = {}
+
+    return ActionResult.success(
+        summary=f"Task moved to bucket #{bucket_id}: {task_resp.get('title', task_id)}.",
+        data={
+            "task_id":        task_id,
+            "title":          task_resp.get("title"),
+            "done":           task_resp.get("done", False),
+            "due_date":       task_resp.get("due_date"),
+            "priority":       task_resp.get("priority", 0),
+            "percent_done":   task_resp.get("percent_done", 0.0),
+            "refresh_panels": ["sidebar", "editor"],
+        },
+    )
+
+
 @chat.function(
     "move_to_bucket",
     action_type="write",
@@ -547,7 +617,7 @@ async def move_to_bucket(ctx, params: MoveToBucketParams) -> ActionResult:
     if params.bucket_id is None:
         return ActionResult.error("Pass bucket_id or bucket_name + project_name.", code=VALIDATION_MISSING_FIELD)
 
-    return await _update_task_impl(ctx, UpdateTaskParams(task_id=params.task_id, bucket_id=params.bucket_id))
+    return await _move_task_to_bucket_impl(ctx, imperal_id, params.task_id, params.bucket_id)
 
 
 @chat.function(
@@ -679,12 +749,17 @@ async def move_tasks_to_bucket(ctx, params: MoveTasksToBucketParams) -> ActionRe
     refs = await _resolve_task_refs(
         ctx, imperal_id, sem, params.task_ids, params.task_titles, project_id)
 
+    view_id, err = await _get_kanban_view_id(ctx, imperal_id, project_id) if project_id is not None else (None, None)
+    if project_id is not None and err:
+        return err
+
     async def _move_one(task_id: int, title: str) -> dict:
         if task_id == -1:
             return {"task_id": -1, "title": title, "ok": False, "error": "task not found"}
         async with sem:
-            res = await _update_task_impl(
-                ctx, UpdateTaskParams(task_id=task_id, bucket_id=bucket_id))
+            res = await _move_task_to_bucket_impl(
+                ctx, imperal_id, task_id, bucket_id, view_id=view_id,
+                task_project_id=project_id, full_result=False)
         if res.status == "error":
             return {"task_id": task_id, "title": title, "ok": False,
                     "error": res.summary or "move failed"}

@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.9.22",
   "app_id": "tasks",
-  "version": "3.40.0",
+  "version": "3.41.0",
   "name": "Vikunja Tasks Connector",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -9317,6 +9317,282 @@
         "type": "object"
       },
       "event": "task.comment_deleted",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "delete_comments",
+      "description": "Delete MULTIPLE comments on a task at once. Pass comment_ids to delete specific ones, or omit comment_ids entirely to delete EVERY comment on the task. Pass task_id, or task_name (+ optional bucket_name to disambiguate) to resolve it by title. Use when the user asks to delete 2+ comments, or 'delete all comments on task X'.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:comment"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "default": 0,
+            "description": "Integer task ID. Pass 0 when you only know the task by name.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "task_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Task title to search for when task_id is unknown. Auto-resolved.",
+            "title": "Task Name"
+          },
+          "bucket_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bucket/column name to disambiguate when multiple tasks share the same title.",
+            "title": "Bucket Name"
+          },
+          "comment_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Specific comment IDs to delete. Omit (or pass an empty list) to delete EVERY comment on the task — use for 'delete all comments on task X'.",
+            "title": "Comment Ids"
+          }
+        },
+        "title": "DeleteCommentsParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "BulkCommentItem": {
+            "description": "One row of a comment batch (add or delete). `ok` rather than `deleted`/\n`added`: this one model backs both directions, and a single field name\nthat lies about which verb ran would be worse than a slightly generic one.",
+            "properties": {
+              "comment_id": {
+                "default": null,
+                "title": "Comment Id"
+              },
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "ok": {
+                "title": "Ok",
+                "type": "boolean"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Error"
+              }
+            },
+            "required": [
+              "task_id",
+              "ok"
+            ],
+            "title": "BulkCommentItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "succeeded_count": {
+            "title": "Succeeded Count",
+            "type": "integer"
+          },
+          "failed_count": {
+            "title": "Failed Count",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/$defs/BulkCommentItem"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "succeeded_count",
+          "failed_count",
+          "results",
+          "refresh_panels"
+        ],
+        "title": "BulkCommentResult",
+        "type": "object"
+      },
+      "event": "task.comments_deleted",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_tasks_chat"
+    },
+    {
+      "name": "add_comments",
+      "description": "Add MULTIPLE comments to a task at once, in order. Pass task_id, or task_name (+ optional bucket_name to disambiguate) to resolve it by title. Use when the user asks to post 2+ comments in one request, e.g. a simulated work log.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:comment"
+      ],
+      "id_projection": "task_id",
+      "params_schema": {
+        "properties": {
+          "task_id": {
+            "default": 0,
+            "description": "Integer task ID. Pass 0 when you only know the task by name.",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "task_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Task title to search for when task_id is unknown. Auto-resolved.",
+            "title": "Task Name"
+          },
+          "bucket_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bucket/column name to disambiguate when multiple tasks share the same title.",
+            "title": "Bucket Name"
+          },
+          "comments": {
+            "description": "Comment texts to post, one call each, in this order (markdown supported).",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Comments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "comments"
+        ],
+        "title": "AddCommentsParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "BulkCommentItem": {
+            "description": "One row of a comment batch (add or delete). `ok` rather than `deleted`/\n`added`: this one model backs both directions, and a single field name\nthat lies about which verb ran would be worse than a slightly generic one.",
+            "properties": {
+              "comment_id": {
+                "default": null,
+                "title": "Comment Id"
+              },
+              "task_id": {
+                "title": "Task Id",
+                "type": "integer"
+              },
+              "ok": {
+                "title": "Ok",
+                "type": "boolean"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Error"
+              }
+            },
+            "required": [
+              "task_id",
+              "ok"
+            ],
+            "title": "BulkCommentItem",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "succeeded_count": {
+            "title": "Succeeded Count",
+            "type": "integer"
+          },
+          "failed_count": {
+            "title": "Failed Count",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/$defs/BulkCommentItem"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "refresh_panels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Refresh Panels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "succeeded_count",
+          "failed_count",
+          "results",
+          "refresh_panels"
+        ],
+        "title": "BulkCommentResult",
+        "type": "object"
+      },
+      "event": "task.comments_added",
       "background": false,
       "long_running": false,
       "scopes": [],

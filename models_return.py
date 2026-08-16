@@ -282,6 +282,23 @@ class CommentRefResult(BaseModel):
     task_id: int
 
 
+class BulkCommentItem(BaseModel):
+    """One row of a comment batch (add or delete). `ok` rather than `deleted`/
+    `added`: this one model backs both directions, and a single field name
+    that lies about which verb ran would be worse than a slightly generic one."""
+    comment_id: Any = None
+    task_id: int
+    ok: bool
+    error: Optional[str] = None
+
+
+class BulkCommentResult(BaseModel):
+    succeeded_count: int
+    failed_count: int
+    results: List[BulkCommentItem]
+    refresh_panels: List[str]
+
+
 # ─── handlers_organize ────────────────────────────────────────────────────── #
 
 class UserEntity(sdl.Entity):

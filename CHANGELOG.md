@@ -1,5 +1,30 @@
 # Changelog
 
+## [3.41.0] — 2026-08-17
+
+### Added
+
+- **`delete_comments`** — delete several comments on a task in one call.
+  Pass `comment_ids` for specific ones, or omit it entirely to delete
+  **every** comment currently on the task (the "delete all comments on task
+  X" case) — it lists the task's comments itself first since Vikunja has no
+  bridge/upstream concept of "all" on its own. Accepts `task_id` or
+  `task_name` (+ optional `bucket_name` to disambiguate), same resolution
+  `assign_task` already uses.
+- **`add_comments`** — post several comments on a task in one call, in
+  order. Same `task_id`/`task_name`/`bucket_name` resolution.
+- Both fan out over the extension's existing bulk machinery
+  (`_check_batch_size` + the `_BULK_CONCURRENCY` semaphore from
+  `handlers_crud.py`) — there is no bulk comment endpoint on the bridge or
+  in Vikunja's own API, comments are always single add/delete calls, so
+  this is client-side fan-out with per-item success/failure reporting, same
+  pattern as `delete_tasks`/`complete_tasks`/`move_tasks_to_bucket`. Neither
+  aborts the whole batch on one item's failure.
+- New models `BulkCommentItem`/`BulkCommentResult` in `models_return.py`.
+- `tests/test_comments_bulk.py` — 8 cases covering explicit ids, "delete
+  all", a no-op on a comment-less task, name+bucket resolution, and partial
+  failure reporting.
+
 ## [3.40.0] — 2026-08-17
 
 ### Fixed

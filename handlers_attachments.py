@@ -15,15 +15,20 @@ applied: no download_attachment there either). Users open attachments from
 Vikunja's own UI or a future panel link.
 """
 
+import asyncio
 import logging
+from typing import List
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from imperal_sdk.chat import ActionResult
 
 from app import api_get, api_post, api_delete, api_upload, chat
-from handlers_crud import _require_user, _bridge_error_msg
-from models_return import UploadTaskAttachmentResult, ListTaskAttachmentsResult, DeleteTaskAttachmentResult
+from handlers_crud import _require_user, _bridge_error_msg, _check_batch_size, _BULK_CONCURRENCY
+from models_return import (
+    UploadTaskAttachmentResult, ListTaskAttachmentsResult, DeleteTaskAttachmentResult,
+    DeleteTaskAttachmentsResult,
+)
 from error_codes import TASKS_BRIDGE_ERROR, TASKS_ATTACHMENT_NOT_FOUND, TASKS_ATTACHMENT_TOO_LARGE
 
 log = logging.getLogger("tasks")
@@ -31,23 +36,34 @@ log = logging.getLogger("tasks")
 _MODEL_CONFIG = ConfigDict(populate_by_name=True)
 
 
-def _extract_b64(payload) -> tuple[str, str, str]:
-    """Return (data_base64, filename, content_type) from a FileUpload payload.
+def _extract_files(payload) -> list[tuple[str, str, str]]:
+    """Return [(data_base64, filename, content_type), ...] from a FileUpload
+    payload.
 
-    Same shape/parsing as notes/handlers_attachments.py._extract_b64 — the
-    panel sends a list[dict] (or a single dict) with data_base64/name/
-    content_type; a data: URI prefix is stripped if present.
+    Same shape/parsing as notes/handlers_attachments.py._extract_files — the
+    panel's ui.FileUpload(multiple=True) sends a list[dict], one entry per
+    file selected, each with data_base64/name/content_type; a data: URI
+    prefix is stripped if present. A single dict (older callers / single-file
+    forms) is wrapped as a one-item list. Previously only payload[0] was ever
+    read here, so selecting 3 files in the panel silently uploaded 1 — this
+    now walks the whole list.
     """
-    if isinstance(payload, list) and payload:
-        item = payload[0] if isinstance(payload[0], dict) else {}
-    elif isinstance(payload, dict):
-        item = payload
+    if isinstance(payload, dict):
+        items = [payload]
+    elif isinstance(payload, list):
+        items = [p for p in payload if isinstance(p, dict)]
     else:
-        return "", "", ""
-    b64 = item.get("data_base64", "")
-    if b64.startswith("data:") and "," in b64:
-        b64 = b64.split(",", 1)[1]
-    return b64, item.get("name", "file"), item.get("content_type", "application/octet-stream")
+        return []
+
+    out = []
+    for item in items:
+        b64 = item.get("data_base64", "")
+        if not b64:
+            continue
+        if b64.startswith("data:") and "," in b64:
+            b64 = b64.split(",", 1)[1]
+        out.append((b64, item.get("name", "file"), item.get("content_type", "application/octet-stream")))
+    return out
 
 
 class UploadTaskAttachmentParams(BaseModel):
@@ -95,50 +111,68 @@ def _attachment_item(raw: dict) -> dict:
     data_model=UploadTaskAttachmentResult,
 )
 async def upload_task_attachment(ctx, params: UploadTaskAttachmentParams) -> ActionResult:
-    """Upload a file attachment to a task via the panel's FileUpload payload."""
+    """Upload one or more file attachments to a task via the panel's FileUpload payload."""
     imperal_id = _require_user(ctx)
     if isinstance(imperal_id, ActionResult):
         return imperal_id
 
-    data_b64, filename, content_type = _extract_b64(params.files)
-    if not data_b64:
+    files = _extract_files(params.files)
+    if not files:
         return ActionResult.error("No file provided. Attach a file from the panel first.", code=TASKS_BRIDGE_ERROR)
 
     import base64
-    try:
-        data = base64.b64decode(data_b64)
-    except Exception:
-        return ActionResult.error("Uploaded file payload is not valid base64.", code=TASKS_BRIDGE_ERROR)
 
-    if len(data) > 20 * 1024 * 1024:
-        return ActionResult.error(
-            f"'{filename}' is larger than Vikunja's 20MB attachment limit.",
-            code=TASKS_ATTACHMENT_TOO_LARGE,
+    uploaded: list[dict] = []
+    failed: list[str] = []
+
+    for data_b64, filename, content_type in files:
+        try:
+            data = base64.b64decode(data_b64)
+        except Exception:
+            failed.append(f"{filename} (invalid base64)")
+            continue
+
+        if len(data) > 20 * 1024 * 1024:
+            failed.append(f"{filename} (over Vikunja's 20MB limit)")
+            continue
+
+        resp = await api_upload(
+            ctx, f"/v1/tasks/{params.task_id}/attachments", {"imperal_id": imperal_id},
+            filename, data, content_type,
         )
+        if isinstance(resp, dict) and resp.get("status") == "error":
+            failed.append(f"{filename} ({_bridge_error_msg(resp, 'upload failed')})")
+            continue
 
-    resp = await api_upload(
-        ctx, f"/v1/tasks/{params.task_id}/attachments", {"imperal_id": imperal_id},
-        filename, data, content_type,
-    )
-    if isinstance(resp, dict) and resp.get("status") == "error":
-        return ActionResult.error(_bridge_error_msg(resp, "Couldn't upload attachment"), code=TASKS_BRIDGE_ERROR)
+        # Vikunja's own response shape is {"success": [TaskAttachment...], "errors": [...]}
+        # (pkg/routes/api/v1/task_attachment.go) — NOT a flat attachment list.
+        raw_success = resp.get("success") if isinstance(resp, dict) else None
+        raw_errors = resp.get("errors") if isinstance(resp, dict) else None
+        item_uploaded = [_attachment_item(a) for a in (raw_success or [])]
 
-    # Vikunja's own response shape is {"success": [TaskAttachment...], "errors": [...]}
-    # (pkg/routes/api/v1/task_attachment.go) — NOT a flat attachment list.
-    raw_success = resp.get("success") if isinstance(resp, dict) else None
-    raw_errors = resp.get("errors") if isinstance(resp, dict) else None
-    uploaded = [_attachment_item(a) for a in (raw_success or [])]
+        if not item_uploaded:
+            detail = f" ({raw_errors[0].get('message', '')})" if raw_errors else ""
+            failed.append(f"{filename}{detail}")
+            continue
+
+        uploaded.extend(item_uploaded)
 
     if not uploaded:
-        detail = ""
-        if raw_errors:
-            detail = f" ({raw_errors[0].get('message', '')})"
         return ActionResult.error(
-            f"Vikunja rejected '{filename}'{detail}.", code=TASKS_BRIDGE_ERROR,
+            f"Vikunja rejected all {len(files)} file(s): {'; '.join(failed)}.", code=TASKS_BRIDGE_ERROR,
         )
 
+    if failed:
+        summary = (
+            f"Uploaded {len(uploaded)} of {len(files)} file(s) to task #{params.task_id} "
+            f"— {len(failed)} failed: {'; '.join(failed)}"
+        )
+    else:
+        names = ", ".join(a["filename"] for a in uploaded)
+        summary = f"Uploaded {names} to task #{params.task_id}."
+
     return ActionResult.success(
-        summary=f"Uploaded '{filename}' to task #{params.task_id}.",
+        summary=summary,
         data={"task_id": params.task_id, "uploaded": uploaded, "refresh_panels": ["sidebar", "editor"]},
     )
 
@@ -204,4 +238,78 @@ async def delete_task_attachment(ctx, params: DeleteTaskAttachmentParams) -> Act
         summary=f"Deleted attachment #{params.attachment_id} from task #{params.task_id}.",
         data={"task_id": params.task_id, "attachment_id": params.attachment_id,
               "deleted": True, "refresh_panels": ["sidebar", "editor"]},
+    )
+
+
+class DeleteTaskAttachmentsParams(BaseModel):
+    model_config = _MODEL_CONFIG
+
+    task_id: int = Field(..., description="Integer task ID. Never UUID.")
+    attachment_ids: List[int] = Field(
+        ..., description="List of integer attachment IDs to delete — from list_task_attachments.",
+    )
+
+
+@chat.function(
+    "delete_task_attachments",
+    action_type="destructive",
+    chain_callable=True,
+    id_projection="task_id",
+    effects=["update:task"],
+    event="task.attachments_deleted",
+    description=(
+        "Remove SEVERAL file attachments from a task at once. Pass task_id and "
+        "attachment_ids (list of integers from list_task_attachments). Use when the user "
+        "wants to remove 2+ attachments in one request. Cannot be undone."
+    ),
+    data_model=DeleteTaskAttachmentsResult,
+)
+async def delete_task_attachments(ctx, params: DeleteTaskAttachmentsParams) -> ActionResult:
+    """Delete a set of attachments from one task, reported per attachment.
+
+    Same reasoning as tasks' other bulk tools (see handlers_crud.py
+    _run_task_batch): a bounded, concurrent fan-out with one row per item, so
+    a partial failure among several deletes is visible rather than silently
+    swallowed. There is no bulk-delete endpoint on Vikunja's own API for
+    attachments, so this issues one DELETE per id.
+    """
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    oversized = _check_batch_size(params.attachment_ids, "attachments")
+    if oversized:
+        return oversized
+
+    sem = asyncio.Semaphore(_BULK_CONCURRENCY)
+
+    async def _delete_one(att_id: int) -> dict:
+        async with sem:
+            resp = await api_delete(
+                ctx, f"/v1/tasks/{params.task_id}/attachments/{att_id}",
+                params={"imperal_id": imperal_id},
+            )
+        if isinstance(resp, dict) and resp.get("status") == "error":
+            return {"attachment_id": att_id, "deleted": False,
+                     "error": _bridge_error_msg(resp, "Delete failed")}
+        return {"attachment_id": att_id, "deleted": True}
+
+    results = await asyncio.gather(*(_delete_one(a) for a in params.attachment_ids))
+    results = list(results)
+
+    deleted_count = sum(1 for r in results if r["deleted"])
+    failed_count = len(results) - deleted_count
+    summary = f"Deleted {deleted_count} attachment(s) from task #{params.task_id}."
+    if failed_count:
+        summary += f" {failed_count} failed."
+
+    return ActionResult.success(
+        summary=summary,
+        data={
+            "task_id": params.task_id,
+            "deleted_count": deleted_count,
+            "failed_count": failed_count,
+            "results": results,
+            "refresh_panels": ["sidebar", "editor"],
+        },
     )

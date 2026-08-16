@@ -498,6 +498,20 @@ class DeleteTaskAttachmentResult(BaseModel):
     refresh_panels: List[str]
 
 
+class DeleteTaskAttachmentsItem(BaseModel):
+    attachment_id: int
+    deleted: bool
+    error: Optional[str] = None
+
+
+class DeleteTaskAttachmentsResult(BaseModel):
+    task_id: int
+    deleted_count: int
+    failed_count: int
+    results: List[DeleteTaskAttachmentsItem]
+    refresh_panels: List[str]
+
+
 # ─── handlers_notifications ────────────────────────────────────────────────── #
 
 class NotificationStatusResult(BaseModel):

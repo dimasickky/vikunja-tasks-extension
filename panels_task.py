@@ -151,6 +151,22 @@ def _render_edit_form(
             ui.Form(action="add_comment", submit_label="Add comment",
                     defaults={"task_id": str(tid)},
                     children=[ui.Input(placeholder="Write a comment…", param_name="comment")]),
+            # Vikunja has no attach-to-comment API — attachments only exist at
+            # the task level (/tasks/{id}/attachments, confirmed against
+            # go-vikunja's own routes). So this reuses the SAME
+            # upload_task_attachment handler as the Attachments card above,
+            # right here in the comment flow, so a user does not have to hunt
+            # for the other card to attach a file while commenting. The hint
+            # says exactly what really happens: it lands on the task, not
+            # tied to one specific comment.
+            ui.FileUpload(
+                param_name="files",
+                multiple=False,
+                max_size_mb=20,
+                on_upload=ui.Call("upload_task_attachment", task_id=tid),
+                title="Attach a file with this comment",
+                hint="Vikunja attaches files to the task itself (shown in Attachments below), not to a single comment.",
+            ),
         ], gap=2),
     )
 
@@ -348,7 +364,13 @@ def _attachments_section(tid: int, attachments: list[dict]) -> Any:
     return ui.Card(
         title=f"Attachments ({len(items)})",
         content=ui.Stack([
-            ui.List(items=items) if items else ui.Text("No attachments yet.", variant="caption"),
+            ui.List(
+                items=items, selectable=True,
+                bulk_actions=[
+                    {"label": "Delete", "icon": "Trash2",
+                     "action": ui.Call("delete_task_attachments", task_id=tid)},
+                ],
+            ) if items else ui.Text("No attachments yet.", variant="caption"),
             ui.Text("Attach files — up to 20MB each, stored on your own Vikunja instance.", variant="caption"),
             ui.FileUpload(
                 param_name="files",

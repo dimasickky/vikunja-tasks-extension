@@ -18,11 +18,18 @@ and the test fails loudly instead of silently no-op'ing again.
 """
 from imperal_sdk.testing import MockContext
 
+import app as _app
 import handlers_organize as ho
 from handlers_organize import MoveToBucketParams, MoveTasksToBucketParams
 
 
-BRIDGE = "https://bridge.test"
+# Derived from the app's own resolver, not hardcoded: conftest.py only sets
+# VIKUNJA_BRIDGE_URL via os.environ.setdefault, so a sandbox/CI environment
+# that already exports this var (pointing anywhere else) must still produce
+# mocks that match what the code actually calls. A hardcoded guess here
+# passed locally (empty env) but silently 404'd — and thus "error"'d — in
+# any environment where the var was pre-set to a different host.
+BRIDGE = _app._bridge_url()
 
 
 def _views_url(project_id: int) -> str:

@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.41.1] — 2026-08-31
+
+### Changed
+
+- **imperal-sdk 5.9.22 → 5.13.1.** Picks up the new gateway namespaces
+  (`ctx.conversations/users/apps/rbac`), the unified callable catalog,
+  `ui.BackButton`, tray/menu contributions and the `tests/`-fixture deploy
+  scan fix. None of the new surfaces is adopted yet — this is the
+  dependency floor for follow-up work.
+- **Webhook fan-out helpers now use the SDK's public re-scoping API.**
+  `_store_for`/`_notify_for` call `ctx.store.for_user(uid)` /
+  `ctx.notify.for_user(uid)` instead of rebuilding `StoreClient`/
+  `NotifyClient` from private `_gateway_url`/`_auth_token` attributes.
+  Same behavior, no private surface. (MockStore/MockNotify in tests have
+  no `for_user` and are still returned as-is.)
+
 ## [3.41.0] — 2026-08-17
 
 ### Added

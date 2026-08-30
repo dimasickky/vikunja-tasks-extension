@@ -97,32 +97,24 @@ class NoParams(BaseModel):
 
 
 def _store_for(ctx, user_id: str):
-    """Same rebuild-the-client trick as github-connector's storage._store_for —
-    only user_id differs, gateway/auth/tenant wiring is reused as-is."""
-    if not hasattr(ctx.store, "_gateway_url"):
+    """Re-scope ctx.store to another user via the SDK's public
+    ``StoreClient.for_user`` (imperal-sdk >= 5.9.22) — replaces the old
+    rebuild-from-private-attributes trick. MockStore in tests has no
+    ``for_user`` (it never crosses a real user boundary) — fall back to
+    ctx.store itself."""
+    if not hasattr(ctx.store, "for_user"):
         return ctx.store  # MockStore in tests — no per-user partitioning to rebuild
-    from imperal_sdk.store.client import StoreClient
-    return StoreClient(
-        gateway_url=ctx.store._gateway_url,
-        service_token=ctx.store._auth_token,
-        extension_id=ctx.store._extension_id,
-        user_id=user_id,
-        tenant_id=ctx.store._tenant_id,
-    )
+    return ctx.store.for_user(user_id)
 
 
 def _notify_for(webhook_ctx, imperal_id: str):
-    """Rebuild ctx.notify scoped to a real user — mirrors github-connector's
-    handlers_webhook_events._notify_for (ctx.notify here is "__webhook__"-scoped)."""
-    if not hasattr(webhook_ctx.notify, "_gateway_url"):
+    """Re-scope ctx.notify to a real user via ``NotifyClient.for_user``
+    (imperal-sdk >= 5.9.22) — ctx.notify here is "__webhook__"-scoped and
+    ctx.as_user() needs system context. MockNotify in tests has no
+    ``for_user`` and is returned as-is."""
+    if not hasattr(webhook_ctx.notify, "for_user"):
         return webhook_ctx.notify  # test double
-    from imperal_sdk.notify.client import NotifyClient
-    return NotifyClient(
-        gateway_url=webhook_ctx.notify._gateway_url,
-        service_token=webhook_ctx.notify._auth_token,
-        user_id=imperal_id,
-        extension_id=getattr(webhook_ctx.notify, "_extension_id", "tasks"),
-    )
+    return webhook_ctx.notify.for_user(imperal_id)
 
 
 async def _get_own_state(ctx):

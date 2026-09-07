@@ -699,6 +699,70 @@ async def complete_tasks(ctx, params: CompleteTasksParams) -> ActionResult:
     if failed:
         summary += f" {failed} failed."
 
+    completed_ids = [row["task_id"] for row in results if row["ok"]]
+    undo_action = None
+    if completed_ids:
+        undo_action = {
+            "action": "call",
+            "function": "uncomplete_tasks",
+            "params": {"task_ids": completed_ids},
+            "description": f"Reopen {len(completed_ids)} completed task(s)",
+        }
+
+    return ActionResult.success(
+        summary=summary,
+        data={
+            "succeeded_count": succeeded,
+            "failed_count": failed,
+            "results": results,
+            "refresh_panels": ["sidebar", "editor"],
+        },
+        undo=undo_action,
+    )
+
+
+@chat.function(
+    "uncomplete_tasks",
+    action_type="write",
+    chain_callable=True,
+    effects=["update:task"],
+    event="tasks.reopened",
+    description=(
+        "Reopen MULTIPLE completed tasks at once. Pass task_ids (list of integers) "
+        "or task_titles (list of names). This is also the batch inverse of complete_tasks."
+    ),
+    data_model=BulkTaskResult,
+)
+async def uncomplete_tasks(ctx, params: CompleteTasksParams) -> ActionResult:
+    """Reopen a set of tasks concurrently, reported per task."""
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+    if not params.task_ids and not params.task_titles:
+        return ActionResult.error("Pass task_ids or task_titles.", code=VALIDATION_MISSING_FIELD)
+
+    oversized = _check_batch_size((params.task_ids or []) + (params.task_titles or []), "tasks")
+    if oversized:
+        return oversized
+    if params.project_name and not params.project_id:
+        params.project_id = await resolve_project_id(ctx, imperal_id, params.project_name)
+
+    sem = asyncio.Semaphore(_BULK_CONCURRENCY)
+    refs = await _resolve_task_refs(
+        ctx, imperal_id, sem, params.task_ids, params.task_titles, params.project_id,
+    )
+    results = await _run_task_batch(
+        ctx, refs, sem, "reopened",
+        lambda tid: api_post(
+            ctx, f"/v1/tasks/{tid}",
+            {"imperal_id": imperal_id, "done": False, "percent_done": 0.0},
+        ),
+    )
+    succeeded = sum(1 for row in results if row["ok"])
+    failed = len(results) - succeeded
+    summary = f"Reopened {succeeded} task(s)."
+    if failed:
+        summary += f" {failed} failed."
     return ActionResult.success(
         summary=summary,
         data={

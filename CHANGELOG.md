@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.43.0] — 2026-09-07
+
+### Added
+
+- **Batch Undo & Reopen (`uncomplete_tasks`)** — `complete_tasks` now emits a full `undo` descriptor pointing to `uncomplete_tasks`, restoring state across all completed items in one click.
+- **Automated Test Suite Expansion** — added `tests/test_complete_tasks_undo.py` verifying multi-task completion with time-travel undo and batch reopening.
+
 ## [3.42.0] — 2026-09-07
 
 ### Added

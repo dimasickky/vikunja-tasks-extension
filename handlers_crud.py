@@ -402,10 +402,12 @@ async def _complete_task_impl(ctx, params: CompleteTaskParams) -> ActionResult:
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't complete task"), code=TASKS_BRIDGE_ERROR)
 
+    undo_action = {"action": "call", "function": "uncomplete_task", "params": {"task_id": params.task_id}}
     return ActionResult.success(
         summary=f"Task completed: {resp.get('title', params.task_id)}.",
         data={"task_id": resp.get("id", params.task_id), "done": resp.get("done", True),
               "refresh_panels": ["sidebar", "editor"]},
+        undo=undo_action,
     )
 
 

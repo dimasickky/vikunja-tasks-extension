@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.42.0] — 2026-09-07
+
+### Added
+
+- **Semantic Omnisearch (`@ext.search_provider`)** — registered `tasks` search provider for Cmd+K search across Vikunja tasks.
+- **Stale-While-Revalidate Caching** — added `stale_while_revalidate=True, cache_ttl=60` to sidebar panel for instant UI rendering.
+- **Action Ledger & Time-Travel (`ActionResult.success(undo=...)`)** — `complete_task` now includes an `undo` descriptor targeting `uncomplete_task`.
+
+### Changed
+
+- **imperal-sdk 5.13.1 → 5.15.1** — bumped SDK requirement and regenerated manifest.
+
 ## [3.41.1] — 2026-08-31
 
 ### Changed

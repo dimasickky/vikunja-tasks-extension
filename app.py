@@ -156,7 +156,7 @@ async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | N
 
 ext = Extension(
     "tasks",
-    version="3.41.1",
+    version="3.42.0",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Vikunja Tasks Connector",
     description=(
@@ -166,6 +166,49 @@ ext = Extension(
     icon="icon.svg",
     actions_explicit=True,
 )
+
+
+# ─── Semantic Omnisearch Provider (SDK 5.15+) ─────────────────────────────── #
+
+from imperal_sdk.search import SearchEntityResult
+
+
+@ext.search_provider("tasks", description="Search personal Vikunja tasks by title or project")
+async def search_provider_tasks(ctx, query: str) -> list[SearchEntityResult]:
+    """Provide search results for global Cmd+K omnisearch."""
+    imperal_id = imperal_id_of(ctx)
+    if not imperal_id or not query or not query.strip():
+        return []
+    try:
+        resp = await api_get(ctx, "/v1/tasks/all", {
+            "imperal_id": imperal_id,
+            "search": query.strip(),
+            "per_page": 10,
+        })
+        tasks = resp if isinstance(resp, list) else []
+        results = []
+        for t in tasks:
+            tid = str(t.get("id", ""))
+            title = t.get("title", "Untitled")
+            desc = t.get("description", "")
+            snippet = desc[:120] if desc else (f"Priority: {t.get('priority', 0)} · Done: {t.get('done', False)}")
+            results.append(SearchEntityResult(
+                id=tid,
+                title=title,
+                type="task",
+                snippet=snippet,
+                url=f"/workspace/tasks?task_id={tid}",
+                metadata={
+                    "project_id": t.get("project_id"),
+                    "bucket_id": t.get("bucket_id"),
+                    "done": t.get("done", False),
+                },
+            ))
+        return results
+    except Exception as exc:
+        log.warning("search_provider_tasks failed: %s", exc)
+        return []
+
 
 chat = ChatExtension(
     ext=ext,

@@ -1,8 +1,8 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.13.1",
+  "sdk_version": "5.15.1",
   "app_id": "tasks",
-  "version": "3.41.1",
+  "version": "3.42.0",
   "name": "Vikunja Tasks Connector",
   "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
@@ -10290,6 +10290,13 @@
       "scope": "app"
     }
   ],
+  "search_providers": [
+    {
+      "entity_type": "tasks",
+      "handler": "search_provider_tasks",
+      "description": "Search personal Vikunja tasks by title or project"
+    }
+  ],
   "panels": [
     {
       "panel_id": "secrets",
@@ -10298,7 +10305,9 @@
       "tree": {},
       "icon": "KeyRound",
       "refresh": "manual",
-      "center_overlay": false
+      "center_overlay": false,
+      "stale_while_revalidate": true,
+      "cache_ttl": 60
     },
     {
       "panel_id": "sidebar",
@@ -10308,6 +10317,8 @@
       "icon": "Kanban",
       "refresh": "on_event:tasks.connection.created,tasks.connection.deleted,tasks.task.created,tasks.task.updated,tasks.task.completed,tasks.task.uncompleted,tasks.task.deleted,tasks.project.created,tasks.project.updated,tasks.project.archived,tasks.project.deleted",
       "center_overlay": false,
+      "stale_while_revalidate": true,
+      "cache_ttl": 60,
       "default_width": 280,
       "min_width": 240,
       "max_width": 420
@@ -10319,7 +10330,9 @@
       "tree": {},
       "icon": "Kanban",
       "refresh": "on_event:tasks.task.created,tasks.task.updated,tasks.task.completed,tasks.task.uncompleted,tasks.task.deleted,tasks.task.moved,tasks.task.bucket_changed,tasks.task.due_changed,tasks.task.priority_changed,tasks.task.commented,tasks.task.mentioned,tasks.task.labeled,tasks.task.unlabeled,tasks.task.assigned,tasks.task.unassigned,tasks.project.created,tasks.project.updated,tasks.project.archived,tasks.project.deleted",
-      "center_overlay": false
+      "center_overlay": false,
+      "stale_while_revalidate": true,
+      "cache_ttl": 60
     }
   ]
 }

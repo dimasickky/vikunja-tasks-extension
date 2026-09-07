@@ -33,6 +33,8 @@ log = logging.getLogger("tasks.panels")
     default_width=280,
     min_width=240,
     max_width=420,
+    stale_while_revalidate=True,
+    cache_ttl=60,
     refresh=(
         "on_event:tasks.connection.created,tasks.connection.deleted,"
         "tasks.task.created,tasks.task.updated,tasks.task.completed,"

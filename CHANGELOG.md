@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.44.0] — 2026-09-16
+
+### Added
+
+- **Guaranteed Task Placement & Kanban Defaulting (`create_task`)** — `create_task` now resolves `bucket_name` or defaults to `Planned`, and guarantees placement via Vikunja's dedicated join-table endpoint `.../views/{view_id}/buckets/{bucket_id}/tasks` (overcoming Vikunja's PUT task API limitation where `bucket_id` is ignored on creation).
+- **Automated Test Suite Expansion** — added `tests/test_create_task_bucket.py` verifying explicit bucket resolution and automatic fallback to `Planned`.
+- **Standard Kanban Alignment** — unified canonical bucket structures without `Inbox`: `Planned` -> `To-do` -> `In Progress` -> `For Review` -> `Completed (Done)`.
+
 ## [3.43.0] — 2026-09-07
 
 ### Added

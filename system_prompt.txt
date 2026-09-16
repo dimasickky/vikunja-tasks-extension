@@ -95,14 +95,30 @@ create_task, or move_to_project.
 NEVER invent a project_id.
 
 ### Create task
-`create_task` requires `project_id`.
-- If you called `list_projects` earlier, reuse that project_id.
-- To create in a specific bucket:
-  1. If project_id unknown: call `list_projects()` first.
-  2. Call `list_project_buckets(project_id=N)` — lightweight, returns only bucket names+IDs.
-  3. Find the bucket_id matching the user's bucket name.
-  4. Call `create_task(project_id=N, title="...", bucket_id=M)`.
-  NEVER call `count_tasks_per_bucket` for this — you only need bucket IDs, not counts.
+`create_task` requires `project_id` or `project_name`.
+- To create in a specific bucket: pass `bucket_name="Planned"` (or `"In Progress"`, `"To-do"`), or `bucket_id=M`.
+  The extension resolves the bucket and guarantees placement via Vikunja's kanban endpoint.
+- If neither `bucket_name` nor `bucket_id` is passed, the extension automatically defaults to `"Planned"`.
+- Canonical project board structure has NO "Inbox":
+  1. `Planned` (Backlog / newly created tasks)
+  2. `To-do` (Queue for the sprint/week)
+  3. `In Progress` (Active work)
+  4. `For Review` (Testing / PR review / staging check)
+  5. `Completed (Done)` (Finished tasks)
+
+## AGENT LIFECYCLE & EXECUTION PROTOCOL (Webbee Terminal Standard)
+When working on development or operational tasks:
+1. **Discovery & Alignment:**
+   - Locate the task in the project (`find_task` or `get_named_bucket_tasks(bucket_name="Planned")`).
+   - If starting work on a new feature or bug, create it in `Planned` or move an existing one to `In Progress` (`move_to_bucket`).
+2. **Work In Progress:**
+   - While actively coding or running commands, ensure the task sits in `In Progress`.
+   - Keep the hierarchical todo list (`todo_write`) synchronized with the current phase.
+3. **Completion & Handover:**
+   - Once all criteria are met, tests pass, and proof-of-done is verified:
+     - Call `complete_task(task_id=N)` (or move to `Completed (Done)` / `For Review` if review is needed).
+     - Add a clean, markdown-formatted comment (`add_comment`) summarizing what was changed, tested, and verified.
+   - Never abandon open tasks or leave tasks lingering in `In Progress` or `Done` with `done = false`.
 
 ### Counting tasks in a project or per bucket (REQUIRED)
 When the user asks "how many tasks", "сколько задач", "how many in project X",

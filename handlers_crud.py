@@ -283,29 +283,49 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
     if params.project_id is None:
         return ActionResult.error("Pass project_id or project_name.", code=VALIDATION_MISSING_FIELD)
 
-    # Resolve bucket_name → bucket_id if caller passed a name instead of ID.
-    if params.bucket_name and not params.bucket_id:
-        _KANBAN_VIEW_KINDS = {"kanban", 4}
-        views_resp = await api_get(ctx, f"/v1/projects/{params.project_id}/views", {"imperal_id": imperal_id})
-        views = views_resp if isinstance(views_resp, list) else []
-        kanban_view = next((v for v in views if v.get("view_kind") in _KANBAN_VIEW_KINDS), None)
-        if kanban_view:
-            buckets_resp = await api_get(
-                ctx,
-                f"/v1/projects/{params.project_id}/views/{kanban_view['id']}/buckets",
-                {"imperal_id": imperal_id},
-            )
-            buckets = buckets_resp if isinstance(buckets_resp, list) else []
-            name_lower = params.bucket_name.strip().lower()
+    # Resolve target bucket for Kanban view:
+    # 1) If bucket_name is given, resolve by name.
+    # 2) If no bucket_name and no bucket_id, default to standard "Planned" (or first non-Done bucket).
+    target_bucket_id: Optional[int] = params.bucket_id
+    target_bucket_name: Optional[str] = params.bucket_name
+    target_view_id: Optional[int] = None
+
+    from handlers_structure import _get_kanban_view_id
+    kanban_view_id, _ = await _get_kanban_view_id(ctx, imperal_id, params.project_id)
+    if kanban_view_id:
+        target_view_id = kanban_view_id
+        buckets_resp = await api_get(
+            ctx,
+            f"/v1/projects/{params.project_id}/views/{kanban_view_id}/tasks",
+            {"imperal_id": imperal_id},
+        )
+        buckets = buckets_resp if isinstance(buckets_resp, list) else []
+        if target_bucket_name and not target_bucket_id:
+            name_lower = target_bucket_name.strip().lower()
             matched = (
                 next((b for b in buckets if (b.get("title") or "").strip().lower() == name_lower), None)
                 or next((b for b in buckets if (b.get("title") or "").strip().lower().startswith(name_lower)), None)
                 or next((b for b in buckets if name_lower in (b.get("title") or "").strip().lower()), None)
             )
             if matched:
-                params.bucket_id = matched["id"]
+                target_bucket_id = matched["id"]
+                target_bucket_name = matched.get("title")
             else:
                 log.warning("create_task: bucket '%s' not found in project %s", params.bucket_name, params.project_id)
+        elif not target_bucket_id and not target_bucket_name and buckets:
+            # Standard canonical default: Planned
+            planned_bucket = next((b for b in buckets if (b.get("title") or "").strip().lower() == "planned"), None)
+            if planned_bucket:
+                target_bucket_id = planned_bucket["id"]
+                target_bucket_name = planned_bucket.get("title")
+            else:
+                # If no "Planned", pick the first bucket that is NOT Done/Completed/Archive
+                first_open = next(
+                    (b for b in buckets if (b.get("title") or "").strip().lower() not in {"done", "completed (done)", "archive", "archieve", "cancelled"}),
+                    buckets[0],
+                )
+                target_bucket_id = first_open["id"]
+                target_bucket_name = first_open.get("title")
 
     payload = {
         "imperal_id":  imperal_id,
@@ -315,13 +335,28 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
     }
     if params.due_date is not None:    payload["due_date"] = params.due_date
     if params.priority is not None:    payload["priority"] = params.priority
-    if params.bucket_id is not None:   payload["bucket_id"] = params.bucket_id
+    if target_bucket_id is not None:   payload["bucket_id"] = target_bucket_id
 
     resp = await api_post(ctx, "/v1/tasks", payload)
     if resp.get("status") == "error":
         return ActionResult.error(_bridge_error_msg(resp, "Couldn't create task"), code=TASKS_BRIDGE_ERROR)
 
     task_id = resp["id"]
+
+    # Vikunja's PUT /projects/{id}/tasks ignores bucket_id in request body and drops
+    # the task into whichever bucket is physically first by position.
+    # We guarantee placement by explicitly calling the dedicated bucket move endpoint!
+    actual_bucket_id = target_bucket_id or resp.get("bucket_id", 0)
+    if target_view_id and target_bucket_id:
+        move_resp = await api_post(
+            ctx,
+            f"/v1/projects/{params.project_id}/views/{target_view_id}/buckets/{target_bucket_id}/tasks",
+            {"imperal_id": imperal_id, "task_id": task_id},
+        )
+        if isinstance(move_resp, dict) and move_resp.get("status") == "error":
+            log.warning("create_task: post-create bucket placement to #%s failed: %s", target_bucket_id, move_resp)
+        else:
+            actual_bucket_id = target_bucket_id
     assigned_name: Optional[str] = None
 
     if params.assignee:
@@ -341,16 +376,18 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
         "project_id": resp["project_id"],
         "due_date":   resp.get("due_date"),
         "priority":   resp.get("priority", 0),
-        "bucket_id":  resp.get("bucket_id", 0),
+        "bucket_id":  actual_bucket_id,
         "refresh_panels": ["sidebar", "editor"],
     }
     if assigned_name is not None:
         result_data["assignee"] = assigned_name
 
-    summary = f"Task created: {resp['title']} (project #{resp['project_id']})"
+    summary = f"Task created: {resp['title']} (project #{resp['project_id']}"
+    if target_bucket_name:
+        summary += f", bucket '{target_bucket_name}'"
     if assigned_name:
         summary += f", assigned to {assigned_name}"
-    summary += "."
+    summary += ")."
 
     return ActionResult.success(summary=summary, data=result_data)
 

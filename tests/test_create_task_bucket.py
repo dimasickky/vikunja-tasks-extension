@@ -83,3 +83,28 @@ async def test_create_task_defaults_to_todo_bucket():
     assert res.data["task_id"] == 102
     assert res.data["bucket_id"] == 439
     assert "To-do" in res.summary
+
+
+async def test_create_task_adapts_to_custom_board_structure():
+    """When a board has custom domain columns (e.g. 'Ideation', 'Drafting', 'Published'),
+    tasks without bucket_name adaptively land in the first open intake column."""
+    ctx = MockContext()
+
+    ctx.http.mock_get(_buckets_url(55, 301), [
+        {"id": 501, "title": "Ideation"},
+        {"id": 502, "title": "Drafting"},
+        {"id": 503, "title": "Published"},
+    ])
+    ctx.http.mock_get(_views_url(55), [{"id": 301, "view_kind": "kanban"}])
+    ctx.http.mock_post(_tasks_url(), {"id": 103, "project_id": 55, "title": "New article idea"})
+    ctx.http.mock_post(_bucket_tasks_url(55, 301, 501), {"task_id": 103, "bucket_id": 501})
+
+    res = await hc.create_task(ctx, CreateTaskParams(
+        project_id=55,
+        title="New article idea",
+    ))
+
+    assert res.status == "success"
+    assert res.data["task_id"] == 103
+    assert res.data["bucket_id"] == 501
+    assert "Ideation" in res.summary

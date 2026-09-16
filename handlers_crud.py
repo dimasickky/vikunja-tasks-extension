@@ -313,22 +313,28 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
             else:
                 log.warning("create_task: bucket '%s' not found in project %s", params.bucket_name, params.project_id)
         elif not target_bucket_id and not target_bucket_name and buckets:
-            # Standard canonical default: To-do (or Planned for backwards compatibility)
+            # Flexible default bucket selection:
+            # 1. Match common backlog/intake column names (To-do, Todo, Planned, Backlog, Inbox, Ideas, New) in any case/language.
+            # 2. Otherwise pick the first column that is NOT closed/terminal (Done, Completed, Closed, Archive, Cancelled).
+            # 3. Fallback to the very first bucket on the board.
+            _intake_names = {
+                "to-do", "todo", "planned", "backlog", "inbox", "new", "ideas", "tasks",
+                "к выполнению", "нужно сделать", "бэклог", "входящие", "новые", "идеи", "планы", "задачи",
+            }
             default_bucket = (
-                next((b for b in buckets if (b.get("title") or "").strip().lower() in {"to-do", "todo"}), None)
-                or next((b for b in buckets if (b.get("title") or "").strip().lower() == "planned"), None)
+                next((b for b in buckets if (b.get("title") or "").strip().lower() in _intake_names), None)
+                or next(
+                    (b for b in buckets if (b.get("title") or "").strip().lower() not in {
+                        "done", "completed", "completed (done)", "closed", "archive", "archieve", "cancelled", "canceled",
+                        "готово", "сделано", "завершено", "закрыто", "архив", "отменено",
+                    }),
+                    None,
+                )
+                or (buckets[0] if buckets else None)
             )
             if default_bucket:
                 target_bucket_id = default_bucket["id"]
                 target_bucket_name = default_bucket.get("title")
-            else:
-                # If neither To-do nor Planned, pick the first bucket that is NOT Done/Completed/Archive
-                first_open = next(
-                    (b for b in buckets if (b.get("title") or "").strip().lower() not in {"done", "completed (done)", "archive", "archieve", "cancelled"}),
-                    buckets[0],
-                )
-                target_bucket_id = first_open["id"]
-                target_bucket_name = first_open.get("title")
 
     payload = {
         "imperal_id":  imperal_id,

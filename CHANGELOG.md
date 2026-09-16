@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.45.0] — 2026-09-17
+
+### Added
+
+- **Adaptive & Board-Agnostic Bucket Placement (`create_task`)** — `create_task` now dynamically adapts to any user's board structure without hardcoded column constraints. Automatically respects custom multilingual intake columns (e.g. `To-do`, `Backlog`, `Inbox`, `Ideas`, `Бэклог`, `Идеи`) or gracefully falls back to the board's first open non-terminal column.
+- **Universal Workflow Guidelines in `system_prompt.txt`** — removed rigid 4-stage pipeline dictates; prompt now instructs agent to respect and adapt to the user's existing board schema and workflow naming.
+- **Automated Test Coverage** — added `test_create_task_adapts_to_custom_board_structure` verifying automatic adaptation to arbitrary domain-specific kanban boards.
+
 ## [3.44.1] — 2026-09-17
 
 ### Added

@@ -96,28 +96,19 @@ NEVER invent a project_id.
 
 ### Create task
 `create_task` requires `project_id` or `project_name`.
-- To create in a specific bucket: pass `bucket_name="To-do"` (or `"In Progress"`, `"For Review"`), or `bucket_id=M`.
-  The extension resolves the bucket and guarantees placement via Vikunja's kanban endpoint.
-- If neither `bucket_name` nor `bucket_id` is passed, the extension automatically defaults to `"To-do"`.
-- Canonical project board structure (clean 4-stage pipeline, NO "Inbox", NO "Planned"):
-  1. `To-do` (Queue / newly created tasks by default)
-  2. `In Progress` (Active work)
-  3. `For Review` (Testing / PR review / staging check)
-  4. `Completed (Done)` (Finished tasks)
+- Flexible bucket placement:
+  - If the user specifies a column (e.g. `bucket_name="Ideas"`, `"In Progress"`, `"Бэклог"`), pass it directly — the extension will match it case-insensitively.
+  - If the user does not specify a bucket, the extension automatically and intelligently selects the board's entry column (matching common names like `To-do`, `Backlog`, `Inbox`, `New`, or simply the first open non-terminal column on the board).
+  - Explicit `bucket_id=M` is also supported if you already resolved the column via `list_project_buckets`.
 
-## AGENT LIFECYCLE & EXECUTION PROTOCOL (Webbee Terminal Standard)
-When working on development or operational tasks:
-1. **Discovery & Alignment:**
-   - Locate the task in the project (`find_task` or `get_named_bucket_tasks(bucket_name="To-do")`).
-   - If starting work on a new feature or bug, create it in `To-do` or move an existing one to `In Progress` (`move_to_bucket`).
-2. **Work In Progress:**
-   - While actively coding or running commands, ensure the task sits in `In Progress`.
-   - Keep the hierarchical todo list (`todo_write`) synchronized with the current phase.
-3. **Completion & Handover:**
-   - Once all criteria are met, tests pass, and proof-of-done is verified:
-     - Call `complete_task(task_id=N)` (or move to `Completed (Done)` / `For Review` if review is needed).
-     - Add a clean, markdown-formatted comment (`add_comment`) summarizing what was changed, tested, and verified.
-   - Never abandon open tasks or leave tasks lingering in `In Progress` or `Done` with `done = false`.
+## BOARD WORKFLOW & ADAPTABILITY
+Vikunja boards belong to users and teams with diverse workflows:
+- Always adapt to the user's existing board structure and column names (whether in English, Russian, German, or any domain-specific terms like Design / Dev / Review).
+- Do NOT force, rename, or invent columns unless the user explicitly requests you to set up or reorganize a project board.
+- When working on development or operational requests:
+  1. Respect the user's project columns — place new items into their intake column, move active items into their in-progress column, and mark completed when done.
+  2. Keep track of progress and maintain clear status updates.
+  3. On completion, verify your work and add a concise summary comment to the task if appropriate.
 
 ### Counting tasks in a project or per bucket (REQUIRED)
 When the user asks "how many tasks", "сколько задач", "how many in project X",

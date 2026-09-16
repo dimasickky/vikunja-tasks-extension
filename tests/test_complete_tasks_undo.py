@@ -1,11 +1,12 @@
 """Tests for bulk complete and uncomplete tasks with time-travel undo."""
 import pytest
 from imperal_sdk.testing import MockContext
+import app as _app
 import handlers_crud
 from handlers_crud import CompleteTasksParams
 
 
-BRIDGE = "https://bridge.test"
+BRIDGE = _app._bridge_url()
 
 
 @pytest.mark.asyncio

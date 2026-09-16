@@ -58,21 +58,21 @@ async def test_create_task_with_explicit_bucket_name_moves_to_bucket():
     assert "In Progress" in res.summary
 
 
-async def test_create_task_defaults_to_planned_bucket():
-    """When no bucket is passed, task must automatically default to 'Planned'."""
+async def test_create_task_defaults_to_todo_bucket():
+    """When no bucket is passed, task must automatically default to 'To-do'."""
     ctx = MockContext()
 
     # In MockHTTP, pattern in url matches as a substring!
     # /v1/projects/{id}/views is a substring of /v1/projects/{id}/views/{view_id}/tasks!
     # So we register the more specific subpath FIRST:
     ctx.http.mock_get(_buckets_url(88, 412), [
-        {"id": 316, "title": "Planned"},
+        {"id": 439, "title": "To-do"},
         {"id": 322, "title": "In Progress"},
         {"id": 445, "title": "Completed (Done)"},
     ])
     ctx.http.mock_get(_views_url(88), [{"id": 412, "view_kind": "kanban"}])
     ctx.http.mock_post(_tasks_url(), {"id": 102, "project_id": 88, "title": "New backlog task"})
-    ctx.http.mock_post(_bucket_tasks_url(88, 412, 316), {"task_id": 102, "bucket_id": 316})
+    ctx.http.mock_post(_bucket_tasks_url(88, 412, 439), {"task_id": 102, "bucket_id": 439})
 
     res = await hc.create_task(ctx, CreateTaskParams(
         project_id=88,
@@ -81,5 +81,5 @@ async def test_create_task_defaults_to_planned_bucket():
 
     assert res.status == "success"
     assert res.data["task_id"] == 102
-    assert res.data["bucket_id"] == 316
-    assert "Planned" in res.summary
+    assert res.data["bucket_id"] == 439
+    assert "To-do" in res.summary

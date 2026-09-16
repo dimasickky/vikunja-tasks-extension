@@ -313,13 +313,16 @@ async def _create_task_impl(ctx, params: CreateTaskParams) -> ActionResult:
             else:
                 log.warning("create_task: bucket '%s' not found in project %s", params.bucket_name, params.project_id)
         elif not target_bucket_id and not target_bucket_name and buckets:
-            # Standard canonical default: Planned
-            planned_bucket = next((b for b in buckets if (b.get("title") or "").strip().lower() == "planned"), None)
-            if planned_bucket:
-                target_bucket_id = planned_bucket["id"]
-                target_bucket_name = planned_bucket.get("title")
+            # Standard canonical default: To-do (or Planned for backwards compatibility)
+            default_bucket = (
+                next((b for b in buckets if (b.get("title") or "").strip().lower() in {"to-do", "todo"}), None)
+                or next((b for b in buckets if (b.get("title") or "").strip().lower() == "planned"), None)
+            )
+            if default_bucket:
+                target_bucket_id = default_bucket["id"]
+                target_bucket_name = default_bucket.get("title")
             else:
-                # If no "Planned", pick the first bucket that is NOT Done/Completed/Archive
+                # If neither To-do nor Planned, pick the first bucket that is NOT Done/Completed/Archive
                 first_open = next(
                     (b for b in buckets if (b.get("title") or "").strip().lower() not in {"done", "completed (done)", "archive", "archieve", "cancelled"}),
                     buckets[0],

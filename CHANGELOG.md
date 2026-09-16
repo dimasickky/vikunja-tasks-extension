@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.44.1] — 2026-09-17
+
+### Added
+
+- **Streamlined 4-Stage Kanban Pipeline & Default `To-do`** — eliminated redundant `Planned` and `Inbox` columns across all projects (`WebHostMost HQ`, `Imperal Cloud`, `wpanel`). All backlogs merged directly into `To-do`. `create_task` now defaults directly to `To-do` while retaining fallback support for `Planned`.
+- **Automated Test Suite Expansion** — updated `tests/test_create_task_bucket.py` verifying explicit bucket placement and automatic defaulting to `To-do`.
+
 ## [3.44.0] — 2026-09-16
 
 ### Added

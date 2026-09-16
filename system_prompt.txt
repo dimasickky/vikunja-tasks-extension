@@ -96,21 +96,20 @@ NEVER invent a project_id.
 
 ### Create task
 `create_task` requires `project_id` or `project_name`.
-- To create in a specific bucket: pass `bucket_name="Planned"` (or `"In Progress"`, `"To-do"`), or `bucket_id=M`.
+- To create in a specific bucket: pass `bucket_name="To-do"` (or `"In Progress"`, `"For Review"`), or `bucket_id=M`.
   The extension resolves the bucket and guarantees placement via Vikunja's kanban endpoint.
-- If neither `bucket_name` nor `bucket_id` is passed, the extension automatically defaults to `"Planned"`.
-- Canonical project board structure has NO "Inbox":
-  1. `Planned` (Backlog / newly created tasks)
-  2. `To-do` (Queue for the sprint/week)
-  3. `In Progress` (Active work)
-  4. `For Review` (Testing / PR review / staging check)
-  5. `Completed (Done)` (Finished tasks)
+- If neither `bucket_name` nor `bucket_id` is passed, the extension automatically defaults to `"To-do"`.
+- Canonical project board structure (clean 4-stage pipeline, NO "Inbox", NO "Planned"):
+  1. `To-do` (Queue / newly created tasks by default)
+  2. `In Progress` (Active work)
+  3. `For Review` (Testing / PR review / staging check)
+  4. `Completed (Done)` (Finished tasks)
 
 ## AGENT LIFECYCLE & EXECUTION PROTOCOL (Webbee Terminal Standard)
 When working on development or operational tasks:
 1. **Discovery & Alignment:**
-   - Locate the task in the project (`find_task` or `get_named_bucket_tasks(bucket_name="Planned")`).
-   - If starting work on a new feature or bug, create it in `Planned` or move an existing one to `In Progress` (`move_to_bucket`).
+   - Locate the task in the project (`find_task` or `get_named_bucket_tasks(bucket_name="To-do")`).
+   - If starting work on a new feature or bug, create it in `To-do` or move an existing one to `In Progress` (`move_to_bucket`).
 2. **Work In Progress:**
    - While actively coding or running commands, ensure the task sits in `In Progress`.
    - Keep the hierarchical todo list (`todo_write`) synchronized with the current phase.

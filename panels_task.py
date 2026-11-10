@@ -95,9 +95,8 @@ def _render_edit_form(
     project_id = task.get("project_id", 0)
 
     actions = [
-        ui.Button("Back", icon="ArrowLeft", variant="ghost", size="sm",
-                  on_click=ui.Call("__panel__editor", note_id=str(project_id), project_id=str(project_id),
-                                   task_id="", mode="", bucket_id="")),
+        ui.BackButton(on_click=ui.Call("__panel__editor", note_id=str(project_id), project_id=str(project_id),
+                                       task_id="", mode="", bucket_id="")),
     ]
     if not done:
         actions.append(ui.Button("Complete", icon="Check", variant="primary", size="sm",

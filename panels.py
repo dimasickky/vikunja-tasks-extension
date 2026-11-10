@@ -72,10 +72,20 @@ async def tasks_sidebar(ctx, view: str = "main", active_project_id: str = "", **
             return _render_connect(view, banner="Connection to Vikunja was lost — please reconnect.")
         children.append(ui.Card(
             title="Projects",
-            content=ui.Empty(
-                message="Couldn't load projects. Try refreshing the page.",
-                icon="AlertTriangle",
-            ),
+            content=ui.Stack([
+                ui.Alert(
+                    title="Load Error",
+                    message="Couldn't load projects from Vikunja. Check connection or try again.",
+                    type="error",
+                ),
+                ui.Button(
+                    "Try again",
+                    icon="RotateCcw",
+                    variant="secondary",
+                    size="sm",
+                    on_click=ui.Call("__panel__sidebar"),
+                ),
+            ], gap=1),
         ))
         children.append(_footer(conn))
         return ui.Stack(children=children, gap=2)

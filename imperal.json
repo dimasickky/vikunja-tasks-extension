@@ -1,9 +1,9 @@
 {
   "sdk_version": "6.5.3",
   "app_id": "tasks",
-  "version": "3.45.1",
+  "version": "3.46.0",
   "name": "Vikunja Tasks Connector",
-  "description": "Kanban task manager connecting to your own Vikunja instance — create, assign, filter tasks and manage projects and labels.",
+  "description": "Kanban task manager connecting to your own Vikunja instance \u2014 create, assign, filter tasks and manage projects and labels.",
   "icon": "icon.svg",
   "actions_explicit": true,
   "system": false,
@@ -119,7 +119,7 @@
     },
     {
       "name": "connect_vikunja_with_pat",
-      "description": "Advanced connect: user pastes a pre-existing Vikunja Personal Access Token (Settings → API tokens in their Vikunja UI). The PAT is encrypted on bridge and stored at rest.",
+      "description": "Advanced connect: user pastes a pre-existing Vikunja Personal Access Token (Settings \u2192 API tokens in their Vikunja UI). The PAT is encrypted on bridge and stored at rest.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -136,7 +136,7 @@
           },
           "pat": {
             "default": "",
-            "description": "Vikunja Personal Access Token (Settings → API tokens).",
+            "description": "Vikunja Personal Access Token (Settings \u2192 API tokens).",
             "title": "Pat",
             "type": "string"
           }
@@ -238,7 +238,7 @@
     },
     {
       "name": "get_connection_status",
-      "description": "Check whether the user has a Vikunja connected (read-only — never echoes the API token). Returns connected: bool plus base_url and username when connected.",
+      "description": "Check whether the user has a Vikunja connected (read-only \u2014 never echoes the API token). Returns connected: bool plus base_url and username when connected.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -298,7 +298,7 @@
     },
     {
       "name": "create_task",
-      "description": "Create a new task in a project. Pass project_name (e.g. 'webhostmost tasks') or project_id. The assignee field handles assignment internally — do NOT add a separate assign_task step. priority must be an integer: 0=none 1=low 2=medium 3=high 4=urgent 5=critical. due_date must be full ISO 8601 with time (e.g. '2026-06-15T00:00:00Z'), never a bare date.",
+      "description": "Create a new task in a project. Pass project_name (e.g. 'webhostmost tasks') or project_id. The assignee field handles assignment internally \u2014 do NOT add a separate assign_task step. priority must be an integer: 0=none 1=low 2=medium 3=high 4=urgent 5=critical. due_date must be full ISO 8601 with time (e.g. '2026-06-15T00:00:00Z'), never a bare date.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -410,7 +410,7 @@
               }
             ],
             "default": null,
-            "description": "Name or email of person to assign (e.g. 'dmitrii@webhostmost.com'). Auto-resolved to Vikunja user. Optional — task is created even if resolution fails.",
+            "description": "Name or email of person to assign (e.g. 'dmitrii@webhostmost.com'). Auto-resolved to Vikunja user. Optional \u2014 task is created even if resolution fails.",
             "title": "Assignee"
           }
         },
@@ -767,7 +767,7 @@
     },
     {
       "name": "uncomplete_task",
-      "description": "Reopen a task — mark it as not done (done=false, percent_done=0). Inverse of complete_task.",
+      "description": "Reopen a task \u2014 mark it as not done (done=false, percent_done=0). Inverse of complete_task.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -1610,7 +1610,7 @@
             "x-sdl": "entity"
           }
         },
-        "description": "list_subtasks return — a REAL sdl.EntityList[SubtaskItem] (items=[...],\ntotal=N, x-sdl='entity-list'). Parent task_id carried as an additive typed field.",
+        "description": "list_subtasks return \u2014 a REAL sdl.EntityList[SubtaskItem] (items=[...],\ntotal=N, x-sdl='entity-list'). Parent task_id carried as an additive typed field.",
         "properties": {
           "items": {
             "items": {
@@ -2274,7 +2274,7 @@
               }
             ],
             "default": null,
-            "description": "e.g. 'ff5500' — without '#'.",
+            "description": "e.g. 'ff5500' \u2014 without '#'.",
             "title": "Hex Color"
           }
         },
@@ -2432,7 +2432,7 @@
     },
     {
       "name": "archive_project",
-      "description": "Archive a project (is_archived=true) — hide from active views but keep data.",
+      "description": "Archive a project (is_archived=true) \u2014 hide from active views but keep data.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -2540,7 +2540,7 @@
     },
     {
       "name": "list_labels",
-      "description": "List all labels on this Vikunja instance. Returns label_id and title. Call this first when the user refers to a label by name — then use the returned label_id in add_label.",
+      "description": "List all labels on this Vikunja instance. Returns label_id and title. Call this first when the user refers to a label by name \u2014 then use the returned label_id in add_label.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -2697,7 +2697,7 @@
     },
     {
       "name": "delete_label",
-      "description": "Permanently delete a label — removes it from all tasks.",
+      "description": "Permanently delete a label \u2014 removes it from all tasks.",
       "action_type": "destructive",
       "chain_callable": true,
       "effects": [
@@ -2752,7 +2752,7 @@
     },
     {
       "name": "list_projects",
-      "description": "List all active (non-archived) projects. Returns project_id and title. ALWAYS call this first when the user refers to a project by name — then use the returned project_id in list_project_buckets, filter_tasks, or create_task.",
+      "description": "List all active (non-archived) projects. Returns project_id and title. ALWAYS call this first when the user refers to a project by name \u2014 then use the returned project_id in list_project_buckets, filter_tasks, or create_task.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -2766,7 +2766,7 @@
       "return_schema": {
         "$defs": {
           "ProjectItem": {
-            "description": "Slim SDL project entity for project list results.\n\nCarries `is_archived` / `is_favorite` so the narrator can answer\n\"show favorited / archived projects\" by filtering the facts itself.\n(Progress counts are intentionally NOT here — Vikunja's project object\nhas none; computing them needs an N× bucket_counts fan-out, which the\nskeleton already does — answer \"% complete\" from skeleton context.)",
+            "description": "Slim SDL project entity for project list results.\n\nCarries `is_archived` / `is_favorite` so the narrator can answer\n\"show favorited / archived projects\" by filtering the facts itself.\n(Progress counts are intentionally NOT here \u2014 Vikunja's project object\nhas none; computing them needs an N\u00d7 bucket_counts fan-out, which the\nskeleton already does \u2014 answer \"% complete\" from skeleton context.)",
             "properties": {
               "id": {
                 "anyOf": [
@@ -2868,7 +2868,7 @@
             "x-sdl": "entity"
           }
         },
-        "description": "list_projects — a REAL sdl.EntityList[ProjectItem] (items=[...], total=N,\nx-sdl='entity-list').",
+        "description": "list_projects \u2014 a REAL sdl.EntityList[ProjectItem] (items=[...], total=N,\nx-sdl='entity-list').",
         "properties": {
           "items": {
             "items": {
@@ -2922,7 +2922,7 @@
     },
     {
       "name": "list_project_buckets",
-      "description": "List kanban columns (buckets) for a project — their names, IDs, and task counts. Use ONLY when the user asks WHAT BUCKETS OR COLUMNS EXIST in a project. Does NOT return task content — use get_bucket_tasks for that. Pass project_name (e.g. 'webhostmost tasks') OR project_id.",
+      "description": "List kanban columns (buckets) for a project \u2014 their names, IDs, and task counts. Use ONLY when the user asks WHAT BUCKETS OR COLUMNS EXIST in a project. Does NOT return task content \u2014 use get_bucket_tasks for that. Pass project_name (e.g. 'webhostmost tasks') OR project_id.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -3091,7 +3091,7 @@
             "x-sdl": "entity"
           }
         },
-        "description": "list_project_buckets — bucket names, IDs, and task counts.",
+        "description": "list_project_buckets \u2014 bucket names, IDs, and task counts.",
         "properties": {
           "project_id": {
             "title": "Project Id",
@@ -3130,7 +3130,7 @@
     },
     {
       "name": "get_bucket_tasks",
-      "description": "Get tasks from a specific kanban bucket/column. Use when the user asks WHAT TASKS ARE IN a named bucket (e.g. 'what tasks are in Backlog?', 'show me the To-Do column', 'tasks in Corporate Tasks bucket'). Do NOT use to list all buckets — use list_project_buckets for that. Pass bucket_name (resolved automatically) OR bucket_id. project_name and project_id are optional — omit to search across all projects.",
+      "description": "Get tasks from a specific kanban bucket/column. Use when the user asks WHAT TASKS ARE IN a named bucket (e.g. 'what tasks are in Backlog?', 'show me the To-Do column', 'tasks in Corporate Tasks bucket'). Do NOT use to list all buckets \u2014 use list_project_buckets for that. Pass bucket_name (resolved automatically) OR bucket_id. project_name and project_id are optional \u2014 omit to search across all projects.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -3173,7 +3173,7 @@
               }
             ],
             "default": null,
-            "description": "Project name (e.g. 'WebHostMost Tasks'). Optional — if omitted, searches across all projects. Use this OR project_id.",
+            "description": "Project name (e.g. 'WebHostMost Tasks'). Optional \u2014 if omitted, searches across all projects. Use this OR project_id.",
             "title": "Project Name"
           },
           "project_id": {
@@ -3257,7 +3257,7 @@
             "type": "object"
           },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N\u00d7 get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) \u2014 use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -3591,7 +3591,7 @@
             "type": "object"
           }
         },
-        "description": "get_bucket_tasks / get_named_bucket_tasks — a REAL sdl.EntityList[TaskItem]\n(items=[...], total=N); bucket coordinates carried as additive typed fields.",
+        "description": "get_bucket_tasks / get_named_bucket_tasks \u2014 a REAL sdl.EntityList[TaskItem]\n(items=[...], total=N); bucket coordinates carried as additive typed fields.",
         "properties": {
           "items": {
             "items": {
@@ -3674,7 +3674,7 @@
     },
     {
       "name": "count_tasks_per_bucket",
-      "description": "Count tasks in every kanban bucket for a project — returns per-bucket totals (total, done, pending) and project-level totals. Use when the user asks 'how many tasks', 'сколько задач', 'how many tasks are in each bucket', 'total tasks in project X', 'сколько всего задач'. Pass project_name (e.g. 'WebHostMost Tasks') or project_id. Counts are exact — queried directly from the database, no pagination limits.",
+      "description": "Count tasks in every kanban bucket for a project \u2014 returns per-bucket totals (total, done, pending) and project-level totals. Use when the user asks 'how many tasks', '\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0437\u0430\u0434\u0430\u0447', 'how many tasks are in each bucket', 'total tasks in project X', '\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0432\u0441\u0435\u0433\u043e \u0437\u0430\u0434\u0430\u0447'. Pass project_name (e.g. 'WebHostMost Tasks') or project_id. Counts are exact \u2014 queried directly from the database, no pagination limits.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -3843,7 +3843,7 @@
             "x-sdl": "entity"
           }
         },
-        "description": "count_tasks_per_bucket — per-bucket and project-level task counts.",
+        "description": "count_tasks_per_bucket \u2014 per-bucket and project-level task counts.",
         "properties": {
           "project_id": {
             "title": "Project Id",
@@ -3897,7 +3897,7 @@
     },
     {
       "name": "rename_bucket",
-      "description": "Rename a kanban bucket (column) or update its WIP limit. Requires project_id and bucket_id — use list_project_buckets() first if you only know the bucket name.",
+      "description": "Rename a kanban bucket (column) or update its WIP limit. Requires project_id and bucket_id \u2014 use list_project_buckets() first if you only know the bucket name.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -3990,7 +3990,7 @@
     },
     {
       "name": "create_bucket",
-      "description": "Create a new kanban column (bucket) in a project. Requires project_id — use list_projects() first if you only know the project name. Optional WIP limit: 0 means no limit.",
+      "description": "Create a new kanban column (bucket) in a project. Requires project_id \u2014 use list_projects() first if you only know the project name. Optional WIP limit: 0 means no limit.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -4077,7 +4077,7 @@
     },
     {
       "name": "delete_bucket",
-      "description": "Delete a kanban column (bucket) from a project. Irreversible — tasks in the deleted column are moved to the project's default column, not deleted. Requires project_id and bucket_id — call list_project_buckets() first if you only know the name.",
+      "description": "Delete a kanban column (bucket) from a project. Irreversible \u2014 tasks in the deleted column are moved to the project's default column, not deleted. Requires project_id and bucket_id \u2014 call list_project_buckets() first if you only know the name.",
       "action_type": "destructive",
       "chain_callable": true,
       "effects": [
@@ -4143,7 +4143,7 @@
     },
     {
       "name": "list_project_tasks",
-      "description": "List tasks in a specific project (paginated — default 50/page, max 200). Use when the user wants to SEE task titles/details, NOT to count tasks. For counting ('how many tasks', 'сколько задач') use count_tasks_per_bucket instead — this function returns a page, not the total. Pass project_name (e.g. 'WebHostMost Tasks') or project_id.",
+      "description": "List tasks in a specific project (paginated \u2014 default 50/page, max 200). Use when the user wants to SEE task titles/details, NOT to count tasks. For counting ('how many tasks', '\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0437\u0430\u0434\u0430\u0447') use count_tasks_per_bucket instead \u2014 this function returns a page, not the total. Pass project_name (e.g. 'WebHostMost Tasks') or project_id.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -4270,7 +4270,7 @@
             "type": "object"
           },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N\u00d7 get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) \u2014 use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -4604,7 +4604,7 @@
             "type": "object"
           }
         },
-        "description": "list_project_tasks — a REAL sdl.EntityList[TaskItem] (items=[...], total=N);\nproject coordinates carried as additive typed fields.",
+        "description": "list_project_tasks \u2014 a REAL sdl.EntityList[TaskItem] (items=[...], total=N);\nproject coordinates carried as additive typed fields.",
         "properties": {
           "items": {
             "items": {
@@ -4675,7 +4675,7 @@
     },
     {
       "name": "get_project",
-      "description": "Get metadata for a single project — id, title, description, color, archived status. Pass project_id OR project_name (e.g. 'WebHostMost Tasks'). Use when user asks about a specific project or you need its ID from a name.",
+      "description": "Get metadata for a single project \u2014 id, title, description, color, archived status. Pass project_id OR project_name (e.g. 'WebHostMost Tasks'). Use when user asks about a specific project or you need its ID from a name.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -5028,7 +5028,7 @@
     },
     {
       "name": "assign_task",
-      "description": "Assign a person to a task. Pass task_name + assignee_query directly — do NOT call find_task or get_named_bucket_tasks first. If multiple tasks share the same name, also pass bucket_name to pick the right one. The bridge resolves assignee_query (name or email) to a Vikunja user ID automatically.",
+      "description": "Assign a person to a task. Pass task_name + assignee_query directly \u2014 do NOT call find_task or get_named_bucket_tasks first. If multiple tasks share the same name, also pass bucket_name to pick the right one. The bridge resolves assignee_query (name or email) to a Vikunja user ID automatically.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -5039,7 +5039,7 @@
         "properties": {
           "task_id": {
             "default": 0,
-            "description": "Integer task ID. Pass 0 when you only know the task by name — task_name will be used to auto-resolve it. Do NOT call find_task first.",
+            "description": "Integer task ID. Pass 0 when you only know the task by name \u2014 task_name will be used to auto-resolve it. Do NOT call find_task first.",
             "title": "Task Id",
             "type": "integer"
           },
@@ -5053,7 +5053,7 @@
               }
             ],
             "default": null,
-            "description": "Task title to search for when task_id is unknown. Call assign_task directly with task_name — do NOT pre-search with find_task. If multiple tasks share the same name, also pass bucket_name to disambiguate.",
+            "description": "Task title to search for when task_id is unknown. Call assign_task directly with task_name \u2014 do NOT pre-search with find_task. If multiple tasks share the same name, also pass bucket_name to disambiguate.",
             "title": "Task Name"
           },
           "bucket_name": {
@@ -5188,7 +5188,7 @@
     },
     {
       "name": "add_label",
-      "description": "Attach an existing label (by integer label_id) to a task (by integer task_id). If you only know the label name, call create_label or ask the user for the numeric label_id — Vikunja addresses labels by ID, never by name.",
+      "description": "Attach an existing label (by integer label_id) to a task (by integer task_id). If you only know the label name, call create_label or ask the user for the numeric label_id \u2014 Vikunja addresses labels by ID, never by name.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -5203,7 +5203,7 @@
             "type": "integer"
           },
           "label_id": {
-            "description": "Integer label ID — obtain via create_label response or Vikunja UI. Never label name.",
+            "description": "Integer label ID \u2014 obtain via create_label response or Vikunja UI. Never label name.",
             "title": "Label Id",
             "type": "integer"
           }
@@ -5405,7 +5405,7 @@
     },
     {
       "name": "set_priority",
-      "description": "Set task priority — integer 0 (none) to 5 (critical). Pass integer task_id.",
+      "description": "Set task priority \u2014 integer 0 (none) to 5 (critical). Pass integer task_id.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -5667,7 +5667,7 @@
               }
             ],
             "default": null,
-            "description": "Project name — needed to resolve bucket_name to bucket_id.",
+            "description": "Project name \u2014 needed to resolve bucket_name to bucket_id.",
             "title": "Project Name"
           }
         },
@@ -5745,7 +5745,7 @@
     },
     {
       "name": "search_vikunja_users",
-      "description": "Search for Vikunja users by name or email fragment — use this before assign_task to discover who is available, or when the user asks who they can assign tasks to. Pass empty query to list all known users on the Vikunja instance.",
+      "description": "Search for Vikunja users by name or email fragment \u2014 use this before assign_task to discover who is available, or when the user asks who they can assign tasks to. Pass empty query to list all known users on the Vikunja instance.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -5765,7 +5765,7 @@
       "return_schema": {
         "$defs": {
           "UserEntity": {
-            "description": "Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,\ntitle=username. `connected` marks whether the user has linked their own\nImperal↔Vikunja connection. Mirrors the admin-ext UserRecord pattern.",
+            "description": "Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,\ntitle=username. `connected` marks whether the user has linked their own\nImperal\u2194Vikunja connection. Mirrors the admin-ext UserRecord pattern.",
             "properties": {
               "id": {
                 "anyOf": [
@@ -5855,7 +5855,7 @@
             "x-sdl": "entity"
           }
         },
-        "description": "search_vikunja_users return — a REAL sdl.EntityList[UserEntity] (items=[...],\nx-sdl='entity-list'). NO legacy {users:[dict]} wrapper.",
+        "description": "search_vikunja_users return \u2014 a REAL sdl.EntityList[UserEntity] (items=[...],\nx-sdl='entity-list'). NO legacy {users:[dict]} wrapper.",
         "properties": {
           "items": {
             "items": {
@@ -5909,7 +5909,7 @@
     },
     {
       "name": "list_project_members",
-      "description": "List the members of a specific project (its assignable users — owner plus user/team shares). Use this when the user asks who is on a named project, e.g. 'who is on the WebHostMost Tasks team', 'участники проекта X', 'кто работает над проектом'. Pass project_name when you only know the name; it is resolved automatically. Prefer this over search_vikunja_users when the user names a project — it is project-scoped rather than instance-wide.",
+      "description": "List the members of a specific project (its assignable users \u2014 owner plus user/team shares). Use this when the user asks who is on a named project, e.g. 'who is on the WebHostMost Tasks team', '\u0443\u0447\u0430\u0441\u0442\u043d\u0438\u043a\u0438 \u043f\u0440\u043e\u0435\u043a\u0442\u0430 X', '\u043a\u0442\u043e \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043d\u0430\u0434 \u043f\u0440\u043e\u0435\u043a\u0442\u043e\u043c'. Pass project_name when you only know the name; it is resolved automatically. Prefer this over search_vikunja_users when the user names a project \u2014 it is project-scoped rather than instance-wide.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -5949,7 +5949,7 @@
       "return_schema": {
         "$defs": {
           "UserEntity": {
-            "description": "Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,\ntitle=username. `connected` marks whether the user has linked their own\nImperal↔Vikunja connection. Mirrors the admin-ext UserRecord pattern.",
+            "description": "Vikunja user as a canonical SDL entity (kind='user'): id=vikunja user id,\ntitle=username. `connected` marks whether the user has linked their own\nImperal\u2194Vikunja connection. Mirrors the admin-ext UserRecord pattern.",
             "properties": {
               "id": {
                 "anyOf": [
@@ -6039,7 +6039,7 @@
             "x-sdl": "entity"
           }
         },
-        "description": "list_project_members return — a REAL sdl.EntityList[UserEntity]; project_id\ncarried as an additive typed field (EntityList is a pydantic BaseModel).",
+        "description": "list_project_members return \u2014 a REAL sdl.EntityList[UserEntity]; project_id\ncarried as an additive typed field (EntityList is a pydantic BaseModel).",
         "properties": {
           "items": {
             "items": {
@@ -6195,7 +6195,7 @@
               }
             ],
             "default": null,
-            "description": "Project name (e.g. 'WebHostMost Tasks') — resolves both the bucket and the title search scope.",
+            "description": "Project name (e.g. 'WebHostMost Tasks') \u2014 resolves both the bucket and the title search scope.",
             "title": "Project Name"
           }
         },
@@ -6409,7 +6409,7 @@
             "type": "object"
           },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N\u00d7 get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) \u2014 use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -6743,7 +6743,7 @@
             "type": "object"
           }
         },
-        "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
+        "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks \u2014\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
         "properties": {
           "items": {
             "items": {
@@ -6872,7 +6872,7 @@
             "type": "object"
           },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N\u00d7 get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) \u2014 use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -7206,7 +7206,7 @@
             "type": "object"
           }
         },
-        "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
+        "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks \u2014\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
         "properties": {
           "items": {
             "items": {
@@ -7335,7 +7335,7 @@
             "type": "object"
           },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N\u00d7 get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) \u2014 use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -7669,7 +7669,7 @@
             "type": "object"
           }
         },
-        "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
+        "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks \u2014\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
         "properties": {
           "items": {
             "items": {
@@ -7798,7 +7798,7 @@
             "type": "object"
           },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N\u00d7 get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) \u2014 use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -8132,7 +8132,7 @@
             "type": "object"
           }
         },
-        "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
+        "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks \u2014\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
         "properties": {
           "items": {
             "items": {
@@ -8186,7 +8186,7 @@
     },
     {
       "name": "find_task",
-      "description": "Search tasks by title substring. Returns matching tasks with their integer task_id and project_id. Call this first when the user mentions a task by name and you don't have its integer ID — never invent task_id.",
+      "description": "Search tasks by title substring. Returns matching tasks with their integer task_id and project_id. Call this first when the user mentions a task by name and you don't have its integer ID \u2014 never invent task_id.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -8270,7 +8270,7 @@
             "type": "object"
           },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N\u00d7 get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) \u2014 use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -8604,7 +8604,7 @@
             "type": "object"
           }
         },
-        "description": "find_task — a REAL sdl.EntityList[TaskItem]; the search query carried as an\nadditive typed field.",
+        "description": "find_task \u2014 a REAL sdl.EntityList[TaskItem]; the search query carried as an\nadditive typed field.",
         "properties": {
           "items": {
             "items": {
@@ -8680,7 +8680,7 @@
               }
             ],
             "default": null,
-            "description": "Vikunja filter expression, e.g. 'done = false && project_id = 5'. If omitted, returns ALL tasks (no filter applied). NOTE: bucket_id is not a valid filter field — use list_buckets instead.",
+            "description": "Vikunja filter expression, e.g. 'done = false && project_id = 5'. If omitted, returns ALL tasks (no filter applied). NOTE: bucket_id is not a valid filter field \u2014 use list_buckets instead.",
             "title": "Filter"
           },
           "page": {
@@ -8764,7 +8764,7 @@
             "type": "object"
           },
           "TaskItem": {
-            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N× get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) — use get_task for it.",
+            "description": "Slim SDL task entity for list/search results.\n\nCarries assignees / labels / percent_done / bucket_id so list reads can\nanswer \"who is assigned\", \"which are labeled X\", \"% done\", and \"which\nbucket\" WITHOUT an N\u00d7 get_task fan-out. `description` stays off the slim\nitem on purpose (HTML body would bloat large lists) \u2014 use get_task for it.",
             "properties": {
               "start_at": {
                 "anyOf": [
@@ -9098,7 +9098,7 @@
             "type": "object"
           }
         },
-        "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks —\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
+        "description": "list_my_tasks / list_overdue / list_today / list_upcoming / filter_tasks \u2014\na REAL sdl.EntityList[TaskItem] (items=[...], total=N, x-sdl='entity-list').\nNO legacy {count, tasks:[dict]} wrapper.",
         "properties": {
           "items": {
             "items": {
@@ -9529,7 +9529,7 @@
               }
             ],
             "default": null,
-            "description": "Specific comment IDs to delete. Omit (or pass an empty list) to delete EVERY comment on the task — use for 'delete all comments on task X'.",
+            "description": "Specific comment IDs to delete. Omit (or pass an empty list) to delete EVERY comment on the task \u2014 use for 'delete all comments on task X'.",
             "title": "Comment Ids"
           }
         },
@@ -9751,7 +9751,7 @@
     },
     {
       "name": "ai_breakdown_task",
-      "description": "Break a task into subtasks using AI. Fetches the task title and description, generates N actionable subtask titles, then creates each as a real Vikunja subtask. Use when user says 'break this task into subtasks', 'разбей задачу', 'create a plan', or similar. Returns the list of created subtask IDs and titles.",
+      "description": "Break a task into subtasks using AI. Fetches the task title and description, generates N actionable subtask titles, then creates each as a real Vikunja subtask. Use when user says 'break this task into subtasks', '\u0440\u0430\u0437\u0431\u0435\u0439 \u0437\u0430\u0434\u0430\u0447\u0443', 'create a plan', or similar. Returns the list of created subtask IDs and titles.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -9767,7 +9767,7 @@
           },
           "count": {
             "default": 5,
-            "description": "Number of subtasks to generate (2–10).",
+            "description": "Number of subtasks to generate (2\u201310).",
             "maximum": 10,
             "minimum": 2,
             "title": "Count",
@@ -10167,7 +10167,7 @@
             "type": "integer"
           },
           "attachment_ids": {
-            "description": "List of integer attachment IDs to delete — from list_task_attachments.",
+            "description": "List of integer attachment IDs to delete \u2014 from list_task_attachments.",
             "items": {
               "type": "integer"
             },
@@ -10312,7 +10312,7 @@
     },
     {
       "name": "enable_task_notifications",
-      "description": "Turn on live notifications from your Vikunja — get notified in Imperal (bell/telegram, per your notification settings) when someone assigns you a task or comments on one. Registers a webhook on every one of your current Vikunja projects automatically — no manual setup needed. Projects created after enabling won't be covered until you disable and re-enable.",
+      "description": "Turn on live notifications from your Vikunja \u2014 get notified in Imperal (bell/telegram, per your notification settings) when someone assigns you a task or comments on one. Registers a webhook on every one of your current Vikunja projects automatically \u2014 no manual setup needed. Projects created after enabling won't be covered until you disable and re-enable.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -10434,7 +10434,7 @@
   "secrets": [
     {
       "name": "vikunja_bridge_key",
-      "description": "API key the tasks backend (Vikunja bridge) authenticates with. Shared across all users; set once in Developer Portal → Secrets.",
+      "description": "API key the tasks backend (Vikunja bridge) authenticates with. Shared across all users; set once in Developer Portal \u2192 Secrets.",
       "required": true,
       "write_mode": "user",
       "max_bytes": 256,

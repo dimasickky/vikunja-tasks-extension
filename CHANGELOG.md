@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.46.0 — 2026-11-11 — Native ui.Tabs, Priority Cards & Empty States
+
+### Added
+- **Native ui.Tabs Filter** (`panels_editor.py`) — tabbed filtering for "All / In Progress / Urgent" tasks on the main board.
+- **Enhanced Priority Cards** (`panels_editor.py`) — color-coded high-visibility priority badges (Urgent/High/Medium/Low) on task cards.
+- **Actionable Empty States** (`panels_editor.py`) — empty state guidance with suggestions and primary CTA buttons to create tasks.
+- **Resilience & Error UX** (`panels.py`) — retry controls for Vikunja connection hiccups.
+
 ## [3.45.1] — 2026-11-10
 
 ### Changed

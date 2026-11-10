@@ -27,8 +27,21 @@ log = logging.getLogger("tasks.board")
 
 # ─── Helpers ───────────────────────────────────────────────────────────── #
 
+def _priority_info(p: int) -> tuple[str, str, str]:
+    """Return (label, color, icon) for a given priority level."""
+    return {
+        0: ("", "gray", ""),
+        1: ("Low", "blue", "ArrowDown"),
+        2: ("Medium", "yellow", "Minus"),
+        3: ("High", "amber", "ArrowUp"),
+        4: ("Urgent", "red", "AlertCircle"),
+        5: ("Critical", "red", "Flame"),
+    }.get(p, ("", "gray", ""))
+
+
 def _priority_label(p: int) -> str:
-    return {0: "", 1: "low", 2: "med", 3: "high", 4: "urgent", 5: "critical"}.get(p, "")
+    label, _, _ = _priority_info(p)
+    return label.lower()
 
 
 def _due_badge(task: dict) -> str | None:
@@ -77,11 +90,13 @@ def _task_card(task: dict) -> Any:
     sub_total = len(subtasks)
     sub_done = sum(1 for s in subtasks if s.get("done"))
 
+    prio_label, prio_color, prio_icon = _priority_info(prio)
+
     meta_parts = []
     if due:
         meta_parts.append(f"📅 {due}")
-    if prio >= 3:
-        meta_parts.append(f"⚠ {_priority_label(prio)}")
+    if prio > 0 and prio_label:
+        meta_parts.append(f"⚡ {prio_label}")
     if sub_total:
         meta_parts.append(f"☑ {sub_done}/{sub_total}")
 
@@ -95,11 +110,19 @@ def _task_card(task: dict) -> Any:
     badge = None
     if is_overdue:
         badge = ui.Badge(label="OVERDUE", color="red")
+    elif prio >= 4:
+        badge = ui.Badge(label=prio_label.upper(), color="red")
+    elif prio == 3:
+        badge = ui.Badge(label=prio_label.upper(), color="amber")
+    elif prio in (1, 2):
+        badge = ui.Badge(label=prio_label, color=prio_color)
     elif sub_total and not done:
         color = "green" if sub_done == sub_total else "blue"
         badge = ui.Badge(label=f"{sub_done}/{sub_total}", color=color)
     elif not done and pct > 0:
         badge = ui.Badge(label=f"{int(pct * 100)}%", color="blue")
+    elif done:
+        badge = ui.Badge(label="DONE", color="green")
 
     assignees = task.get("assignees") or []
     avatar = None
@@ -302,9 +325,9 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
 
     # ── Project statistics banner ─────────────────────────────────────
     total_tasks = len(all_tasks)
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     stats_items = []
     if total_tasks > 0:
-        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         done_count = sum(1 for t in all_tasks if t.get("done"))
         overdue_count = sum(
             1 for t in all_tasks
@@ -328,97 +351,146 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
             ),
         ])
 
-    columns = []
-    for b in buckets:
-        btitle = b.get("title", "?")
-        bid = b.get("id")
-        tasks = b.get("tasks") or []
-        top, children = _split_top_and_children(tasks, child_ids)
-
-        action_row = ui.Stack([
-            ui.Button(
-                "✎",
-                size="sm",
-                variant="ghost",
-                on_click=ui.Call(
-                    "__panel__editor",
-                    note_id="bucket_manage",
-                    project_id=str(project_id),
-                    mode="edit_bucket",
-                    bucket_id=str(bid),
-                    bucket_title=btitle,
-                ),
-            ),
-            ui.Button(
-                "✕",
-                size="sm",
-                variant="ghost",
-                on_click=ui.Call(
-                    "__panel__editor",
-                    note_id="bucket_manage",
-                    project_id=str(project_id),
-                    mode="confirm_delete_bucket",
-                    bucket_id=str(bid),
-                    bucket_title=btitle,
-                ),
-            ),
-            ui.Button(
-                "+ Task",
-                icon="Plus",
-                size="sm",
-                variant="ghost",
-                on_click=ui.Call(
-                    "__panel__editor",
-                    note_id="new",
-                    mode="new",
-                    project_id=str(project_id),
-                    bucket_id=str(bid),
-                ),
-            ),
-        ], direction="h", gap=1, wrap=True)
-
-        bucket_body: list[Any] = [action_row]
-        drop_target = ui.ListItem(
-            id=f"dropzone_{bid}",
-            title=f"Drop here → {btitle}",
-            icon="MoveDown",
-            droppable=True,
-            on_drop=ui.Call("move_to_bucket", bucket_id=bid),
-        )
-        bucket_body.append(ui.List(items=[drop_target]))
-        if top:
-            bucket_body.append(ui.List(
-                items=[_task_card(t) for t in top], searchable=True,
-                selectable=True,
-                bulk_actions=[
-                    {"label": "Delete", "icon": "Trash2",
-                     "action": ui.Call("delete_tasks")},
-                ],
-            ))
-        elif not children:
-            bucket_body.append(ui.Text("—", variant="caption"))
-        if children:
-            bucket_body.append(_subtasks_section(children))
-
-        columns.append(
-            ui.Card(
-                title=f"{btitle} ({len(top)})",
-                content=ui.Stack(children=bucket_body, gap=1),
+    def _render_columns_for_filter(filter_mode: str) -> ui.Stack | ui.Empty:
+        if not buckets:
+            return ui.Empty(
+                title="No Columns Yet",
+                message="This project has no Kanban columns. Click '+ Column' above to organize your tasks.",
+                icon="Columns",
+                action=ui.Call("__panel__editor", note_id="bucket_manage", project_id=str(project_id), mode="new_bucket"),
             )
-        )
 
-    if not columns:
-        body = ui.Empty(
-            message="No buckets yet. Vikunja creates them automatically — check project config.",
-            icon="Columns",
-        )
-    else:
-        body = ui.Stack(children=columns, direction="h", gap=2, wrap=False, className="overflow-x-auto")
+        cols = []
+        matching_total = 0
+        for b in buckets:
+            btitle = b.get("title", "?")
+            bid = b.get("id")
+            raw_tasks = b.get("tasks") or []
+            
+            # Apply filter
+            if filter_mode == "in_progress":
+                b_tasks = [t for t in raw_tasks if not t.get("done")]
+            elif filter_mode == "urgent":
+                b_tasks = [
+                    t for t in raw_tasks
+                    if not t.get("done") and (
+                        t.get("priority", 0) >= 4
+                        or (t.get("due_date") and not t.get("due_date").startswith("0001-") and t.get("due_date")[:10] < today_str)
+                    )
+                ]
+            else:
+                b_tasks = raw_tasks
+
+            matching_total += len(b_tasks)
+            top, children = _split_top_and_children(b_tasks, child_ids)
+
+            action_row = ui.Stack([
+                ui.Button(
+                    "✎",
+                    size="sm",
+                    variant="ghost",
+                    on_click=ui.Call(
+                        "__panel__editor",
+                        note_id="bucket_manage",
+                        project_id=str(project_id),
+                        mode="edit_bucket",
+                        bucket_id=str(bid),
+                        bucket_title=btitle,
+                    ),
+                ),
+                ui.Button(
+                    "✕",
+                    size="sm",
+                    variant="ghost",
+                    on_click=ui.Call(
+                        "__panel__editor",
+                        note_id="bucket_manage",
+                        project_id=str(project_id),
+                        mode="confirm_delete_bucket",
+                        bucket_id=str(bid),
+                        bucket_title=btitle,
+                    ),
+                ),
+                ui.Button(
+                    "+ Task",
+                    icon="Plus",
+                    size="sm",
+                    variant="ghost",
+                    on_click=ui.Call(
+                        "__panel__editor",
+                        note_id="new",
+                        mode="new",
+                        project_id=str(project_id),
+                        bucket_id=str(bid),
+                    ),
+                ),
+            ], direction="h", gap=1, wrap=True)
+
+            bucket_body: list[Any] = [action_row]
+            drop_target = ui.ListItem(
+                id=f"dropzone_{bid}",
+                title=f"Drop here → {btitle}",
+                icon="MoveDown",
+                droppable=True,
+                on_drop=ui.Call("move_to_bucket", bucket_id=bid),
+            )
+            bucket_body.append(ui.List(items=[drop_target]))
+            if top:
+                bucket_body.append(ui.List(
+                    items=[_task_card(t) for t in top], searchable=True,
+                    selectable=True,
+                    bulk_actions=[
+                        {"label": "Delete", "icon": "Trash2",
+                         "action": ui.Call("delete_tasks")},
+                    ],
+                ))
+            elif not children:
+                bucket_body.append(ui.Empty(
+                    message="No tasks in this column. Add a new task or drag one here.",
+                    icon="CheckCircle2",
+                ))
+            if children:
+                bucket_body.append(_subtasks_section(children))
+
+            cols.append(
+                ui.Card(
+                    title=f"{btitle} ({len(top)})",
+                    content=ui.Stack(children=bucket_body, gap=1),
+                )
+            )
+
+        if matching_total == 0 and filter_mode != "all":
+            label = "tasks in progress" if filter_mode == "in_progress" else "urgent tasks"
+            return ui.Empty(
+                title="All clear!",
+                message=f"No {label} in this project. Everything is on track.",
+                icon="CheckCircle2",
+            )
+
+        return ui.Stack(children=cols, direction="h", gap=2, wrap=False, className="overflow-x-auto")
+
+    # Tabs for filtering: Все / В работе / Срочные
+    board_tabs = ui.Tabs(
+        tabs=[
+            {"id": "all", "label": f"Все ({len(all_tasks)})", "content": _render_columns_for_filter("all")},
+            {
+                "id": "in_progress",
+                "label": f"В работе ({sum(1 for t in all_tasks if not t.get('done'))})",
+                "content": _render_columns_for_filter("in_progress"),
+            },
+            {
+                "id": "urgent",
+                "label": f"Срочные ({sum(1 for t in all_tasks if not t.get('done') and (t.get('priority', 0) >= 4 or (t.get('due_date') and not t.get('due_date').startswith('0001-') and t.get('due_date')[:10] < today_str)))})",
+                "content": _render_columns_for_filter("urgent"),
+            },
+        ],
+        default_tab=0,
+    )
 
     return ui.Stack([
         _header(proj_title, imperal_id, project_id=project_id, members=members),
         *stats_items,
-        body,
+        board_tabs,
     ], gap=2)
 
 

@@ -300,6 +300,34 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
     all_tasks = [t for b in buckets for t in (b.get("tasks") or [])]
     child_ids = _collect_child_task_ids(all_tasks)
 
+    # ── Project statistics banner ─────────────────────────────────────
+    total_tasks = len(all_tasks)
+    stats_items = []
+    if total_tasks > 0:
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        done_count = sum(1 for t in all_tasks if t.get("done"))
+        overdue_count = sum(
+            1 for t in all_tasks
+            if not t.get("done") and t.get("due_date") and not t.get("due_date").startswith("0001-")
+            and t.get("due_date")[:10] < today_str
+        )
+        pct = int(round((done_count / total_tasks) * 100)) if total_tasks else 0
+        stats_items.extend([
+            ui.Stats([
+                ui.Stat(label="Total Tasks", value=total_tasks, icon="Kanban", color="blue"),
+                ui.Stat(label="Completed", value=f"{done_count} ({pct}%)", icon="CheckCircle2", color="green"),
+                ui.Stat(label="Overdue", value=overdue_count, icon="AlertTriangle", color="red" if overdue_count > 0 else "gray"),
+                ui.Stat(label="Columns", value=len(buckets), icon="Columns", color="purple"),
+            ], columns=4),
+            ui.Progress(
+                value=pct,
+                max=100,
+                label=f"Project Completion: {pct}%",
+                color="green" if pct >= 75 else ("blue" if pct >= 40 else "amber"),
+                show_value=True,
+            ),
+        ])
+
     columns = []
     for b in buckets:
         btitle = b.get("title", "?")
@@ -389,6 +417,7 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
 
     return ui.Stack([
         _header(proj_title, imperal_id, project_id=project_id, members=members),
+        *stats_items,
         body,
     ], gap=2)
 

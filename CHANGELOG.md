@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.45.1] — 2026-11-10
+
+### Changed
+
+- **imperal-sdk 5.9.12 → 6.5.3** — bumped SDK requirement in `requirements.txt` and `imperal.json`.
+- **Standard BackButton** — replaced custom back button in task detail panel (`panels_task.py`) with standard `ui.BackButton`.
+- **Manifest category** — declared `"category": "productivity"` for platform catalog indexing.
+
 ## [3.45.0] — 2026-09-17
 
 ### Added

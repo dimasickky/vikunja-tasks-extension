@@ -354,7 +354,6 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
     def _render_columns_for_filter(filter_mode: str) -> ui.Stack | ui.Empty:
         if not buckets:
             return ui.Empty(
-                title="No Columns Yet",
                 message="This project has no Kanban columns. Click '+ Column' above to organize your tasks.",
                 icon="Columns",
                 action=ui.Call("__panel__editor", note_id="bucket_manage", project_id=str(project_id), mode="new_bucket"),
@@ -462,7 +461,6 @@ async def _render_project_board(ctx, imperal_id: str, project_id: int) -> Any:
         if matching_total == 0 and filter_mode != "all":
             label = "tasks in progress" if filter_mode == "in_progress" else "urgent tasks"
             return ui.Empty(
-                title="All clear!",
                 message=f"No {label} in this project. Everything is on track.",
                 icon="CheckCircle2",
             )

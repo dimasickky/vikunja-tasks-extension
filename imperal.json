@@ -10486,6 +10486,6 @@
       "cache_ttl": 60
     }
   ],
-  "schema_version": "1.6.0",
-  "category": "productivity"
+  "category": "productivity",
+  "manifest_schema_version": 3
 }

@@ -10,7 +10,12 @@ import asyncio
 import logging
 
 from app import api_get, api_post, api_delete, chat, imperal_id_of, is_no_connection_error, resolve_project_id
-from panels_task import _toggle_checklist_item
+from _task_checklist import (
+    _parse_checklist,
+    _toggle_checklist_item,
+    _add_checklist_item,
+    _delete_checklist_item,
+)
 from models_return import (
     CreateTaskResult,
     UpdateTaskResult,
@@ -21,6 +26,10 @@ from models_return import (
     CreateSubtaskResult,
     ListSubtasksResult,
     ToggleChecklistResult,
+    ChecklistItem,
+    GetChecklistResult,
+    AddChecklistItemResult,
+    DeleteChecklistItemResult,
     TaskEntity,
     SubtaskItem,
     TaskAssignee,
@@ -130,6 +139,21 @@ class ToggleChecklistItemParams(BaseModel):
     task_id: int = Field(..., description="Task whose description checklist to update.")
     item_index: int = Field(..., ge=0, description="Zero-based index of the checklist item.")
     checked: bool = Field(..., description="True to mark done, False to uncheck.")
+
+
+class GetChecklistParams(BaseModel):
+    task_id: int = Field(..., description="Integer task ID whose checklist to inspect.")
+
+
+class AddChecklistItemParams(BaseModel):
+    task_id: int = Field(..., description="Task ID to add a checklist item to.")
+    text: str = Field(..., min_length=1, max_length=500, description="Checklist item text.")
+    checked: bool = Field(False, description="Initial checked state (default False).")
+
+
+class DeleteChecklistItemParams(BaseModel):
+    task_id: int = Field(..., description="Task ID to remove a checklist item from.")
+    item_index: int = Field(..., ge=0, description="Zero-based index of the checklist item to remove.")
 
 
 # ─── Impl functions ───────────────────────────────────────────────────────── #
@@ -928,6 +952,139 @@ async def toggle_checklist_item(ctx, params: ToggleChecklistItemParams) -> Actio
             "task_id":    params.task_id,
             "item_index": params.item_index,
             "checked":    params.checked,
+            "refresh_panels": ["editor"],
+        },
+    )
+
+
+@chat.function(
+    "get_checklist",
+    action_type="read",
+    chain_callable=True,
+    id_projection="task_id",
+    description=(
+        "Get all checklist items embedded in a task's description (TipTap taskList). "
+        "Returns item index, text, and checked status for each item."
+    ),
+    data_model=GetChecklistResult,
+)
+async def get_checklist(ctx, params: GetChecklistParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    task = await api_get(ctx, f"/v1/tasks/{params.task_id}", {"imperal_id": imperal_id})
+    if isinstance(task, dict) and task.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(task, "Couldn't fetch task"), code=TASKS_BRIDGE_ERROR)
+
+    desc = task.get("description") or ""
+    raw_items = _parse_checklist(desc)
+    items = [
+        ChecklistItem(index=i, text=item["text"], checked=item["checked"])
+        for i, item in enumerate(raw_items)
+    ]
+    return ActionResult.success(
+        summary=f"Task #{params.task_id} has {len(items)} checklist items.",
+        data={
+            "task_id": params.task_id,
+            "total": len(items),
+            "items": [it.model_dump() for it in items],
+        },
+    )
+
+
+@chat.function(
+    "add_checklist_item",
+    action_type="write",
+    chain_callable=True,
+    id_projection="task_id",
+    effects=["update:task"],
+    event="task.updated",
+    description=(
+        "Add a new checklist item to a task's description. "
+        "Appends to an existing TipTap taskList or creates one if missing."
+    ),
+    data_model=AddChecklistItemResult,
+)
+async def add_checklist_item(ctx, params: AddChecklistItemParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    task = await api_get(ctx, f"/v1/tasks/{params.task_id}", {"imperal_id": imperal_id})
+    if isinstance(task, dict) and task.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(task, "Couldn't fetch task"), code=TASKS_BRIDGE_ERROR)
+
+    desc = task.get("description") or ""
+    new_desc = _add_checklist_item(desc, params.text, params.checked)
+
+    resp = await api_post(ctx, f"/v1/tasks/{params.task_id}", {
+        "imperal_id": imperal_id,
+        "description": new_desc,
+    })
+    if resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't add checklist item"), code=TASKS_BRIDGE_ERROR)
+
+    raw_items = _parse_checklist(new_desc)
+    new_index = len(raw_items) - 1
+
+    return ActionResult.success(
+        summary=f"Added checklist item '{params.text}' to task #{params.task_id}.",
+        data={
+            "task_id": params.task_id,
+            "item_index": max(0, new_index),
+            "text": params.text,
+            "checked": params.checked,
+            "total": len(raw_items),
+            "refresh_panels": ["editor"],
+        },
+    )
+
+
+@chat.function(
+    "delete_checklist_item",
+    action_type="destructive",
+    chain_callable=True,
+    id_projection="task_id",
+    effects=["update:task"],
+    event="task.updated",
+    description=(
+        "Remove a checklist item from a task's description by its 0-based index."
+    ),
+    data_model=DeleteChecklistItemResult,
+)
+async def delete_checklist_item(ctx, params: DeleteChecklistItemParams) -> ActionResult:
+    imperal_id = _require_user(ctx)
+    if isinstance(imperal_id, ActionResult):
+        return imperal_id
+
+    task = await api_get(ctx, f"/v1/tasks/{params.task_id}", {"imperal_id": imperal_id})
+    if isinstance(task, dict) and task.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(task, "Couldn't fetch task"), code=TASKS_BRIDGE_ERROR)
+
+    desc = task.get("description") or ""
+    new_desc, ok = _delete_checklist_item(desc, params.item_index)
+    if not ok:
+        return ActionResult.error(
+            f"Checklist item #{params.item_index} not found in task description.",
+            code=TASKS_CHECKLIST_ITEM_NOT_FOUND,
+        )
+
+    resp = await api_post(ctx, f"/v1/tasks/{params.task_id}", {
+        "imperal_id": imperal_id,
+        "description": new_desc,
+    })
+    if resp.get("status") == "error":
+        return ActionResult.error(_bridge_error_msg(resp, "Couldn't delete checklist item"), code=TASKS_BRIDGE_ERROR)
+
+    remaining_items = _parse_checklist(new_desc)
+
+    return ActionResult.success(
+        summary=f"Deleted checklist item #{params.item_index} from task #{params.task_id}.",
+        data={
+            "task_id": params.task_id,
+            "deleted_index": params.item_index,
+            "total": len(remaining_items),
             "refresh_panels": ["editor"],
         },
     )

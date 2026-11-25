@@ -60,6 +60,45 @@ def _toggle_checklist_item(html: str, index: int, checked: bool) -> str:
     return html[:m.start()] + m.group(1) + new_val + m.group(2) + html[m.end():]
 
 
+def _add_checklist_item(html: str, text: str, checked: bool = False) -> str:
+    """Add a checklist item to TipTap HTML. Creates taskList block if missing."""
+    import html as html_lib
+    escaped_text = html_lib.escape(text.strip())
+    chk_str = "true" if checked else "false"
+    item_html = f'<li data-type="taskItem" data-checked="{chk_str}"><div>{escaped_text}</div></li>'
+
+    if not html or not html.strip():
+        return f'<ul data-type="taskList">{item_html}</ul>'
+
+    # Check if a taskList ul already exists
+    ul_match = re.search(r'(<ul[^>]*data-type=["\']taskList["\'][^>]*>)(.*?)(</ul>)', html, flags=re.DOTALL)
+    if ul_match:
+        # Append before closing </ul>
+        prefix = html[:ul_match.start(3)]
+        suffix = html[ul_match.start(3):]
+        return prefix + item_html + suffix
+    else:
+        # Append whole ul block to end of description
+        sep = "<p></p>" if not html.endswith("</p>") else ""
+        return html + sep + f'<ul data-type="taskList">{item_html}</ul>'
+
+
+def _delete_checklist_item(html: str, index: int) -> tuple[str, bool]:
+    """Delete checklist item at `index`. Returns (updated_html, success)."""
+    # Match complete <li data-type="taskItem" ...>...</li> blocks
+    li_pattern = r'<li data-type="taskItem"[^>]*>.*?</li>'
+    items = list(re.finditer(li_pattern, html, flags=re.DOTALL))
+    if index < 0 or index >= len(items):
+        return html, False
+
+    target = items[index]
+    updated = html[:target.start()] + html[target.end():]
+
+    # Clean up empty taskList ul blocks: <ul data-type="taskList">\s*</ul>
+    updated = re.sub(r'<ul[^>]*data-type=["\']taskList["\'][^>]*>\s*</ul>', '', updated, flags=re.DOTALL).strip()
+    return updated, True
+
+
 def _strip_tasklist(html: str) -> str:
     """Remove TipTap taskList blocks from HTML — rendered separately as DUI checklist."""
     return re.sub(r'<ul[^>]*data-type=["\']taskList["\'][^>]*>.*?</ul>', "", html,

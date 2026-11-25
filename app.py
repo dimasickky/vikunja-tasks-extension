@@ -135,6 +135,34 @@ def is_no_connection_error(resp: dict) -> bool:
     return isinstance(resp, dict) and resp.get("code") == "no_connection"
 
 
+def bridge_error_result(resp: dict, default_prefix: str, default_code: str = "TASKS_BRIDGE_ERROR") -> ActionResult:
+    """Create a structured ActionResult error from a bridge response.
+
+    If the bridge returned a no_connection signal, emits AUTH_EXPIRED with SDK 6.9.0
+    needs_human structured payload (kind='means'). Otherwise formats the error with default_code.
+    """
+    try:
+        from imperal_sdk.chat.error_codes import AUTH_EXPIRED
+    except ImportError:
+        AUTH_EXPIRED = "AUTH_EXPIRED"
+
+    if is_no_connection_error(resp):
+        return ActionResult.error(
+            "No Vikunja connected. Connect your Vikunja in the tasks panel first.",
+            code=AUTH_EXPIRED,
+            needs_human={
+                "what": "Connect your Vikunja instance in the tasks panel",
+                "kind": "means",
+            },
+        )
+
+    detail = resp.get("detail") or resp.get("error") or resp.get("message")
+    if isinstance(detail, dict):
+        detail = detail.get("detail") or detail.get("error") or detail.get("message") or str(detail)
+    msg = f"{default_prefix}: {detail}" if detail else default_prefix
+    return ActionResult.error(msg, code=default_code)
+
+
 async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | None:
     """Case-insensitive project name → project_id. exact → startswith → contains."""
     resp = await api_get(ctx, "/v1/projects", {"imperal_id": imperal_id})
@@ -156,7 +184,7 @@ async def resolve_project_id(ctx, imperal_id: str, project_name: str) -> int | N
 
 ext = Extension(
     "tasks",
-    version="3.46.0",
+    version="3.47.0",
     capabilities=["tasks:read", "tasks:write"],
     display_name="Vikunja Tasks Connector",
     description=(

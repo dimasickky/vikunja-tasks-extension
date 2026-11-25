@@ -1,1 +1,1 @@
-imperal-sdk==6.5.3
+imperal-sdk>=6.9.0

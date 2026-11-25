@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.47.0 — 2026-11-25 — SDK 6.9.0, AI Powerhouse & Native Checklists
+
+### Added
+- **Imperal SDK v6.9.0 Upgrade & Structured `needs_human` Handling**:
+  - Full compliance with SDK 6.9.0 contract and truth architecture.
+  - Implemented `bridge_error_result` with structured `ActionResult.error(..., code=AUTH_EXPIRED, needs_human={"what": ..., "kind": "means"})` when Vikunja connection is missing, enabling seamless autonomous agent recovery.
+- **Autonomous AI Suite for Webbee Agent (`handlers_ai.py`)**:
+  - `ai_plan_my_day`: Smart day planner scheduling tasks into morning/afternoon/evening slots based on priorities, deadlines, and time constraints.
+  - `ai_estimate_duration`: Duration estimator with confidence levels, rationale, and suggested breakdown steps.
+  - `ai_project_summary`: Executive project health reporting, key findings, and recommended next priorities.
+- **Granular Checklist Tools for Agent & Panels (`handlers_crud.py`, `_task_checklist.py`)**:
+  - `get_checklist`: Read task checklist items parsed directly from TipTap HTML description.
+  - `add_checklist_item`: Add item to task checklist (with auto-creation of taskList block).
+  - `toggle_checklist_item`: Toggle checklist item state by index with live panel refresh.
+  - `delete_checklist_item`: Remove checklist item by index with automatic clean-up of empty blocks.
+- **Manifest & Tool Catalog Expansion**:
+  - Expanded toolset to 73 fully documented agent/panel tools in `imperal.json` and `manifest.json`.
+  - Comprehensive automated test suite (`tests/test_ai_tools.py`, `tests/test_checklists.py`, `tests/test_needs_human.py`).
+
 ## v3.46.0 — 2026-11-11 — Native ui.Tabs, Priority Cards & Empty States
 
 ### Added

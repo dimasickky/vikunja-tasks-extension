@@ -207,6 +207,34 @@ class ListSubtasksResult(sdl.EntityList[SubtaskItem]):
     task_id: Optional[int] = None
 
 
+class ChecklistItem(BaseModel):
+    index: int
+    text: str
+    checked: bool
+
+
+class GetChecklistResult(BaseModel):
+    task_id: int
+    total: int
+    items: List[ChecklistItem]
+
+
+class AddChecklistItemResult(BaseModel):
+    task_id: int
+    item_index: int
+    text: str
+    checked: bool
+    total: int
+    refresh_panels: List[str]
+
+
+class DeleteChecklistItemResult(BaseModel):
+    task_id: int
+    deleted_index: int
+    total: int
+    refresh_panels: List[str]
+
+
 class ToggleChecklistResult(BaseModel):
     task_id: int
     item_index: int
@@ -484,6 +512,49 @@ class AiBreakdownResult(BaseModel):
     subtasks_created: List[AiSubtaskCreated]
     count: int
     refresh_panels: List[str]
+
+
+class PlannedTaskItem(BaseModel):
+    task_id: int
+    title: str
+    priority: int = 0
+    due_date: Optional[str] = None
+    time_slot: Optional[str] = None
+    estimated_minutes: Optional[int] = None
+    reason: Optional[str] = None
+
+
+class AiPlanMyDayResult(BaseModel):
+    plan_date: str
+    summary: str
+    scheduled_tasks: List[PlannedTaskItem]
+    total_estimated_minutes: int
+    recommendations: List[str]
+    refresh_panels: List[str] = ["sidebar", "editor"]
+
+
+class AiEstimateDurationResult(BaseModel):
+    task_id: int
+    task_title: str
+    estimated_minutes: int
+    confidence: str  # low | medium | high
+    rationale: str
+    suggested_breakdown: List[str] = []
+    refresh_panels: List[str] = []
+
+
+class AiProjectSummaryResult(BaseModel):
+    project_id: int
+    project_title: str
+    total_tasks: int
+    completed_tasks: int
+    in_progress_tasks: int
+    overdue_tasks: int
+    health: str  # on_track | at_risk | behind
+    key_findings: List[str]
+    next_priorities: List[str]
+    summary_markdown: str
+    refresh_panels: List[str] = []
 
 
 # ─── handlers_attachments ──────────────────────────────────────────────────── #
